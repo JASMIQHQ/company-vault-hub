@@ -157,7 +157,40 @@
   --sidebar-accent-foreground: oklch(0.984 0.003 247.858);
   --sidebar-border: oklch(1 0 0 / 10%);
   --sidebar-ring: oklch(0.551 0.027 264.364);
+  --success: oklch(0.72 0.14 158);
+  --success-soft: oklch(0.32 0.06 158);
+  --warning: oklch(0.8 0.13 78);
+  --warning-soft: oklch(0.34 0.06 78);
+  --info: oklch(0.75 0.11 245);
+  --info-soft: oklch(0.32 0.06 245);
+  --glass: oklch(0.22 0.03 265 / 0.55);
+  --glass-border: oklch(1 0 0 / 0.09);
+  --app-gradient: radial-gradient(
+      110% 80% at 8% 0%,
+      oklch(0.24 0.05 265) 0%,
+      transparent 60%
+    ),
+    radial-gradient(90% 70% at 100% 0%, oklch(0.22 0.05 200) 0%, transparent 55%),
+    var(--background);
 }
+
+@utility glass-panel {
+  background: var(--glass);
+  border: 1px solid var(--glass-border);
+  border-radius: var(--radius-2xl);
+  backdrop-filter: blur(20px) saturate(140%);
+  box-shadow: var(--shadow-glass);
+}
+
+@utility bg-app-gradient {
+  background: var(--app-gradient);
+  background-attachment: fixed;
+}
+
+@utility shadow-elegant {
+  box-shadow: var(--shadow-elegant);
+}
+
 
 @layer base {
   * {
