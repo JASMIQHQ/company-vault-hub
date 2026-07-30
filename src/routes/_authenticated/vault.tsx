@@ -7,7 +7,7 @@ import { Input } from "@/components/ui/input";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { DocumentList } from "@/components/vault/document-list";
 import { UploadDialog } from "@/components/vault/upload-dialog";
-import { useDocuments, useOrganizationId } from "@/hooks/use-vault";
+import { useDocuments, useOrganizationId, useSession } from "@/hooks/use-vault";
 import { supabase } from "@/integrations/supabase/client";
 
 export const Route = createFileRoute("/_authenticated/vault")({
@@ -36,8 +36,9 @@ function VaultPage() {
   const router = useRouter();
   const [search, setSearch] = useState("");
 
-  const orgQuery = useOrganizationId();
-  const documentsQuery = useDocuments(orgQuery.data);
+  const { session, isLoading: sessionLoading } = useSession();
+  const orgQuery = useOrganizationId(session);
+  const documentsQuery = useDocuments(session, orgQuery.data);
 
   const filtered = useMemo(() => {
     const term = search.trim().toLowerCase();
@@ -55,7 +56,9 @@ function VaultPage() {
     router.navigate({ to: "/auth" });
   };
 
-  const orgMissing = !orgQuery.isLoading && !orgQuery.error && !orgQuery.data;
+  const bootstrapping = sessionLoading || orgQuery.isPending;
+  const orgMissing =
+    !bootstrapping && !orgQuery.error && Boolean(session) && !orgQuery.data;
 
   return (
     <div className="min-h-screen bg-app-gradient">
@@ -110,7 +113,7 @@ function VaultPage() {
           ) : (
             <DocumentList
               documents={filtered}
-              isLoading={orgQuery.isLoading || documentsQuery.isLoading}
+              isLoading={bootstrapping || documentsQuery.isPending}
               error={(orgQuery.error as Error | null) ?? (documentsQuery.error as Error | null)}
               onRetry={() => {
                 orgQuery.refetch();
