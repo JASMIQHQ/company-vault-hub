@@ -1,0 +1,4 @@
+CREATE POLICY "tender_files_select_org" ON storage.objects FOR SELECT TO authenticated USING (bucket_id = 'tender-files' AND public.is_org_member(((storage.foldername(name))[1])::uuid));
+CREATE POLICY "tender_files_insert_org" ON storage.objects FOR INSERT TO authenticated WITH CHECK (bucket_id = 'tender-files' AND public.is_org_member(((storage.foldername(name))[1])::uuid));
+CREATE POLICY "tender_files_update_org" ON storage.objects FOR UPDATE TO authenticated USING (bucket_id = 'tender-files' AND public.is_org_member(((storage.foldername(name))[1])::uuid)) WITH CHECK (bucket_id = 'tender-files' AND public.is_org_member(((storage.foldername(name))[1])::uuid));
+CREATE POLICY "tender_files_delete_org" ON storage.objects FOR DELETE TO authenticated USING (bucket_id = 'tender-files' AND public.is_org_member(((storage.foldername(name))[1])::uuid));

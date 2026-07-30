@@ -1,5 +1,5 @@
 import { useMemo, useState } from "react";
-import { createFileRoute, useRouter } from "@tanstack/react-router";
+import { createFileRoute, Link, useRouter } from "@tanstack/react-router";
 import { LogOut, Search, ShieldCheck } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
@@ -74,6 +74,9 @@ function VaultPage() {
             </div>
           </div>
           <div className="flex items-center gap-1">
+            <Button asChild variant="ghost" size="sm" className="rounded-xl">
+              <Link to="/tenders">Tenders</Link>
+            </Button>
             <ThemeToggle />
             <Button variant="ghost" size="icon" className="rounded-xl" onClick={signOut} aria-label="Sign out">
               <LogOut className="size-4" />
