@@ -1,5 +1,5 @@
 import { useMemo, useState } from "react";
-import { createFileRoute, useRouter } from "@tanstack/react-router";
+import { createFileRoute, Link, useRouter } from "@tanstack/react-router";
 import { LogOut, Search, ShieldCheck } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
