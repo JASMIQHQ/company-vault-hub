@@ -7,7 +7,7 @@ import { Input } from "@/components/ui/input";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { DocumentList } from "@/components/vault/document-list";
 import { UploadDialog } from "@/components/vault/upload-dialog";
-import { useDocuments, useOrganizationId } from "@/hooks/use-vault";
+import { useDocuments, useOrganizationId, useSession } from "@/hooks/use-vault";
 import { supabase } from "@/integrations/supabase/client";
 
 export const Route = createFileRoute("/_authenticated/vault")({
