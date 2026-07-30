@@ -113,7 +113,7 @@ function VaultPage() {
           ) : (
             <DocumentList
               documents={filtered}
-              isLoading={orgQuery.isLoading || documentsQuery.isLoading}
+              isLoading={bootstrapping || documentsQuery.isPending}
               error={(orgQuery.error as Error | null) ?? (documentsQuery.error as Error | null)}
               onRetry={() => {
                 orgQuery.refetch();
