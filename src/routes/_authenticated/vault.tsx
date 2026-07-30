@@ -56,7 +56,9 @@ function VaultPage() {
     router.navigate({ to: "/auth" });
   };
 
-  const orgMissing = !orgQuery.isLoading && !orgQuery.error && !orgQuery.data;
+  const bootstrapping = sessionLoading || orgQuery.isPending;
+  const orgMissing =
+    !bootstrapping && !orgQuery.error && Boolean(session) && !orgQuery.data;
 
   return (
     <div className="min-h-screen bg-app-gradient">
