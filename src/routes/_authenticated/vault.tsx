@@ -36,8 +36,9 @@ function VaultPage() {
   const router = useRouter();
   const [search, setSearch] = useState("");
 
-  const orgQuery = useOrganizationId();
-  const documentsQuery = useDocuments(orgQuery.data);
+  const { session, isLoading: sessionLoading } = useSession();
+  const orgQuery = useOrganizationId(session);
+  const documentsQuery = useDocuments(session, orgQuery.data);
 
   const filtered = useMemo(() => {
     const term = search.trim().toLowerCase();
