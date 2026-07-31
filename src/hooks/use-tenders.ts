@@ -6,6 +6,7 @@ import {
   TENDER_BUCKET,
   buildTenderStoragePath,
   type TenderListItem,
+  type TenderRequirementItem,
 } from "@/lib/tenders";
 import { sha256Hex } from "@/lib/vault";
 
@@ -19,7 +20,9 @@ export function useTenders(
     queryFn: async (): Promise<TenderListItem[]> => {
       const { data, error } = await supabase
         .from("tenders")
-        .select("id, title, created_at, tender_files(storage_path, created_at)")
+        .select(
+          "id, title, created_at, analysis_status, analysis_error, procuring_entity, submission_deadline, tender_files(storage_path, created_at)",
+        )
         .eq("organization_id", organizationId!)
         .order("created_at", { ascending: false });
       if (error) throw error;
@@ -28,8 +31,50 @@ export function useTenders(
         id: tender.id,
         title: tender.title,
         created_at: tender.created_at,
+        analysis_status: tender.analysis_status,
+        analysis_error: tender.analysis_error,
+        procuring_entity: tender.procuring_entity,
+        submission_deadline: tender.submission_deadline,
         storage_path: tender.tender_files?.[0]?.storage_path ?? null,
       }));
+    },
+  });
+}
+
+export function useTenderRequirements(
+  session: Session | null,
+  tenderId: string | null,
+  enabled = true,
+) {
+  return useQuery({
+    queryKey: ["tender_requirements", tenderId],
+    enabled: Boolean(session) && Boolean(tenderId) && enabled,
+    queryFn: async (): Promise<TenderRequirementItem[]> => {
+      const { data, error } = await supabase
+        .from("tender_requirements")
+        .select("id, category, requirement_name, requirement_text, display_order")
+        .eq("tender_id", tenderId!)
+        .order("display_order", { ascending: true, nullsFirst: false });
+      if (error) throw error;
+      return data ?? [];
+    },
+  });
+}
+
+export function useAnalyzeTender() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async (tenderId: string) => {
+      const { data, error } = await supabase.functions.invoke("analyze-tender", {
+        body: { tender_id: tenderId },
+      });
+      if (error) throw error;
+      return data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["tenders"] });
+      queryClient.invalidateQueries({ queryKey: ["tender_requirements"] });
     },
   });
 }

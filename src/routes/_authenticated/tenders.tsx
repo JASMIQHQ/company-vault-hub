@@ -1,11 +1,14 @@
+import { useState } from "react";
 import { createFileRoute, Link, useRouter } from "@tanstack/react-router";
 import { FileStack, LogOut } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
+import { Label } from "@/components/ui/label";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { TenderList } from "@/components/tenders/tender-list";
 import { TenderUploadDialog } from "@/components/tenders/tender-upload-dialog";
 import { useTenders } from "@/hooks/use-tenders";
+import { useOrganizations, useProfile } from "@/hooks/use-profile";
 import { useOrganizationId, useSession } from "@/hooks/use-vault";
 import { supabase } from "@/integrations/supabase/client";
 
@@ -35,7 +38,17 @@ function TendersPage() {
   const router = useRouter();
   const { session, isLoading: sessionLoading } = useSession();
   const orgQuery = useOrganizationId(session);
-  const tendersQuery = useTenders(session, orgQuery.data);
+  const profileQuery = useProfile(session);
+  const orgsQuery = useOrganizations(session, profileQuery.data?.id);
+  const organizations = orgsQuery.data ?? [];
+  const multiCompany = organizations.length > 1;
+
+  const [selectedOrg, setSelectedOrg] = useState<string | null>(null);
+  const activeOrg = multiCompany
+    ? (selectedOrg ?? organizations[0].id)
+    : (orgQuery.data ?? organizations[0]?.id ?? null);
+
+  const tendersQuery = useTenders(session, activeOrg);
 
   const signOut = async () => {
     await supabase.auth.signOut();
@@ -43,8 +56,8 @@ function TendersPage() {
   };
 
   const bootstrapping = sessionLoading || orgQuery.isPending;
-  const orgMissing =
-    !bootstrapping && !orgQuery.error && Boolean(session) && !orgQuery.data;
+  const orgMissing = !bootstrapping && !orgQuery.error && Boolean(session) && !activeOrg;
+
 
   return (
     <div className="min-h-screen bg-app-gradient">
@@ -83,8 +96,29 @@ function TendersPage() {
           Upload tender and RFP documents and keep them securely stored.
         </p>
 
-        <div className="mt-6 flex justify-end">
-          {orgQuery.data ? <TenderUploadDialog organizationId={orgQuery.data} /> : null}
+        <div className="mt-6 flex flex-wrap items-end justify-between gap-3">
+          {multiCompany ? (
+            <div className="w-full max-w-xs">
+              <Label htmlFor="tender-company" className="text-xs text-muted-foreground">
+                Which company is preparing this tender?
+              </Label>
+              <select
+                id="tender-company"
+                className="mt-1.5 h-9 w-full rounded-xl border border-input bg-background px-3 text-sm"
+                value={activeOrg ?? ""}
+                onChange={(event) => setSelectedOrg(event.target.value)}
+              >
+                {organizations.map((org) => (
+                  <option key={org.id} value={org.id}>
+                    {org.name}
+                  </option>
+                ))}
+              </select>
+            </div>
+          ) : (
+            <span />
+          )}
+          {activeOrg ? <TenderUploadDialog organizationId={activeOrg} /> : null}
         </div>
 
         <section className="glass-panel mt-6 overflow-hidden">
@@ -97,11 +131,13 @@ function TendersPage() {
             </div>
           ) : (
             <TenderList
+              session={session}
               tenders={tendersQuery.data ?? []}
               isLoading={bootstrapping || tendersQuery.isPending}
               error={(orgQuery.error as Error | null) ?? (tendersQuery.error as Error | null)}
               onRetry={() => {
                 orgQuery.refetch();
+                orgsQuery.refetch();
                 tendersQuery.refetch();
               }}
             />
