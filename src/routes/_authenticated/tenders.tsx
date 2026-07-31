@@ -35,7 +35,17 @@ function TendersPage() {
   const router = useRouter();
   const { session, isLoading: sessionLoading } = useSession();
   const orgQuery = useOrganizationId(session);
-  const tendersQuery = useTenders(session, orgQuery.data);
+  const profileQuery = useProfile(session);
+  const orgsQuery = useOrganizations(session, profileQuery.data?.id);
+  const organizations = orgsQuery.data ?? [];
+  const multiCompany = organizations.length > 1;
+
+  const [selectedOrg, setSelectedOrg] = useState<string | null>(null);
+  const activeOrg = multiCompany
+    ? (selectedOrg ?? organizations[0].id)
+    : (orgQuery.data ?? organizations[0]?.id ?? null);
+
+  const tendersQuery = useTenders(session, activeOrg);
 
   const signOut = async () => {
     await supabase.auth.signOut();
@@ -43,8 +53,8 @@ function TendersPage() {
   };
 
   const bootstrapping = sessionLoading || orgQuery.isPending;
-  const orgMissing =
-    !bootstrapping && !orgQuery.error && Boolean(session) && !orgQuery.data;
+  const orgMissing = !bootstrapping && !orgQuery.error && Boolean(session) && !activeOrg;
+
 
   return (
     <div className="min-h-screen bg-app-gradient">
