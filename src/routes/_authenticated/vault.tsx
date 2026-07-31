@@ -5,9 +5,11 @@ import { LogOut, Search, ShieldCheck } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { ThemeToggle } from "@/components/theme-toggle";
+import { GreetingCard } from "@/components/greeting-card";
 import { DocumentList } from "@/components/vault/document-list";
 import { UploadDialog } from "@/components/vault/upload-dialog";
 import { useDocuments, useOrganizationId, useSession } from "@/hooks/use-vault";
+import { useOrganizations, useProfile } from "@/hooks/use-profile";
 import { supabase } from "@/integrations/supabase/client";
 
 export const Route = createFileRoute("/_authenticated/vault")({
@@ -39,6 +41,10 @@ function VaultPage() {
   const { session, isLoading: sessionLoading } = useSession();
   const orgQuery = useOrganizationId(session);
   const documentsQuery = useDocuments(session, orgQuery.data);
+  const profileQuery = useProfile(session);
+  const orgsQuery = useOrganizations(session, profileQuery.data?.id);
+  const currentCompany =
+    (orgsQuery.data ?? []).find((org) => org.id === orgQuery.data)?.name ?? null;
 
   const filtered = useMemo(() => {
     const term = search.trim().toLowerCase();
@@ -86,6 +92,10 @@ function VaultPage() {
       </header>
 
       <main className="mx-auto max-w-6xl px-4 py-8 sm:px-6 sm:py-12">
+        <GreetingCard
+          firstName={profileQuery.data?.first_name ?? profileQuery.data?.display_name ?? null}
+          companyName={currentCompany}
+        />
         <h1 className="text-2xl font-semibold tracking-tight sm:text-3xl">Company Vault</h1>
         <p className="mt-1.5 text-sm text-muted-foreground">
           Every compliance document your organization needs, in one secure place.
