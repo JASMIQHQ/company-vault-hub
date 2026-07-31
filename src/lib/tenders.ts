@@ -9,6 +9,18 @@ export interface TenderListItem {
   title: string;
   created_at: string | null;
   storage_path: string | null;
+  analysis_status: string | null;
+  analysis_error: string | null;
+  procuring_entity: string | null;
+  submission_deadline: string | null;
+}
+
+export interface TenderRequirementItem {
+  id: string;
+  category: string;
+  requirement_name: string | null;
+  requirement_text: string;
+  display_order: number | null;
 }
 
 export function validateTenderFile(file: File): string | null {
