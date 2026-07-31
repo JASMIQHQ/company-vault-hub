@@ -14,6 +14,83 @@ export type Database = {
   }
   public: {
     Tables: {
+      ai_recommendations: {
+        Row: {
+          completed: boolean | null
+          created_at: string | null
+          dismissed: boolean | null
+          id: string
+          message: string
+          organization_id: string
+          priority: number | null
+          title: string
+        }
+        Insert: {
+          completed?: boolean | null
+          created_at?: string | null
+          dismissed?: boolean | null
+          id?: string
+          message: string
+          organization_id: string
+          priority?: number | null
+          title: string
+        }
+        Update: {
+          completed?: boolean | null
+          created_at?: string | null
+          dismissed?: boolean | null
+          id?: string
+          message?: string
+          organization_id?: string
+          priority?: number | null
+          title?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ai_recommendations_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      audit_log: {
+        Row: {
+          action: string | null
+          created_at: string | null
+          id: string
+          new_data: Json | null
+          old_data: Json | null
+          organization_id: string | null
+          profile_id: string | null
+          record_id: string | null
+          table_name: string | null
+        }
+        Insert: {
+          action?: string | null
+          created_at?: string | null
+          id?: string
+          new_data?: Json | null
+          old_data?: Json | null
+          organization_id?: string | null
+          profile_id?: string | null
+          record_id?: string | null
+          table_name?: string | null
+        }
+        Update: {
+          action?: string | null
+          created_at?: string | null
+          id?: string
+          new_data?: Json | null
+          old_data?: Json | null
+          organization_id?: string | null
+          profile_id?: string | null
+          record_id?: string | null
+          table_name?: string | null
+        }
+        Relationships: []
+      }
       company_documents: {
         Row: {
           analysis_json: Json
@@ -108,6 +185,158 @@ export type Database = {
           },
         ]
       }
+      compliance_matches: {
+        Row: {
+          confidence: number | null
+          created_at: string | null
+          document_id: string | null
+          id: string
+          notes: string | null
+          organization_id: string
+          requirement: string
+          requirement_type: string | null
+          status: string
+          tender_id: string
+          updated_at: string | null
+        }
+        Insert: {
+          confidence?: number | null
+          created_at?: string | null
+          document_id?: string | null
+          id?: string
+          notes?: string | null
+          organization_id: string
+          requirement: string
+          requirement_type?: string | null
+          status?: string
+          tender_id: string
+          updated_at?: string | null
+        }
+        Update: {
+          confidence?: number | null
+          created_at?: string | null
+          document_id?: string | null
+          id?: string
+          notes?: string | null
+          organization_id?: string
+          requirement?: string
+          requirement_type?: string | null
+          status?: string
+          tender_id?: string
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "compliance_matches_document_id_fkey"
+            columns: ["document_id"]
+            isOneToOne: false
+            referencedRelation: "company_documents"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "compliance_matches_document_id_fkey"
+            columns: ["document_id"]
+            isOneToOne: false
+            referencedRelation: "vw_document_reminders"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "compliance_matches_document_id_fkey"
+            columns: ["document_id"]
+            isOneToOne: false
+            referencedRelation: "vw_expiring_documents"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "compliance_matches_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "compliance_matches_tender_id_fkey"
+            columns: ["tender_id"]
+            isOneToOne: false
+            referencedRelation: "tender_summary"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "compliance_matches_tender_id_fkey"
+            columns: ["tender_id"]
+            isOneToOne: false
+            referencedRelation: "tenders"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "compliance_matches_tender_id_fkey"
+            columns: ["tender_id"]
+            isOneToOne: false
+            referencedRelation: "vw_tender_dashboard"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      dashboard_preferences: {
+        Row: {
+          created_at: string | null
+          id: string
+          layout: Json | null
+          organization_id: string | null
+          profile_id: string | null
+          updated_at: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          id?: string
+          layout?: Json | null
+          organization_id?: string | null
+          profile_id?: string | null
+          updated_at?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          id?: string
+          layout?: Json | null
+          organization_id?: string | null
+          profile_id?: string | null
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "dashboard_preferences_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "dashboard_preferences_profile_id_fkey"
+            columns: ["profile_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      feature_flags: {
+        Row: {
+          description: string | null
+          enabled: boolean | null
+          key: string
+        }
+        Insert: {
+          description?: string | null
+          enabled?: boolean | null
+          key: string
+        }
+        Update: {
+          description?: string | null
+          enabled?: boolean | null
+          key?: string
+        }
+        Relationships: []
+      }
       generated_documents: {
         Row: {
           approved: boolean | null
@@ -170,6 +399,13 @@ export type Database = {
             foreignKeyName: "generated_documents_tender_id_fkey"
             columns: ["tender_id"]
             isOneToOne: false
+            referencedRelation: "tender_summary"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "generated_documents_tender_id_fkey"
+            columns: ["tender_id"]
+            isOneToOne: false
             referencedRelation: "tenders"
             referencedColumns: ["id"]
           },
@@ -178,6 +414,44 @@ export type Database = {
             columns: ["tender_id"]
             isOneToOne: false
             referencedRelation: "vw_tender_dashboard"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      notification_preferences: {
+        Row: {
+          analysis_notifications: boolean | null
+          deadline_notifications: boolean | null
+          email_notifications: boolean | null
+          id: string
+          profile_id: string | null
+          proposal_notifications: boolean | null
+          renewal_notifications: boolean | null
+        }
+        Insert: {
+          analysis_notifications?: boolean | null
+          deadline_notifications?: boolean | null
+          email_notifications?: boolean | null
+          id?: string
+          profile_id?: string | null
+          proposal_notifications?: boolean | null
+          renewal_notifications?: boolean | null
+        }
+        Update: {
+          analysis_notifications?: boolean | null
+          deadline_notifications?: boolean | null
+          email_notifications?: boolean | null
+          id?: string
+          profile_id?: string | null
+          proposal_notifications?: boolean | null
+          renewal_notifications?: boolean | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "notification_preferences_profile_id_fkey"
+            columns: ["profile_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
             referencedColumns: ["id"]
           },
         ]
@@ -240,12 +514,18 @@ export type Database = {
           currency: string | null
           email: string | null
           id: string
+          industry: string | null
+          last_assessed_at: string | null
           logo_url: string | null
           name: string
           organization_type:
             | Database["public"]["Enums"]["organization_type"]
             | null
           phone: string | null
+          primary_color: string | null
+          readiness_score: number | null
+          readiness_status: string | null
+          secondary_color: string | null
           slug: string
           state: string | null
           status: Database["public"]["Enums"]["record_status"] | null
@@ -261,12 +541,18 @@ export type Database = {
           currency?: string | null
           email?: string | null
           id?: string
+          industry?: string | null
+          last_assessed_at?: string | null
           logo_url?: string | null
           name: string
           organization_type?:
             | Database["public"]["Enums"]["organization_type"]
             | null
           phone?: string | null
+          primary_color?: string | null
+          readiness_score?: number | null
+          readiness_status?: string | null
+          secondary_color?: string | null
           slug: string
           state?: string | null
           status?: Database["public"]["Enums"]["record_status"] | null
@@ -282,12 +568,18 @@ export type Database = {
           currency?: string | null
           email?: string | null
           id?: string
+          industry?: string | null
+          last_assessed_at?: string | null
           logo_url?: string | null
           name?: string
           organization_type?:
             | Database["public"]["Enums"]["organization_type"]
             | null
           phone?: string | null
+          primary_color?: string | null
+          readiness_score?: number | null
+          readiness_status?: string | null
+          secondary_color?: string | null
           slug?: string
           state?: string | null
           status?: Database["public"]["Enums"]["record_status"] | null
@@ -321,6 +613,30 @@ export type Database = {
           module?: string | null
           name?: string
           permission_key?: string
+        }
+        Relationships: []
+      }
+      procurement_tips: {
+        Row: {
+          active: boolean | null
+          category: string | null
+          display_order: number | null
+          id: string
+          tip: string
+        }
+        Insert: {
+          active?: boolean | null
+          category?: string | null
+          display_order?: number | null
+          id?: string
+          tip: string
+        }
+        Update: {
+          active?: boolean | null
+          category?: string | null
+          display_order?: number | null
+          id?: string
+          tip?: string
         }
         Relationships: []
       }
@@ -498,6 +814,13 @@ export type Database = {
             foreignKeyName: "tender_files_tender_id_fkey"
             columns: ["tender_id"]
             isOneToOne: false
+            referencedRelation: "tender_summary"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "tender_files_tender_id_fkey"
+            columns: ["tender_id"]
+            isOneToOne: false
             referencedRelation: "tenders"
             referencedColumns: ["id"]
           },
@@ -599,6 +922,13 @@ export type Database = {
             foreignKeyName: "tender_requirements_tender_id_fkey"
             columns: ["tender_id"]
             isOneToOne: false
+            referencedRelation: "tender_summary"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "tender_requirements_tender_id_fkey"
+            columns: ["tender_id"]
+            isOneToOne: false
             referencedRelation: "tenders"
             referencedColumns: ["id"]
           },
@@ -613,8 +943,10 @@ export type Database = {
       }
       tenders: {
         Row: {
+          analysis_error: string | null
           analysis_json: Json | null
           analysis_status: string | null
+          analyzed_at: string | null
           compliance_percentage: number | null
           created_at: string | null
           created_by: string | null
@@ -639,8 +971,10 @@ export type Database = {
           updated_at: string | null
         }
         Insert: {
+          analysis_error?: string | null
           analysis_json?: Json | null
           analysis_status?: string | null
+          analyzed_at?: string | null
           compliance_percentage?: number | null
           created_at?: string | null
           created_by?: string | null
@@ -665,8 +999,10 @@ export type Database = {
           updated_at?: string | null
         }
         Update: {
+          analysis_error?: string | null
           analysis_json?: Json | null
           analysis_status?: string | null
+          analyzed_at?: string | null
           compliance_percentage?: number | null
           created_at?: string | null
           created_by?: string | null
@@ -707,8 +1043,122 @@ export type Database = {
           },
         ]
       }
+      workspace_activity: {
+        Row: {
+          activity: string | null
+          created_at: string | null
+          entity_id: string | null
+          entity_type: string | null
+          id: string
+          organization_id: string | null
+          user_id: string | null
+        }
+        Insert: {
+          activity?: string | null
+          created_at?: string | null
+          entity_id?: string | null
+          entity_type?: string | null
+          id?: string
+          organization_id?: string | null
+          user_id?: string | null
+        }
+        Update: {
+          activity?: string | null
+          created_at?: string | null
+          entity_id?: string | null
+          entity_type?: string | null
+          id?: string
+          organization_id?: string | null
+          user_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "workspace_activity_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      workspace_settings: {
+        Row: {
+          created_at: string | null
+          default_company: boolean | null
+          organization_id: string
+          show_ai_brief: boolean | null
+          show_procurement_tip: boolean | null
+          theme: string | null
+          updated_at: string | null
+          workspace_name: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          default_company?: boolean | null
+          organization_id: string
+          show_ai_brief?: boolean | null
+          show_procurement_tip?: boolean | null
+          theme?: string | null
+          updated_at?: string | null
+          workspace_name?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          default_company?: boolean | null
+          organization_id?: string
+          show_ai_brief?: boolean | null
+          show_procurement_tip?: boolean | null
+          theme?: string | null
+          updated_at?: string | null
+          workspace_name?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "workspace_settings_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: true
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Views: {
+      tender_summary: {
+        Row: {
+          analysis_status: string | null
+          analyzed_at: string | null
+          created_at: string | null
+          id: string | null
+          organization_id: string | null
+          title: string | null
+        }
+        Insert: {
+          analysis_status?: string | null
+          analyzed_at?: string | null
+          created_at?: string | null
+          id?: string | null
+          organization_id?: string | null
+          title?: string | null
+        }
+        Update: {
+          analysis_status?: string | null
+          analyzed_at?: string | null
+          created_at?: string | null
+          id?: string | null
+          organization_id?: string | null
+          title?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "tenders_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       vw_document_reminders: {
         Row: {
           days_remaining: number | null
@@ -812,6 +1262,13 @@ export type Database = {
             columns: ["organization_id"]
             isOneToOne: false
             referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "tender_requirements_tender_id_fkey"
+            columns: ["tender_id"]
+            isOneToOne: false
+            referencedRelation: "tender_summary"
             referencedColumns: ["id"]
           },
           {
@@ -1096,6 +1553,25 @@ export type Database = {
       }
       is_org_member: { Args: { org: string }; Returns: boolean }
       is_org_owner: { Args: { org: string }; Returns: boolean }
+      mark_tender_analysis_failed: {
+        Args: { p_error: string; p_tender_id: string }
+        Returns: undefined
+      }
+      mark_tender_analyzed:
+        | {
+            Args: { p_analysis: Json; p_tender_id: string }
+            Returns: undefined
+          }
+        | {
+            Args: {
+              p_analysis_json: Json
+              p_procuring_entity: string
+              p_requirements: Json
+              p_submission_deadline: string
+              p_tender_id: string
+            }
+            Returns: undefined
+          }
       normalize_requirement: {
         Args: { p_requirement: string }
         Returns: string
