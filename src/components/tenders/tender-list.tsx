@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { Fragment, useState } from "react";
 import {
   ChevronDown,
   ChevronRight,
@@ -257,8 +257,8 @@ export function TenderList({
             const showDetails = status === "analyzed" || status === "failed";
 
             return (
-              <>
-                <TableRow key={tender.id} className="transition-colors">
+              <Fragment key={tender.id}>
+                <TableRow className="transition-colors">
                   <TableCell className="font-medium">
                     <div className="flex items-center gap-1.5">
                       {showDetails ? (
@@ -298,7 +298,7 @@ export function TenderList({
                 </TableRow>
 
                 {isOpen ? (
-                  <TableRow key={`${tender.id}-details`} className="hover:bg-transparent">
+                  <TableRow className="hover:bg-transparent">
                     <TableCell colSpan={4} className="bg-muted/20">
                       <div className="space-y-4 py-2">
                         <div className="grid gap-3 sm:grid-cols-2">
@@ -339,7 +339,7 @@ export function TenderList({
                     </TableCell>
                   </TableRow>
                 ) : null}
-              </>
+              </Fragment>
             );
           })}
         </TableBody>
