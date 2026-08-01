@@ -63,8 +63,10 @@ export function buildReadiness(
   const expiring = documents.filter((doc) => expiryState(doc) === "expiring").length;
 
   const scored = tenders
+    .filter((tender) => tender.analysis_status === "analyzed")
     .map((tender) => tender.compliance_percentage)
     .filter((value): value is number => typeof value === "number");
+
 
   return {
     activeDocuments: documents.length - expired,
