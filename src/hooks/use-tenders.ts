@@ -21,7 +21,7 @@ export function useTenders(
       const { data, error } = await supabase
         .from("tenders")
         .select(
-          "id, title, created_at, analysis_status, analysis_error, procuring_entity, submission_deadline, tender_files(storage_path, created_at)",
+          "id, title, created_at, analysis_status, analysis_error, procuring_entity, submission_deadline, compliance_percentage, requires_bid_security, requires_bank_reference, requires_affidavit, tender_files(storage_path, created_at)",
         )
         .eq("organization_id", organizationId!)
         .order("created_at", { ascending: false });
@@ -35,7 +35,36 @@ export function useTenders(
         analysis_error: tender.analysis_error,
         procuring_entity: tender.procuring_entity,
         submission_deadline: tender.submission_deadline,
+        compliance_percentage: tender.compliance_percentage,
+        requires_bid_security: tender.requires_bid_security,
+        requires_bank_reference: tender.requires_bank_reference,
+        requires_affidavit: tender.requires_affidavit,
         storage_path: tender.tender_files?.[0]?.storage_path ?? null,
+      }));
+    },
+  });
+}
+
+/**
+ * Requirement statuses across the whole organization — powers the Command Center
+ * missions without duplicating per-tender queries.
+ */
+export function useOrganizationRequirements(
+  session: Session | null,
+  organizationId: string | null | undefined,
+) {
+  return useQuery({
+    queryKey: ["tender_requirements", "organization", organizationId],
+    enabled: Boolean(session) && Boolean(organizationId),
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("tender_requirements")
+        .select("tender_id, status")
+        .eq("organization_id", organizationId!);
+      if (error) throw error;
+      return (data ?? []).map((row) => ({
+        tender_id: row.tender_id,
+        status: row.status as string | null,
       }));
     },
   });
@@ -52,14 +81,27 @@ export function useTenderRequirements(
     queryFn: async (): Promise<TenderRequirementItem[]> => {
       const { data, error } = await supabase
         .from("tender_requirements")
-        .select("id, category, requirement_name, requirement_text, display_order")
+        .select(
+          "id, category, requirement_name, requirement_text, display_order, status, confidence_score, explanation, matched_document_id",
+        )
         .eq("tender_id", tenderId!)
         .order("display_order", { ascending: true, nullsFirst: false });
       if (error) throw error;
-      return data ?? [];
+      return (data ?? []).map((row) => ({
+        id: row.id,
+        category: row.category,
+        requirement_name: row.requirement_name,
+        requirement_text: row.requirement_text,
+        display_order: row.display_order,
+        status: row.status as string | null,
+        confidence_score: row.confidence_score,
+        explanation: row.explanation,
+        matched_document_id: row.matched_document_id,
+      }));
     },
   });
 }
+
 
 export function useAnalyzeTender() {
   const queryClient = useQueryClient();
