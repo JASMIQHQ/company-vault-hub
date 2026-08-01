@@ -128,32 +128,62 @@ export function DocumentList({
         <TableHeader>
           <TableRow className="hover:bg-transparent">
             <TableHead>Document name</TableHead>
+            <TableHead className="hidden lg:table-cell">Category</TableHead>
             <TableHead className="hidden md:table-cell">Type</TableHead>
             <TableHead className="hidden sm:table-cell">Uploaded</TableHead>
+            <TableHead className="hidden lg:table-cell">Validity</TableHead>
             <TableHead>Status</TableHead>
             <TableHead className="text-right">Actions</TableHead>
           </TableRow>
         </TableHeader>
         <TableBody>
-          {documents.map((document) => (
-            <TableRow key={document.id} className="transition-colors">
-              <TableCell className="font-medium">{document.document_name}</TableCell>
-              <TableCell className="hidden md:table-cell text-muted-foreground">
-                {document.document_type ?? "—"}
-              </TableCell>
-              <TableCell className="hidden sm:table-cell text-muted-foreground">
-                {formatDate(document.created_at)}
-              </TableCell>
-              <TableCell>
-                <StatusBadge status={document.analysis_status} />
-              </TableCell>
-              <TableCell className="text-right">
-                <RowActions document={document} />
-              </TableCell>
-            </TableRow>
-          ))}
+          {documents.map((document) => {
+            const validity = expiryState(document);
+            return (
+              <TableRow key={document.id} className="transition-colors">
+                <TableCell className="font-medium">{document.document_name}</TableCell>
+                <TableCell className="hidden lg:table-cell text-muted-foreground capitalize">
+                  {document.category?.replace(/_/g, " ") ?? "—"}
+                </TableCell>
+                <TableCell className="hidden md:table-cell text-muted-foreground">
+                  {document.document_type ?? "—"}
+                </TableCell>
+                <TableCell className="hidden sm:table-cell text-muted-foreground">
+                  {formatDate(document.created_at)}
+                </TableCell>
+                <TableCell className="hidden lg:table-cell">
+                  {validity === null ? (
+                    <span className="text-muted-foreground">No expiry</span>
+                  ) : (
+                    <span
+                      className={cn(
+                        "text-xs font-medium",
+                        validity === "expired" && "text-destructive",
+                        validity === "expiring" && "text-warning",
+                        validity === "valid" && "text-success",
+                      )}
+                    >
+                      {validity === "expired"
+                        ? "Expired"
+                        : validity === "expiring"
+                          ? "Expiring soon"
+                          : "Valid"}
+                      {document.expiry_date ? ` · ${formatDate(document.expiry_date)}` : ""}
+                    </span>
+                  )}
+                </TableCell>
+                <TableCell>
+                  <StatusBadge status={document.analysis_status} />
+                </TableCell>
+                <TableCell className="text-right">
+                  <RowActions document={document} />
+                </TableCell>
+              </TableRow>
+            );
+          })}
         </TableBody>
       </Table>
     </div>
   );
 }
+
