@@ -1,15 +1,14 @@
-import { useState } from "react";
 import { createFileRoute, Link, useRouter } from "@tanstack/react-router";
 import { FileStack, LogOut } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
-import { Label } from "@/components/ui/label";
+import { CompanySelect } from "@/components/company-select";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { TenderList } from "@/components/tenders/tender-list";
 import { TenderUploadDialog } from "@/components/tenders/tender-upload-dialog";
 import { useTenders } from "@/hooks/use-tenders";
-import { useOrganizations, useProfile } from "@/hooks/use-profile";
-import { useOrganizationId, useSession } from "@/hooks/use-vault";
+import { useActiveOrganization } from "@/hooks/use-active-organization";
+import { useSession } from "@/hooks/use-vault";
 import { supabase } from "@/integrations/supabase/client";
 
 export const Route = createFileRoute("/_authenticated/tenders")({
@@ -37,16 +36,8 @@ export const Route = createFileRoute("/_authenticated/tenders")({
 function TendersPage() {
   const router = useRouter();
   const { session, isLoading: sessionLoading } = useSession();
-  const orgQuery = useOrganizationId(session);
-  const profileQuery = useProfile(session);
-  const orgsQuery = useOrganizations(session, profileQuery.data?.id);
-  const organizations = orgsQuery.data ?? [];
-  const multiCompany = organizations.length > 1;
-
-  const [selectedOrg, setSelectedOrg] = useState<string | null>(null);
-  const activeOrg = multiCompany
-    ? (selectedOrg ?? organizations[0].id)
-    : (orgQuery.data ?? organizations[0]?.id ?? null);
+  const org = useActiveOrganization(session, sessionLoading);
+  const activeOrg = org.activeOrgId;
 
   const tendersQuery = useTenders(session, activeOrg);
 
@@ -55,8 +46,8 @@ function TendersPage() {
     router.navigate({ to: "/auth" });
   };
 
-  const bootstrapping = sessionLoading || orgQuery.isPending;
-  const orgMissing = !bootstrapping && !orgQuery.error && Boolean(session) && !activeOrg;
+  const bootstrapping = org.bootstrapping;
+  const orgMissing = !bootstrapping && !org.error && Boolean(session) && !activeOrg;
 
 
   return (
@@ -68,13 +59,13 @@ function TendersPage() {
               <FileStack className="size-4.5" />
             </div>
             <div className="leading-tight">
-              <p className="text-sm font-semibold tracking-tight">Tenders</p>
+              <p className="text-sm font-semibold tracking-tight">Tender Command</p>
               <p className="text-xs text-muted-foreground">Jasmiq Procurement AI</p>
             </div>
           </div>
           <div className="flex items-center gap-1">
             <Button asChild variant="ghost" size="sm" className="rounded-xl">
-              <Link to="/vault">Vault</Link>
+              <Link to="/vault">Command Center</Link>
             </Button>
             <ThemeToggle />
             <Button
@@ -91,30 +82,20 @@ function TendersPage() {
       </header>
 
       <main className="mx-auto max-w-6xl px-4 py-8 sm:px-6 sm:py-12">
-        <h1 className="text-2xl font-semibold tracking-tight sm:text-3xl">Tenders</h1>
+        <h1 className="text-2xl font-semibold tracking-tight sm:text-3xl">Tender Command</h1>
         <p className="mt-1.5 text-sm text-muted-foreground">
           Upload tender and RFP documents and keep them securely stored.
         </p>
 
         <div className="mt-6 flex flex-wrap items-end justify-between gap-3">
-          {multiCompany ? (
-            <div className="w-full max-w-xs">
-              <Label htmlFor="tender-company" className="text-xs text-muted-foreground">
-                Which company is preparing this tender?
-              </Label>
-              <select
-                id="tender-company"
-                className="mt-1.5 h-9 w-full rounded-xl border border-input bg-background px-3 text-sm"
-                value={activeOrg ?? ""}
-                onChange={(event) => setSelectedOrg(event.target.value)}
-              >
-                {organizations.map((org) => (
-                  <option key={org.id} value={org.id}>
-                    {org.name}
-                  </option>
-                ))}
-              </select>
-            </div>
+          {org.multiCompany ? (
+            <CompanySelect
+              id="tender-company"
+              label="Which company is preparing this tender?"
+              organizations={org.organizations}
+              value={activeOrg}
+              onChange={org.setActiveOrgId}
+            />
           ) : (
             <span />
           )}
@@ -134,10 +115,9 @@ function TendersPage() {
               session={session}
               tenders={tendersQuery.data ?? []}
               isLoading={bootstrapping || tendersQuery.isPending}
-              error={(orgQuery.error as Error | null) ?? (tendersQuery.error as Error | null)}
+              error={org.error ?? (tendersQuery.error as Error | null)}
               onRetry={() => {
-                orgQuery.refetch();
-                orgsQuery.refetch();
+                org.refetch();
                 tendersQuery.refetch();
               }}
             />

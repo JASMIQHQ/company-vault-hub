@@ -21,6 +21,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { CategoryBadge } from "@/components/tenders/category-badge";
+import { RequirementStatusBadge } from "@/components/tenders/requirement-status-badge";
 import { StatusBadge } from "@/components/vault/status-badge";
 import {
   createTenderSignedUrl,
@@ -164,25 +165,90 @@ function RequirementChecklist({
     return <p className="text-sm text-muted-foreground">No requirements extracted.</p>;
   }
 
+  const rows = requirements.data!;
+  const counts = {
+    matched: rows.filter((row) => row.status === "matched").length,
+    missing: rows.filter((row) => row.status === "missing").length,
+    expired: rows.filter((row) => row.status === "expired").length,
+    review: rows.filter((row) => row.status !== "matched" && row.status !== "missing" && row.status !== "expired").length,
+  };
+
   return (
-    <ul className="space-y-3">
-      {requirements.data!.map((requirement) => (
-        <li
-          key={requirement.id}
-          className="rounded-xl border border-border/60 bg-background/40 p-3"
-        >
-          <div className="flex flex-wrap items-center gap-2">
-            <CategoryBadge category={requirement.category} />
-            {requirement.requirement_name ? (
-              <span className="text-sm font-medium">{requirement.requirement_name}</span>
+    <div className="space-y-3">
+      <div className="flex flex-wrap gap-2 text-xs">
+        <span className="rounded-full border border-success/25 bg-success-soft px-2.5 py-0.5 font-medium text-success">
+          {counts.matched} Available
+        </span>
+        <span className="rounded-full border border-destructive/25 bg-destructive/10 px-2.5 py-0.5 font-medium text-destructive">
+          {counts.missing} Missing
+        </span>
+        <span className="rounded-full border border-destructive/25 bg-destructive/10 px-2.5 py-0.5 font-medium text-destructive">
+          {counts.expired} Expired
+        </span>
+        <span className="rounded-full border border-warning/25 bg-warning-soft px-2.5 py-0.5 font-medium text-warning">
+          {counts.review} Needs review
+        </span>
+      </div>
+      <p className="text-xs text-muted-foreground">
+        AI assists. You verify — treat matches as suggestions until confirmed.
+      </p>
+      <ul className="space-y-3">
+        {rows.map((requirement) => (
+          <li
+            key={requirement.id}
+            className="rounded-xl border border-border/60 bg-background/40 p-3"
+          >
+            <div className="flex flex-wrap items-center gap-2">
+              <RequirementStatusBadge status={requirement.status} />
+              <CategoryBadge category={requirement.category} />
+              {requirement.requirement_name ? (
+                <span className="text-sm font-medium">{requirement.requirement_name}</span>
+              ) : null}
+            </div>
+            <p className="mt-1.5 text-sm text-muted-foreground">
+              {requirement.requirement_text}
+            </p>
+            {requirement.explanation ? (
+              <p className="mt-1 text-xs text-muted-foreground">{requirement.explanation}</p>
             ) : null}
-          </div>
-          <p className="mt-1.5 text-sm text-muted-foreground">
-            {requirement.requirement_text}
-          </p>
-        </li>
-      ))}
-    </ul>
+            {typeof requirement.confidence_score === "number" ? (
+              <p className="mt-1 text-xs text-muted-foreground">
+                Match confidence: {Math.round(requirement.confidence_score * 100)}%
+              </p>
+            ) : null}
+          </li>
+        ))}
+      </ul>
+    </div>
+  );
+}
+
+function TenderSpecificRequirements({ tender }: { tender: TenderListItem }) {
+  const items = [
+    { label: "Bank Reference", required: tender.requires_bank_reference },
+    { label: "Sworn Affidavit", required: tender.requires_affidavit },
+    { label: "Bid Security", required: tender.requires_bid_security },
+  ].filter((item) => item.required);
+
+  if (items.length === 0) return null;
+
+  return (
+    <div>
+      <p className="mb-2 text-sm font-semibold tracking-tight">Tender-specific requirements</p>
+      <ul className="flex flex-wrap gap-2">
+        {items.map((item) => (
+          <li
+            key={item.label}
+            className="rounded-full border border-warning/25 bg-warning-soft px-2.5 py-0.5 text-xs font-medium text-warning"
+          >
+            {item.label} — Required for this tender
+          </li>
+        ))}
+      </ul>
+      <p className="mt-1.5 text-xs text-muted-foreground">
+        These must be obtained for this tender — an older document does not satisfy them.
+      </p>
+    </div>
   );
 }
 
@@ -328,6 +394,8 @@ export function TenderList({
                           </p>
                           <RequirementChecklist session={session} tender={tender} />
                         </div>
+
+                        <TenderSpecificRequirements tender={tender} />
 
                         {status === "failed" ? (
                           <AnalyzeButton

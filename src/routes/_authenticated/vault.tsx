@@ -6,26 +6,30 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { GreetingCard } from "@/components/greeting-card";
+import { CommandCenter } from "@/components/command-center";
+import { CompanySelect } from "@/components/company-select";
 import { DocumentList } from "@/components/vault/document-list";
 import { UploadDialog } from "@/components/vault/upload-dialog";
-import { useDocuments, useOrganizationId, useSession } from "@/hooks/use-vault";
-import { useOrganizations, useProfile } from "@/hooks/use-profile";
+import { useDocuments, useSession } from "@/hooks/use-vault";
+import { useActiveOrganization } from "@/hooks/use-active-organization";
+import { useOrganizationRequirements, useTenders } from "@/hooks/use-tenders";
 import { supabase } from "@/integrations/supabase/client";
+import { cn } from "@/lib/utils";
 
 export const Route = createFileRoute("/_authenticated/vault")({
   head: () => ({
     meta: [
-      { title: "Company Vault | Jasmiq Procurement AI" },
+      { title: "Command Center | Jasmiq Procurement AI" },
       {
         name: "description",
         content:
-          "Securely store, search, preview and download your company's procurement compliance documents.",
+          "See your procurement readiness, today's actions and every compliance document your company needs in one secure command center.",
       },
-      { property: "og:title", content: "Company Vault | Jasmiq Procurement AI" },
+      { property: "og:title", content: "Command Center | Jasmiq Procurement AI" },
       {
         property: "og:description",
         content:
-          "Securely store, search, preview and download your company's procurement compliance documents.",
+          "See your procurement readiness, today's actions and every compliance document your company needs in one secure command center.",
       },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary_large_image" },
@@ -37,34 +41,44 @@ export const Route = createFileRoute("/_authenticated/vault")({
 function VaultPage() {
   const router = useRouter();
   const [search, setSearch] = useState("");
+  const [category, setCategory] = useState<string>("all");
 
   const { session, isLoading: sessionLoading } = useSession();
-  const orgQuery = useOrganizationId(session);
-  const documentsQuery = useDocuments(session, orgQuery.data);
-  const profileQuery = useProfile(session);
-  const orgsQuery = useOrganizations(session, profileQuery.data?.id);
-  const currentCompany =
-    (orgsQuery.data ?? []).find((org) => org.id === orgQuery.data)?.name ?? null;
+  const org = useActiveOrganization(session, sessionLoading);
+  const documentsQuery = useDocuments(session, org.activeOrgId);
+  const tendersQuery = useTenders(session, org.activeOrgId);
+  const requirementsQuery = useOrganizationRequirements(session, org.activeOrgId);
+
+  const documents = documentsQuery.data ?? [];
+
+  const categories = useMemo(() => {
+    const found = new Set<string>();
+    documents.forEach((document) => {
+      if (document.category) found.add(document.category);
+    });
+    return Array.from(found).sort();
+  }, [documents]);
 
   const filtered = useMemo(() => {
     const term = search.trim().toLowerCase();
-    const documents = documentsQuery.data ?? [];
-    if (!term) return documents;
-    return documents.filter(
-      (document) =>
+    return documents.filter((document) => {
+      const inCategory = category === "all" || document.category === category;
+      if (!inCategory) return false;
+      if (!term) return true;
+      return (
         document.document_name.toLowerCase().includes(term) ||
-        (document.document_type ?? "").toLowerCase().includes(term),
-    );
-  }, [documentsQuery.data, search]);
+        (document.document_type ?? "").toLowerCase().includes(term)
+      );
+    });
+  }, [documents, search, category]);
 
   const signOut = async () => {
     await supabase.auth.signOut();
     router.navigate({ to: "/auth" });
   };
 
-  const bootstrapping = sessionLoading || orgQuery.isPending;
-  const orgMissing =
-    !bootstrapping && !orgQuery.error && Boolean(session) && !orgQuery.data;
+  const bootstrapping = org.bootstrapping;
+  const orgMissing = !bootstrapping && !org.error && Boolean(session) && !org.activeOrgId;
 
   return (
     <div className="min-h-screen bg-app-gradient">
@@ -75,13 +89,13 @@ function VaultPage() {
               <ShieldCheck className="size-4.5" />
             </div>
             <div className="leading-tight">
-              <p className="text-sm font-semibold tracking-tight">Company Vault</p>
+              <p className="text-sm font-semibold tracking-tight">Command Center</p>
               <p className="text-xs text-muted-foreground">Jasmiq Procurement AI</p>
             </div>
           </div>
           <div className="flex items-center gap-1">
             <Button asChild variant="ghost" size="sm" className="rounded-xl">
-              <Link to="/tenders">Tenders</Link>
+              <Link to="/tenders">Tender Command</Link>
             </Button>
             <ThemeToggle />
             <Button variant="ghost" size="icon" className="rounded-xl" onClick={signOut} aria-label="Sign out">
@@ -92,13 +106,46 @@ function VaultPage() {
       </header>
 
       <main className="mx-auto max-w-6xl px-4 py-8 sm:px-6 sm:py-12">
-        <GreetingCard
-          firstName={profileQuery.data?.first_name ?? profileQuery.data?.display_name ?? null}
-          companyName={currentCompany}
-        />
+        <GreetingCard firstName={org.firstName} companyName={org.activeOrgName} />
+
+        {org.multiCompany ? (
+          <div className="mb-6">
+            <CompanySelect
+              id="vault-company"
+              label="Which company are you working in?"
+              organizations={org.organizations}
+              value={org.activeOrgId}
+              onChange={org.setActiveOrgId}
+            />
+          </div>
+        ) : null}
+
+        {orgMissing ? null : (
+          <CommandCenter
+            companyName={org.activeOrgName}
+            documents={documents}
+            tenders={tendersQuery.data ?? []}
+            requirements={requirementsQuery.data ?? []}
+            isLoading={
+              bootstrapping ||
+              documentsQuery.isPending ||
+              tendersQuery.isPending ||
+              requirementsQuery.isPending
+            }
+            hasError={Boolean(org.error ?? documentsQuery.error ?? tendersQuery.error)}
+            onRetry={() => {
+              org.refetch();
+              documentsQuery.refetch();
+              tendersQuery.refetch();
+              requirementsQuery.refetch();
+            }}
+          />
+        )}
+
         <h1 className="text-2xl font-semibold tracking-tight sm:text-3xl">Company Vault</h1>
         <p className="mt-1.5 text-sm text-muted-foreground">
-          Every compliance document your organization needs, in one secure place.
+          {org.activeOrgName ? `${org.activeOrgName} — ` : ""}every compliance document this
+          organization needs, in one secure place.
         </p>
 
         <div className="mt-6 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
@@ -112,8 +159,28 @@ function VaultPage() {
               aria-label="Search documents"
             />
           </div>
-          {orgQuery.data ? <UploadDialog organizationId={orgQuery.data} /> : null}
+          {org.activeOrgId ? <UploadDialog organizationId={org.activeOrgId} /> : null}
         </div>
+
+        {categories.length > 1 ? (
+          <div className="mt-4 flex flex-wrap gap-2">
+            {["all", ...categories].map((value) => (
+              <button
+                key={value}
+                type="button"
+                onClick={() => setCategory(value)}
+                className={cn(
+                  "rounded-full border px-3 py-1 text-xs font-medium capitalize transition-colors",
+                  category === value
+                    ? "border-primary/30 bg-primary/10 text-primary"
+                    : "border-border/60 text-muted-foreground hover:text-foreground",
+                )}
+              >
+                {value === "all" ? "All documents" : value.replace(/_/g, " ")}
+              </button>
+            ))}
+          </div>
+        ) : null}
 
         <section className="glass-panel mt-6 overflow-hidden">
           {orgMissing ? (
@@ -127,12 +194,12 @@ function VaultPage() {
             <DocumentList
               documents={filtered}
               isLoading={bootstrapping || documentsQuery.isPending}
-              error={(orgQuery.error as Error | null) ?? (documentsQuery.error as Error | null)}
+              error={org.error ?? (documentsQuery.error as Error | null)}
               onRetry={() => {
-                orgQuery.refetch();
+                org.refetch();
                 documentsQuery.refetch();
               }}
-              isFiltered={search.trim().length > 0}
+              isFiltered={search.trim().length > 0 || category !== "all"}
             />
           )}
         </section>
