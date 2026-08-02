@@ -51,7 +51,25 @@ Deno.serve(async (req) => {
   const url = Deno.env.get("SUPABASE_URL")!;
   const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
   const aiKey = Deno.env.get("LOVABLE_API_KEY");
-  const admin = createClient(url, serviceKey, { auth: { persistSession: false } });
+  // New-format Supabase secret keys (sb_secret_...) are opaque strings, not JWTs.
+  // PostgREST rejects them when sent as `Authorization: Bearer <key>`, which makes every
+  // service-role table read fail (surfacing as "No profile found for this user.").
+  const adminFetch: typeof fetch = (input, init) => {
+    const headers = new Headers(
+      typeof Request !== "undefined" && input instanceof Request ? input.headers : undefined,
+    );
+    if (init?.headers) new Headers(init.headers).forEach((v, k) => headers.set(k, v));
+    if (!serviceKey.includes(".") && headers.get("Authorization") === `Bearer ${serviceKey}`) {
+      headers.delete("Authorization");
+    }
+    headers.set("apikey", serviceKey);
+    return fetch(input, { ...init, headers });
+  };
+
+  const admin = createClient(url, serviceKey, {
+    auth: { persistSession: false },
+    global: { fetch: adminFetch },
+  });
 
   let tenderId: string | null = null;
 
@@ -78,12 +96,18 @@ Deno.serve(async (req) => {
     if (userError || !userData.user) return json({ error: "Not authenticated." }, 401);
 
     // --- resolve organization from existing profile/membership architecture ---
-    const { data: profile } = await admin
+    const { data: profile, error: profileError } = await admin
       .from("profiles")
-      .select("id")
+      .select("id, auth_user_id")
       .eq("auth_user_id", userData.user.id)
       .maybeSingle();
-    if (!profile) return json({ error: "No profile found for this user." }, 403);
+    if (profileError) {
+      console.error("profile lookup failed", profileError);
+      return json({ error: "Could not resolve your profile." }, 500);
+    }
+    if (!profile || profile.auth_user_id !== userData.user.id) {
+      return json({ error: "No profile found for this user." }, 403);
+    }
 
     const { data: memberships } = await admin
       .from("organization_members")
