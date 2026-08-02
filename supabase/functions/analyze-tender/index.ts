@@ -96,12 +96,18 @@ Deno.serve(async (req) => {
     if (userError || !userData.user) return json({ error: "Not authenticated." }, 401);
 
     // --- resolve organization from existing profile/membership architecture ---
-    const { data: profile } = await admin
+    const { data: profile, error: profileError } = await admin
       .from("profiles")
-      .select("id")
+      .select("id, auth_user_id")
       .eq("auth_user_id", userData.user.id)
       .maybeSingle();
-    if (!profile) return json({ error: "No profile found for this user." }, 403);
+    if (profileError) {
+      console.error("profile lookup failed", profileError);
+      return json({ error: "Could not resolve your profile." }, 500);
+    }
+    if (!profile || profile.auth_user_id !== userData.user.id) {
+      return json({ error: "No profile found for this user." }, 403);
+    }
 
     const { data: memberships } = await admin
       .from("organization_members")
