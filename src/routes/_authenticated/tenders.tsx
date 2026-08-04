@@ -42,6 +42,14 @@ function TendersPage() {
   const activeOrg = org.activeOrgId;
 
   const tendersQuery = useTenders(session, activeOrg);
+  const companiesQuery = useCompanies(session, activeOrg);
+  const companies = companiesQuery.data ?? [];
+  const [selectedCompany, setSelectedCompany] = useState<string | null>(null);
+  const tenderCompanyId =
+    selectedCompany && companies.some((c) => c.id === selectedCompany)
+      ? selectedCompany
+      : (companies[0]?.id ?? null);
+  const setTenderCompanyId = setSelectedCompany;
 
   const signOut = async () => {
     await supabase.auth.signOut();
