@@ -78,6 +78,7 @@ export interface UploadInput {
   documentType: string;
   category: string;
   organizationId: string;
+  companyId: string;
 }
 
 export function useUploadDocument() {
@@ -90,6 +91,7 @@ export function useUploadDocument() {
       documentType,
       category,
       organizationId,
+      companyId,
     }: UploadInput) => {
       const hash = await sha256Hex(file);
       const storagePath = buildStoragePath(organizationId, category, file.name);
@@ -99,23 +101,38 @@ export function useUploadDocument() {
         .upload(storagePath, file, { contentType: file.type, upsert: false });
       if (uploadError) throw uploadError;
 
-      const { data, error } = await supabase.rpc("register_document_upload", {
-        p_category: category,
-        p_document_type: documentType,
-        p_document_name: documentName,
-        p_original_filename: file.name,
-        p_storage_path: storagePath,
-        p_mime_type: file.type,
-        p_file_size: file.size,
-        p_sha256_hash: hash,
-      });
+      // register_document_upload() does not accept company_id (and company_id is
+      // NOT NULL), so the row is created through the existing authenticated
+      // client with the same columns the RPC writes, plus the selected company.
+      const { data: profileId } = await supabase.rpc("current_profile_id");
+
+      const { data, error } = await supabase
+        .from("company_documents")
+        .insert({
+          organization_id: organizationId,
+          company_id: companyId,
+          uploaded_by: (profileId as string | null) ?? null,
+          category,
+          document_type: documentType,
+          document_name: documentName,
+          original_filename: file.name,
+          storage_path: storagePath,
+          mime_type: file.type,
+          file_size: file.size,
+          sha256_hash: hash,
+          analysis_status: "pending",
+          document_status: "active",
+          version: 1,
+        })
+        .select("id")
+        .single();
 
       if (error) {
         await supabase.storage.from(BUCKET).remove([storagePath]);
         throw error;
       }
 
-      return data as string;
+      return data.id as string;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["company-documents"] });

@@ -6,6 +6,8 @@ import { CompanySelect } from "@/components/company-select";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { TenderList } from "@/components/tenders/tender-list";
 import { TenderUploadDialog } from "@/components/tenders/tender-upload-dialog";
+import { CompanyPicker } from "@/components/vault/company-picker";
+import { useCompanies } from "@/hooks/use-companies";
 import { useTenders } from "@/hooks/use-tenders";
 import { useActiveOrganization } from "@/hooks/use-active-organization";
 import { useSession } from "@/hooks/use-vault";
@@ -99,7 +101,23 @@ function TendersPage() {
           ) : (
             <span />
           )}
-          {activeOrg ? <TenderUploadDialog organizationId={activeOrg} /> : null}
+          {activeOrg ? (
+            <div className="flex flex-wrap items-end gap-3">
+              <div className="w-full max-w-xs">
+                <CompanyPicker
+                  id="tender-company-select"
+                  label="Company"
+                  organizationId={activeOrg}
+                  companies={companies}
+                  value={tenderCompanyId}
+                  onChange={setTenderCompanyId}
+                />
+              </div>
+              {tenderCompanyId ? (
+                <TenderUploadDialog organizationId={activeOrg} companyId={tenderCompanyId} />
+              ) : null}
+            </div>
+          ) : null}
         </div>
 
         <section className="glass-panel mt-6 overflow-hidden">
