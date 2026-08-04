@@ -17,7 +17,13 @@ import { Label } from "@/components/ui/label";
 import { useUploadTender } from "@/hooks/use-tenders";
 import { TENDER_ACCEPT_ATTRIBUTE, validateTenderFile } from "@/lib/tenders";
 
-export function TenderUploadDialog({ organizationId }: { organizationId: string }) {
+export function TenderUploadDialog({
+  organizationId,
+  companyId,
+}: {
+  organizationId: string;
+  companyId: string;
+}) {
   const [open, setOpen] = useState(false);
   const [file, setFile] = useState<File | null>(null);
   const [title, setTitle] = useState("");
@@ -52,6 +58,7 @@ export function TenderUploadDialog({ organizationId }: { organizationId: string 
         file,
         title: title.trim() || file.name,
         organizationId,
+        companyId,
       });
       toast.success("Tender uploaded");
       reset();
