@@ -14,7 +14,9 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { useUploadDocument } from "@/hooks/use-vault";
+import { CompanyPicker } from "@/components/vault/company-picker";
+import { useCompanies } from "@/hooks/use-companies";
+import { useSession, useUploadDocument } from "@/hooks/use-vault";
 import { ACCEPT_ATTRIBUTE, validateFile } from "@/lib/vault";
 
 export function UploadDialog({ organizationId }: { organizationId: string }) {
@@ -22,12 +24,17 @@ export function UploadDialog({ organizationId }: { organizationId: string }) {
   const [file, setFile] = useState<File | null>(null);
   const [documentName, setDocumentName] = useState("");
   const [documentType, setDocumentType] = useState("");
+  const [companyId, setCompanyId] = useState<string | null>(null);
   const upload = useUploadDocument();
+  const { session } = useSession();
+  const companiesQuery = useCompanies(session, organizationId);
+  const companies = companiesQuery.data ?? [];
 
   const reset = () => {
     setFile(null);
     setDocumentName("");
     setDocumentType("");
+    setCompanyId(null);
   };
 
   const onFileChange = (event: ChangeEvent<HTMLInputElement>) => {
@@ -49,6 +56,10 @@ export function UploadDialog({ organizationId }: { organizationId: string }) {
 
   const onSubmit = async () => {
     if (!file) return;
+    if (!companyId) {
+      toast.error("Select the company this document belongs to.");
+      return;
+    }
     try {
       await upload.mutateAsync({
         file,
@@ -56,6 +67,7 @@ export function UploadDialog({ organizationId }: { organizationId: string }) {
         documentType: documentType.trim() || "unspecified",
         category: "corporate",
         organizationId,
+        companyId,
       });
       toast.success("Document uploaded");
       reset();
@@ -86,6 +98,13 @@ export function UploadDialog({ organizationId }: { organizationId: string }) {
         </DialogHeader>
 
         <div className="space-y-4">
+          <CompanyPicker
+            id="vault-company-select"
+            organizationId={organizationId}
+            companies={companies}
+            value={companyId}
+            onChange={setCompanyId}
+          />
           <div className="space-y-2">
             <Label htmlFor="vault-file">File</Label>
             <Input
@@ -121,7 +140,7 @@ export function UploadDialog({ organizationId }: { organizationId: string }) {
         <DialogFooter>
           <Button
             onClick={onSubmit}
-            disabled={!file || upload.isPending}
+            disabled={!file || !companyId || upload.isPending}
             className="rounded-xl w-full sm:w-auto"
           >
             {upload.isPending && <Loader2 className="mr-2 size-4 animate-spin" />}

@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { createFileRoute, Link, useRouter } from "@tanstack/react-router";
 import { FileStack, LogOut } from "lucide-react";
 
@@ -6,6 +7,8 @@ import { CompanySelect } from "@/components/company-select";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { TenderList } from "@/components/tenders/tender-list";
 import { TenderUploadDialog } from "@/components/tenders/tender-upload-dialog";
+import { CompanyPicker } from "@/components/vault/company-picker";
+import { useCompanies } from "@/hooks/use-companies";
 import { useTenders } from "@/hooks/use-tenders";
 import { useActiveOrganization } from "@/hooks/use-active-organization";
 import { useSession } from "@/hooks/use-vault";
@@ -40,6 +43,14 @@ function TendersPage() {
   const activeOrg = org.activeOrgId;
 
   const tendersQuery = useTenders(session, activeOrg);
+  const companiesQuery = useCompanies(session, activeOrg);
+  const companies = companiesQuery.data ?? [];
+  const [selectedCompany, setSelectedCompany] = useState<string | null>(null);
+  const tenderCompanyId =
+    selectedCompany && companies.some((c) => c.id === selectedCompany)
+      ? selectedCompany
+      : (companies[0]?.id ?? null);
+  const setTenderCompanyId = setSelectedCompany;
 
   const signOut = async () => {
     await supabase.auth.signOut();
@@ -99,7 +110,23 @@ function TendersPage() {
           ) : (
             <span />
           )}
-          {activeOrg ? <TenderUploadDialog organizationId={activeOrg} /> : null}
+          {activeOrg ? (
+            <div className="flex flex-wrap items-end gap-3">
+              <div className="w-full max-w-xs">
+                <CompanyPicker
+                  id="tender-company-select"
+                  label="Company"
+                  organizationId={activeOrg}
+                  companies={companies}
+                  value={tenderCompanyId}
+                  onChange={setTenderCompanyId}
+                />
+              </div>
+              {tenderCompanyId ? (
+                <TenderUploadDialog organizationId={activeOrg} companyId={tenderCompanyId} />
+              ) : null}
+            </div>
+          ) : null}
         </div>
 
         <section className="glass-panel mt-6 overflow-hidden">

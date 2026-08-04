@@ -125,13 +125,14 @@ export interface UploadTenderInput {
   file: File;
   title: string;
   organizationId: string;
+  companyId: string;
 }
 
 export function useUploadTender() {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: async ({ file, title, organizationId }: UploadTenderInput) => {
+    mutationFn: async ({ file, title, organizationId, companyId }: UploadTenderInput) => {
       const hash = await sha256Hex(file);
       const storagePath = buildTenderStoragePath(organizationId, file.name);
 
@@ -142,7 +143,7 @@ export function useUploadTender() {
 
       const { data: tender, error: tenderError } = await supabase
         .from("tenders")
-        .insert({ organization_id: organizationId, title })
+        .insert({ organization_id: organizationId, company_id: companyId, title })
         .select("id")
         .single();
 

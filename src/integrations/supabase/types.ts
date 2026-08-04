@@ -472,12 +472,71 @@ export type Database = {
           },
         ]
       }
+      companies: {
+        Row: {
+          created_at: string
+          id: string
+          is_active: boolean
+          legal_name: string
+          organization_id: string
+          registration_number: string | null
+          tax_expiry_date: string | null
+          tax_identification_number: string | null
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          legal_name: string
+          organization_id: string
+          registration_number?: string | null
+          tax_expiry_date?: string | null
+          tax_identification_number?: string | null
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          legal_name?: string
+          organization_id?: string
+          registration_number?: string | null
+          tax_expiry_date?: string | null
+          tax_identification_number?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "companies_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "company_health_view"
+            referencedColumns: ["organization_id"]
+          },
+          {
+            foreignKeyName: "companies_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "company_profile_completion"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "companies_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       company_documents: {
         Row: {
           analysis_json: Json
           analysis_status: Database["public"]["Enums"]["document_analysis_status"]
           behavior: Database["public"]["Enums"]["document_behavior"]
           category: string
+          company_id: string
           created_at: string
           document_name: string
           document_status: Database["public"]["Enums"]["document_status"] | null
@@ -502,6 +561,7 @@ export type Database = {
           analysis_status?: Database["public"]["Enums"]["document_analysis_status"]
           behavior?: Database["public"]["Enums"]["document_behavior"]
           category?: string
+          company_id: string
           created_at?: string
           document_name: string
           document_status?:
@@ -528,6 +588,7 @@ export type Database = {
           analysis_status?: Database["public"]["Enums"]["document_analysis_status"]
           behavior?: Database["public"]["Enums"]["document_behavior"]
           category?: string
+          company_id?: string
           created_at?: string
           document_name?: string
           document_status?:
@@ -550,6 +611,13 @@ export type Database = {
           version?: number | null
         }
         Relationships: [
+          {
+            foreignKeyName: "company_documents_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "company_documents_organization_id_fkey"
             columns: ["organization_id"]
@@ -2490,6 +2558,7 @@ export type Database = {
           analysis_json: Json | null
           analysis_status: string | null
           analyzed_at: string | null
+          company_id: string
           compliance_percentage: number | null
           created_at: string | null
           created_by: string | null
@@ -2518,6 +2587,7 @@ export type Database = {
           analysis_json?: Json | null
           analysis_status?: string | null
           analyzed_at?: string | null
+          company_id: string
           compliance_percentage?: number | null
           created_at?: string | null
           created_by?: string | null
@@ -2546,6 +2616,7 @@ export type Database = {
           analysis_json?: Json | null
           analysis_status?: string | null
           analyzed_at?: string | null
+          company_id?: string
           compliance_percentage?: number | null
           created_at?: string | null
           created_by?: string | null
@@ -2570,6 +2641,13 @@ export type Database = {
           updated_at?: string | null
         }
         Relationships: [
+          {
+            foreignKeyName: "tenders_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "tenders_created_by_fkey"
             columns: ["created_by"]
@@ -3460,6 +3538,7 @@ export type Database = {
           analysis_status: Database["public"]["Enums"]["document_analysis_status"]
           behavior: Database["public"]["Enums"]["document_behavior"]
           category: string
+          company_id: string
           created_at: string
           document_name: string
           document_status: Database["public"]["Enums"]["document_status"] | null
@@ -3493,6 +3572,7 @@ export type Database = {
           analysis_status: Database["public"]["Enums"]["document_analysis_status"]
           behavior: Database["public"]["Enums"]["document_behavior"]
           category: string
+          company_id: string
           created_at: string
           document_name: string
           document_status: Database["public"]["Enums"]["document_status"] | null
@@ -3526,6 +3606,7 @@ export type Database = {
           analysis_status: Database["public"]["Enums"]["document_analysis_status"]
           behavior: Database["public"]["Enums"]["document_behavior"]
           category: string
+          company_id: string
           created_at: string
           document_name: string
           document_status: Database["public"]["Enums"]["document_status"] | null
@@ -3560,6 +3641,7 @@ export type Database = {
               analysis_status: Database["public"]["Enums"]["document_analysis_status"]
               behavior: Database["public"]["Enums"]["document_behavior"]
               category: string
+              company_id: string
               created_at: string
               document_name: string
               document_status:
@@ -3609,6 +3691,7 @@ export type Database = {
           analysis_status: Database["public"]["Enums"]["document_analysis_status"]
           behavior: Database["public"]["Enums"]["document_behavior"]
           category: string
+          company_id: string
           created_at: string
           document_name: string
           document_status: Database["public"]["Enums"]["document_status"] | null
