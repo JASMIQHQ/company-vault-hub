@@ -8,9 +8,10 @@ import { ThemeToggle } from "@/components/theme-toggle";
 import { GreetingCard } from "@/components/greeting-card";
 import { CommandCenter } from "@/components/command-center";
 import { CompanySelect } from "@/components/company-select";
-import { DocumentList } from "@/components/vault/document-list";
+import { CompanyVaultGroups } from "@/components/vault/company-vault-groups";
 import { UploadDialog } from "@/components/vault/upload-dialog";
 import { useDocuments, useSession } from "@/hooks/use-vault";
+import { useCompanies } from "@/hooks/use-companies";
 import { useActiveOrganization } from "@/hooks/use-active-organization";
 import { useOrganizationRequirements, useTenders } from "@/hooks/use-tenders";
 import { supabase } from "@/integrations/supabase/client";
@@ -46,6 +47,7 @@ function VaultPage() {
   const { session, isLoading: sessionLoading } = useSession();
   const org = useActiveOrganization(session, sessionLoading);
   const documentsQuery = useDocuments(session, org.activeOrgId);
+  const companiesQuery = useCompanies(session, org.activeOrgId);
   const tendersQuery = useTenders(session, org.activeOrgId);
   const requirementsQuery = useOrganizationRequirements(session, org.activeOrgId);
 
@@ -191,13 +193,20 @@ function VaultPage() {
               </p>
             </div>
           ) : (
-            <DocumentList
+            <CompanyVaultGroups
+              organizationId={org.activeOrgId!}
+              companies={companiesQuery.data ?? []}
               documents={filtered}
-              isLoading={bootstrapping || documentsQuery.isPending}
-              error={org.error ?? (documentsQuery.error as Error | null)}
+              isLoading={bootstrapping || documentsQuery.isPending || companiesQuery.isPending}
+              error={
+                org.error ??
+                (documentsQuery.error as Error | null) ??
+                (companiesQuery.error as Error | null)
+              }
               onRetry={() => {
                 org.refetch();
                 documentsQuery.refetch();
+                companiesQuery.refetch();
               }}
               isFiltered={search.trim().length > 0 || category !== "all"}
             />
