@@ -84,6 +84,8 @@ export function CompanyVaultGroups({
   organizationId,
   companies,
   documents,
+  allDocuments,
+
   isLoading,
   error,
   onRetry,
@@ -126,6 +128,8 @@ export function CompanyVaultGroups({
             key={company.id}
             company={company}
             documents={documents.filter((document) => document.company_id === company.id)}
+            count={allDocuments.filter((document) => document.company_id === company.id).length}
+
             isLoading={isLoading}
             error={error}
             onRetry={onRetry}
