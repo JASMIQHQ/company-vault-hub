@@ -538,6 +538,7 @@ export type Database = {
           category: string
           company_id: string
           created_at: string
+          deleted_at: string | null
           document_name: string
           document_status: Database["public"]["Enums"]["document_status"] | null
           document_type: string | null
@@ -563,6 +564,7 @@ export type Database = {
           category?: string
           company_id: string
           created_at?: string
+          deleted_at?: string | null
           document_name: string
           document_status?:
             | Database["public"]["Enums"]["document_status"]
@@ -590,6 +592,7 @@ export type Database = {
           category?: string
           company_id?: string
           created_at?: string
+          deleted_at?: string | null
           document_name?: string
           document_status?:
             | Database["public"]["Enums"]["document_status"]
@@ -3540,6 +3543,7 @@ export type Database = {
           category: string
           company_id: string
           created_at: string
+          deleted_at: string | null
           document_name: string
           document_status: Database["public"]["Enums"]["document_status"] | null
           document_type: string | null
@@ -3574,6 +3578,7 @@ export type Database = {
           category: string
           company_id: string
           created_at: string
+          deleted_at: string | null
           document_name: string
           document_status: Database["public"]["Enums"]["document_status"] | null
           document_type: string | null
@@ -3608,6 +3613,7 @@ export type Database = {
           category: string
           company_id: string
           created_at: string
+          deleted_at: string | null
           document_name: string
           document_status: Database["public"]["Enums"]["document_status"] | null
           document_type: string | null
@@ -3643,6 +3649,7 @@ export type Database = {
               category: string
               company_id: string
               created_at: string
+              deleted_at: string | null
               document_name: string
               document_status:
                 | Database["public"]["Enums"]["document_status"]
@@ -3693,6 +3700,7 @@ export type Database = {
           category: string
           company_id: string
           created_at: string
+          deleted_at: string | null
           document_name: string
           document_status: Database["public"]["Enums"]["document_status"] | null
           document_type: string | null
@@ -3758,6 +3766,7 @@ export type Database = {
       register_document_upload: {
         Args: {
           p_category: string
+          p_company_id: string
           p_document_name: string
           p_document_type: string
           p_file_size: number
