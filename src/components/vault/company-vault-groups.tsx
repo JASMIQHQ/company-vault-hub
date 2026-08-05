@@ -5,6 +5,7 @@ import { AddCompanyDialog } from "@/components/vault/add-company-dialog";
 import { Button } from "@/components/ui/button";
 import { DocumentList } from "@/components/vault/document-list";
 import { Skeleton } from "@/components/ui/skeleton";
+import { sortByCanonicalOrder } from "@/lib/document-order";
 import type { Company } from "@/hooks/use-companies";
 import type { CompanyDocument } from "@/lib/vault";
 
@@ -12,6 +13,8 @@ interface CompanyVaultGroupsProps {
   organizationId: string;
   companies: Company[];
   documents: CompanyDocument[];
+  /** All active documents, used for company counts independent of search filters. */
+  allDocuments: CompanyDocument[];
   isLoading: boolean;
   error: Error | null;
   onRetry: () => void;
@@ -21,6 +24,7 @@ interface CompanyVaultGroupsProps {
 function CompanyGroup({
   company,
   documents,
+  count,
   isLoading,
   error,
   onRetry,
@@ -28,6 +32,7 @@ function CompanyGroup({
 }: {
   company: Company;
   documents: CompanyDocument[];
+  count: number;
   isLoading: boolean;
   error: Error | null;
   onRetry: () => void;
@@ -51,7 +56,7 @@ function CompanyGroup({
         <Building2 className="size-4 text-primary" />
         <span className="text-sm font-semibold">{company.legal_name}</span>
         <span className="text-xs text-muted-foreground">
-          ({documents.length} {documents.length === 1 ? "document" : "documents"})
+          ({count} {count === 1 ? "document" : "documents"})
         </span>
       </button>
       {open ? (
@@ -61,7 +66,7 @@ function CompanyGroup({
           </p>
         ) : (
           <DocumentList
-            documents={documents}
+            documents={sortByCanonicalOrder(documents)}
             isLoading={isLoading}
             error={error}
             onRetry={onRetry}
@@ -73,11 +78,14 @@ function CompanyGroup({
   );
 }
 
+
 /** Company Vault presentation: documents grouped under their owning company. */
 export function CompanyVaultGroups({
   organizationId,
   companies,
   documents,
+  allDocuments,
+
   isLoading,
   error,
   onRetry,
@@ -120,6 +128,8 @@ export function CompanyVaultGroups({
             key={company.id}
             company={company}
             documents={documents.filter((document) => document.company_id === company.id)}
+            count={allDocuments.filter((document) => document.company_id === company.id).length}
+
             isLoading={isLoading}
             error={error}
             onRetry={onRetry}

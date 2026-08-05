@@ -9,8 +9,10 @@ import { GreetingCard } from "@/components/greeting-card";
 import { CommandCenter } from "@/components/command-center";
 import { CompanySelect } from "@/components/company-select";
 import { CompanyVaultGroups } from "@/components/vault/company-vault-groups";
+import { BinDialog } from "@/components/vault/bin-dialog";
 import { UploadDialog } from "@/components/vault/upload-dialog";
-import { useDocuments, useSession } from "@/hooks/use-vault";
+import { useDeletedDocuments, useDocuments, useSession } from "@/hooks/use-vault";
+
 import { useCompanies } from "@/hooks/use-companies";
 import { useActiveOrganization } from "@/hooks/use-active-organization";
 import { useOrganizationRequirements, useTenders } from "@/hooks/use-tenders";
@@ -48,6 +50,8 @@ function VaultPage() {
   const org = useActiveOrganization(session, sessionLoading);
   const documentsQuery = useDocuments(session, org.activeOrgId);
   const companiesQuery = useCompanies(session, org.activeOrgId);
+  const deletedQuery = useDeletedDocuments(session, org.activeOrgId);
+
   const tendersQuery = useTenders(session, org.activeOrgId);
   const requirementsQuery = useOrganizationRequirements(session, org.activeOrgId);
 
@@ -161,7 +165,14 @@ function VaultPage() {
               aria-label="Search documents"
             />
           </div>
-          {org.activeOrgId ? <UploadDialog organizationId={org.activeOrgId} /> : null}
+          <div className="flex items-center gap-1">
+            <BinDialog
+              documents={deletedQuery.data ?? []}
+              companies={companiesQuery.data ?? []}
+            />
+            {org.activeOrgId ? <UploadDialog organizationId={org.activeOrgId} /> : null}
+          </div>
+
         </div>
 
         {categories.length > 1 ? (
@@ -197,6 +208,8 @@ function VaultPage() {
               organizationId={org.activeOrgId!}
               companies={companiesQuery.data ?? []}
               documents={filtered}
+              allDocuments={documents}
+
               isLoading={bootstrapping || documentsQuery.isPending || companiesQuery.isPending}
               error={
                 org.error ??

@@ -64,12 +64,95 @@ export function useDocuments(
         .from("company_documents")
         .select("*")
         .eq("organization_id", organizationId!)
+        .is("deleted_at", null)
         .order("created_at", { ascending: false });
       if (error) throw error;
       return data ?? [];
     },
   });
 }
+
+/** Soft-deleted documents (the Bin). */
+export function useDeletedDocuments(
+  session: Session | null,
+  organizationId: string | null | undefined,
+) {
+  return useQuery({
+    queryKey: ["company-documents-deleted", organizationId],
+    enabled: Boolean(session) && Boolean(organizationId),
+    queryFn: async (): Promise<CompanyDocument[]> => {
+      const { data, error } = await supabase
+        .from("company_documents")
+        .select("*")
+        .eq("organization_id", organizationId!)
+        .not("deleted_at", "is", null)
+        .order("deleted_at", { ascending: false });
+      if (error) throw error;
+      return data ?? [];
+    },
+  });
+}
+
+function useDocumentMutation<TInput>(mutationFn: (input: TInput) => Promise<void>) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["company-documents"] });
+      queryClient.invalidateQueries({ queryKey: ["company-documents-deleted"] });
+    },
+  });
+}
+
+/** Renames a document only — file, storage_path and metadata are untouched. */
+export function useRenameDocument() {
+  return useDocumentMutation<{ id: string; documentName: string }>(async ({ id, documentName }) => {
+    const name = documentName.trim();
+    if (!name) throw new Error("Document name cannot be empty.");
+    const { error } = await supabase
+      .from("company_documents")
+      .update({ document_name: name })
+      .eq("id", id);
+    if (error) throw error;
+  });
+}
+
+/** Moves a document to the Bin (recoverable). */
+export function useSoftDeleteDocument() {
+  return useDocumentMutation<{ id: string }>(async ({ id }) => {
+    const { error } = await supabase
+      .from("company_documents")
+      .update({ deleted_at: new Date().toISOString() })
+      .eq("id", id);
+    if (error) throw error;
+  });
+}
+
+/** Restores a document from the Bin. */
+export function useRestoreDocument() {
+  return useDocumentMutation<{ id: string }>(async ({ id }) => {
+    const { error } = await supabase
+      .from("company_documents")
+      .update({ deleted_at: null })
+      .eq("id", id);
+    if (error) throw error;
+  });
+}
+
+/**
+ * Permanent deletion: removes the storage object using the same bucket helper
+ * the upload flow already uses, then deletes the row.
+ */
+export function usePermanentDeleteDocument() {
+  return useDocumentMutation<{ id: string; storagePath: string }>(
+    async ({ id, storagePath }) => {
+      const { error } = await supabase.from("company_documents").delete().eq("id", id);
+      if (error) throw error;
+      await supabase.storage.from(BUCKET).remove([storagePath]);
+    },
+  );
+}
+
 
 
 export interface UploadInput {
