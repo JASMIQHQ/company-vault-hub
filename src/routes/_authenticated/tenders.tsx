@@ -1,10 +1,7 @@
 import { useState } from "react";
-import { createFileRoute, Link, useRouter } from "@tanstack/react-router";
-import { FileStack, LogOut } from "lucide-react";
+import { createFileRoute } from "@tanstack/react-router";
 
-import { Button } from "@/components/ui/button";
 import { CompanySelect } from "@/components/company-select";
-import { ThemeToggle } from "@/components/theme-toggle";
 import { TenderList } from "@/components/tenders/tender-list";
 import { TenderUploadDialog } from "@/components/tenders/tender-upload-dialog";
 import { CompanyPicker } from "@/components/vault/company-picker";
@@ -12,7 +9,6 @@ import { useCompanies } from "@/hooks/use-companies";
 import { useTenders } from "@/hooks/use-tenders";
 import { useActiveOrganization } from "@/hooks/use-active-organization";
 import { useSession } from "@/hooks/use-vault";
-import { supabase } from "@/integrations/supabase/client";
 
 export const Route = createFileRoute("/_authenticated/tenders")({
   head: () => ({
@@ -37,7 +33,6 @@ export const Route = createFileRoute("/_authenticated/tenders")({
 });
 
 function TendersPage() {
-  const router = useRouter();
   const { session, isLoading: sessionLoading } = useSession();
   const org = useActiveOrganization(session, sessionLoading);
   const activeOrg = org.activeOrgId;
@@ -52,105 +47,68 @@ function TendersPage() {
       : (companies[0]?.id ?? null);
   const setTenderCompanyId = setSelectedCompany;
 
-  const signOut = async () => {
-    await supabase.auth.signOut();
-    router.navigate({ to: "/auth" });
-  };
-
   const bootstrapping = org.bootstrapping;
   const orgMissing = !bootstrapping && !org.error && Boolean(session) && !activeOrg;
 
-
   return (
-    <div className="min-h-screen bg-app-gradient">
-      <header className="sticky top-0 z-20 border-b border-border/50 bg-background/60 backdrop-blur-xl">
-        <div className="mx-auto flex max-w-6xl items-center justify-between gap-4 px-4 py-4 sm:px-6">
-          <div className="flex items-center gap-2.5">
-            <div className="flex size-9 items-center justify-center rounded-xl bg-primary/10 text-primary">
-              <FileStack className="size-4.5" />
+    <div className="mx-auto max-w-6xl px-4 py-8 sm:px-6 sm:py-12">
+      <h1 className="text-2xl font-semibold tracking-tight sm:text-3xl">Tender Command</h1>
+      <p className="mt-1.5 text-sm text-muted-foreground">
+        Upload tender and RFP documents and keep them securely stored.
+      </p>
+
+      <div className="mt-6 flex flex-wrap items-end justify-between gap-3">
+        {org.multiCompany ? (
+          <CompanySelect
+            id="tender-company"
+            label="Which company is preparing this tender?"
+            organizations={org.organizations}
+            value={activeOrg}
+            onChange={org.setActiveOrgId}
+          />
+        ) : (
+          <span />
+        )}
+        {activeOrg ? (
+          <div className="flex flex-wrap items-end gap-3">
+            <div className="w-full max-w-xs">
+              <CompanyPicker
+                id="tender-company-select"
+                label="Company"
+                organizationId={activeOrg}
+                companies={companies}
+                value={tenderCompanyId}
+                onChange={setTenderCompanyId}
+              />
             </div>
-            <div className="leading-tight">
-              <p className="text-sm font-semibold tracking-tight">Tender Command</p>
-              <p className="text-xs text-muted-foreground">Jasmiq Procurement AI</p>
-            </div>
+            {tenderCompanyId ? (
+              <TenderUploadDialog organizationId={activeOrg} companyId={tenderCompanyId} />
+            ) : null}
           </div>
-          <div className="flex items-center gap-1">
-            <Button asChild variant="ghost" size="sm" className="rounded-xl">
-              <Link to="/vault">Command Center</Link>
-            </Button>
-            <ThemeToggle />
-            <Button
-              variant="ghost"
-              size="icon"
-              className="rounded-xl"
-              onClick={signOut}
-              aria-label="Sign out"
-            >
-              <LogOut className="size-4" />
-            </Button>
+        ) : null}
+      </div>
+
+      <section className="glass-panel mt-6 overflow-hidden">
+        {orgMissing ? (
+          <div className="p-12 text-center">
+            <p className="text-sm font-medium">No organization found for your account</p>
+            <p className="mt-1 text-sm text-muted-foreground">
+              Ask an administrator to add you to an organization before uploading tenders.
+            </p>
           </div>
-        </div>
-      </header>
-
-      <main className="mx-auto max-w-6xl px-4 py-8 sm:px-6 sm:py-12">
-        <h1 className="text-2xl font-semibold tracking-tight sm:text-3xl">Tender Command</h1>
-        <p className="mt-1.5 text-sm text-muted-foreground">
-          Upload tender and RFP documents and keep them securely stored.
-        </p>
-
-        <div className="mt-6 flex flex-wrap items-end justify-between gap-3">
-          {org.multiCompany ? (
-            <CompanySelect
-              id="tender-company"
-              label="Which company is preparing this tender?"
-              organizations={org.organizations}
-              value={activeOrg}
-              onChange={org.setActiveOrgId}
-            />
-          ) : (
-            <span />
-          )}
-          {activeOrg ? (
-            <div className="flex flex-wrap items-end gap-3">
-              <div className="w-full max-w-xs">
-                <CompanyPicker
-                  id="tender-company-select"
-                  label="Company"
-                  organizationId={activeOrg}
-                  companies={companies}
-                  value={tenderCompanyId}
-                  onChange={setTenderCompanyId}
-                />
-              </div>
-              {tenderCompanyId ? (
-                <TenderUploadDialog organizationId={activeOrg} companyId={tenderCompanyId} />
-              ) : null}
-            </div>
-          ) : null}
-        </div>
-
-        <section className="glass-panel mt-6 overflow-hidden">
-          {orgMissing ? (
-            <div className="p-12 text-center">
-              <p className="text-sm font-medium">No organization found for your account</p>
-              <p className="mt-1 text-sm text-muted-foreground">
-                Ask an administrator to add you to an organization before uploading tenders.
-              </p>
-            </div>
-          ) : (
-            <TenderList
-              session={session}
-              tenders={tendersQuery.data ?? []}
-              isLoading={bootstrapping || tendersQuery.isPending}
-              error={org.error ?? (tendersQuery.error as Error | null)}
-              onRetry={() => {
-                org.refetch();
-                tendersQuery.refetch();
-              }}
-            />
-          )}
-        </section>
-      </main>
+        ) : (
+          <TenderList
+            session={session}
+            tenders={tendersQuery.data ?? []}
+            isLoading={bootstrapping || tendersQuery.isPending}
+            error={org.error ?? (tendersQuery.error as Error | null)}
+            onRetry={() => {
+              org.refetch();
+              tendersQuery.refetch();
+            }}
+          />
+        )}
+      </section>
     </div>
   );
 }
