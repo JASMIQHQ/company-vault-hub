@@ -35,7 +35,7 @@ function AuthPage() {
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data }) => {
-      if (data.session) router.navigate({ to: "/vault" });
+      if (data.session) router.navigate({ to: "/dashboard" });
     });
   }, [router]);
 
@@ -49,7 +49,7 @@ function AuthPage() {
       setError(signInError.message);
       return;
     }
-    router.navigate({ to: "/vault" });
+    router.navigate({ to: "/dashboard" });
   };
 
   return (
