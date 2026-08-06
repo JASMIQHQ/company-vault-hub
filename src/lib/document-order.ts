@@ -5,10 +5,11 @@ import type { CompanyDocument } from "@/lib/vault";
  * is renamed or reordered — the Vault simply sorts rows with this list.
  */
 export const CANONICAL_DOCUMENT_ORDER = [
-  "CAC",
-  "CO2",
-  "CO7",
+  "CAC CERTIFICATE",
+  "CAC 2",
+  "CAC 7",
   "MEMART",
+  "CAC STATUS REPORT",
   "CAC ANNUAL RETURN",
   "TCC",
   "PENCOM",
@@ -31,6 +32,7 @@ export const CANONICAL_DOCUMENT_ORDER = [
   "AUDITED ACCT 2024",
   "AUDITED ACCT 2025",
 ] as const;
+
 
 export type CanonicalCategory = (typeof CANONICAL_DOCUMENT_ORDER)[number] | "OTHER";
 
