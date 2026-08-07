@@ -19,7 +19,7 @@ import { cn } from "@/lib/utils";
 
 type NavItem = {
   label: string;
-  to?: "/dashboard" | "/vault" | "/tenders" | "/companies";
+  to?: "/dashboard" | "/vault" | "/tenders" | "/companies" | "/bank-references";
   icon: typeof LayoutDashboard;
   soon?: boolean;
 };
@@ -29,7 +29,7 @@ const NAV_ITEMS: NavItem[] = [
   { label: "Vault", to: "/vault", icon: ShieldCheck },
   { label: "Tenders", to: "/tenders", icon: FileStack },
   { label: "Companies", to: "/companies", icon: Building2 },
-  { label: "Bank References", icon: Banknote, soon: true },
+  { label: "Bank References", to: "/bank-references", icon: Banknote },
   { label: "Settings", icon: Settings, soon: true },
 ];
 

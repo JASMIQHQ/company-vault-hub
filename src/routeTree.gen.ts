@@ -17,6 +17,7 @@ import { Route as AuthenticatedVaultRouteImport } from './routes/_authenticated/
 import { Route as AuthenticatedTendersRouteImport } from './routes/_authenticated/tenders'
 import { Route as AuthenticatedDashboardRouteImport } from './routes/_authenticated/dashboard'
 import { Route as AuthenticatedCompaniesRouteImport } from './routes/_authenticated/companies'
+import { Route as AuthenticatedBankReferencesRouteImport } from './routes/_authenticated/bank-references'
 
 const SitemapDotxmlRoute = SitemapDotxmlRouteImport.update({
   id: '/sitemap.xml',
@@ -57,11 +58,18 @@ const AuthenticatedCompaniesRoute = AuthenticatedCompaniesRouteImport.update({
   path: '/companies',
   getParentRoute: () => AuthenticatedRouteRoute,
 } as any)
+const AuthenticatedBankReferencesRoute =
+  AuthenticatedBankReferencesRouteImport.update({
+    id: '/bank-references',
+    path: '/bank-references',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/auth': typeof AuthRoute
   '/sitemap.xml': typeof SitemapDotxmlRoute
+  '/bank-references': typeof AuthenticatedBankReferencesRoute
   '/companies': typeof AuthenticatedCompaniesRoute
   '/dashboard': typeof AuthenticatedDashboardRoute
   '/tenders': typeof AuthenticatedTendersRoute
@@ -71,6 +79,7 @@ export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/auth': typeof AuthRoute
   '/sitemap.xml': typeof SitemapDotxmlRoute
+  '/bank-references': typeof AuthenticatedBankReferencesRoute
   '/companies': typeof AuthenticatedCompaniesRoute
   '/dashboard': typeof AuthenticatedDashboardRoute
   '/tenders': typeof AuthenticatedTendersRoute
@@ -82,6 +91,7 @@ export interface FileRoutesById {
   '/_authenticated': typeof AuthenticatedRouteRouteWithChildren
   '/auth': typeof AuthRoute
   '/sitemap.xml': typeof SitemapDotxmlRoute
+  '/_authenticated/bank-references': typeof AuthenticatedBankReferencesRoute
   '/_authenticated/companies': typeof AuthenticatedCompaniesRoute
   '/_authenticated/dashboard': typeof AuthenticatedDashboardRoute
   '/_authenticated/tenders': typeof AuthenticatedTendersRoute
@@ -93,6 +103,7 @@ export interface FileRouteTypes {
     | '/'
     | '/auth'
     | '/sitemap.xml'
+    | '/bank-references'
     | '/companies'
     | '/dashboard'
     | '/tenders'
@@ -102,6 +113,7 @@ export interface FileRouteTypes {
     | '/'
     | '/auth'
     | '/sitemap.xml'
+    | '/bank-references'
     | '/companies'
     | '/dashboard'
     | '/tenders'
@@ -112,6 +124,7 @@ export interface FileRouteTypes {
     | '/_authenticated'
     | '/auth'
     | '/sitemap.xml'
+    | '/_authenticated/bank-references'
     | '/_authenticated/companies'
     | '/_authenticated/dashboard'
     | '/_authenticated/tenders'
@@ -183,10 +196,18 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedCompaniesRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
+    '/_authenticated/bank-references': {
+      id: '/_authenticated/bank-references'
+      path: '/bank-references'
+      fullPath: '/bank-references'
+      preLoaderRoute: typeof AuthenticatedBankReferencesRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
   }
 }
 
 interface AuthenticatedRouteRouteChildren {
+  AuthenticatedBankReferencesRoute: typeof AuthenticatedBankReferencesRoute
   AuthenticatedCompaniesRoute: typeof AuthenticatedCompaniesRoute
   AuthenticatedDashboardRoute: typeof AuthenticatedDashboardRoute
   AuthenticatedTendersRoute: typeof AuthenticatedTendersRoute
@@ -194,6 +215,7 @@ interface AuthenticatedRouteRouteChildren {
 }
 
 const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
+  AuthenticatedBankReferencesRoute: AuthenticatedBankReferencesRoute,
   AuthenticatedCompaniesRoute: AuthenticatedCompaniesRoute,
   AuthenticatedDashboardRoute: AuthenticatedDashboardRoute,
   AuthenticatedTendersRoute: AuthenticatedTendersRoute,
@@ -212,13 +234,3 @@ const rootRouteChildren: RootRouteChildren = {
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
   ._addFileTypes<FileRouteTypes>()
-
-import type { getRouter } from './router.tsx'
-import type { startInstance } from './start.ts'
-declare module '@tanstack/react-start' {
-  interface Register {
-    ssr: true
-    router: Awaited<ReturnType<typeof getRouter>>
-    config: Awaited<ReturnType<typeof startInstance.getOptions>>
-  }
-}
