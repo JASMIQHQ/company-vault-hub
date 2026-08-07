@@ -377,50 +377,66 @@ export type Database = {
       bank_reference_requests: {
         Row: {
           bank_name: string | null
+          company_id: string | null
           created_at: string | null
           expected_date: string | null
           expiry_date: string | null
           id: string
+          is_template: boolean
           notes: string | null
           organization_id: string
           received_date: string | null
           request_date: string | null
+          request_metadata: Json
           requested_by: string | null
           status: string | null
-          tender_id: string
+          tender_id: string | null
           updated_at: string | null
         }
         Insert: {
           bank_name?: string | null
+          company_id?: string | null
           created_at?: string | null
           expected_date?: string | null
           expiry_date?: string | null
           id?: string
+          is_template?: boolean
           notes?: string | null
           organization_id: string
           received_date?: string | null
           request_date?: string | null
+          request_metadata?: Json
           requested_by?: string | null
           status?: string | null
-          tender_id: string
+          tender_id?: string | null
           updated_at?: string | null
         }
         Update: {
           bank_name?: string | null
+          company_id?: string | null
           created_at?: string | null
           expected_date?: string | null
           expiry_date?: string | null
           id?: string
+          is_template?: boolean
           notes?: string | null
           organization_id?: string
           received_date?: string | null
           request_date?: string | null
+          request_metadata?: Json
           requested_by?: string | null
           status?: string | null
-          tender_id?: string
+          tender_id?: string | null
           updated_at?: string | null
         }
         Relationships: [
+          {
+            foreignKeyName: "bank_reference_requests_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "bank_reference_requests_organization_id_fkey"
             columns: ["organization_id"]
