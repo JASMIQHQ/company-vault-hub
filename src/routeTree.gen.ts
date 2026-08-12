@@ -18,6 +18,7 @@ import { Route as AuthenticatedTendersRouteImport } from './routes/_authenticate
 import { Route as AuthenticatedDashboardRouteImport } from './routes/_authenticated/dashboard'
 import { Route as AuthenticatedCompaniesRouteImport } from './routes/_authenticated/companies'
 import { Route as AuthenticatedBankReferencesRouteImport } from './routes/_authenticated/bank-references'
+import { Route as AuthenticatedSettingsRouteImport } from './routes/_authenticated/settings'
 
 const SitemapDotxmlRoute = SitemapDotxmlRouteImport.update({
   id: '/sitemap.xml',
@@ -64,6 +65,11 @@ const AuthenticatedBankReferencesRoute =
     path: '/bank-references',
     getParentRoute: () => AuthenticatedRouteRoute,
   } as any)
+const AuthenticatedSettingsRoute = AuthenticatedSettingsRouteImport.update({
+  id: '/settings',
+  path: '/settings',
+  getParentRoute: () => AuthenticatedRouteRoute,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
@@ -72,6 +78,7 @@ export interface FileRoutesByFullPath {
   '/bank-references': typeof AuthenticatedBankReferencesRoute
   '/companies': typeof AuthenticatedCompaniesRoute
   '/dashboard': typeof AuthenticatedDashboardRoute
+  '/settings': typeof AuthenticatedSettingsRoute
   '/tenders': typeof AuthenticatedTendersRoute
   '/vault': typeof AuthenticatedVaultRoute
 }
@@ -82,6 +89,7 @@ export interface FileRoutesByTo {
   '/bank-references': typeof AuthenticatedBankReferencesRoute
   '/companies': typeof AuthenticatedCompaniesRoute
   '/dashboard': typeof AuthenticatedDashboardRoute
+  '/settings': typeof AuthenticatedSettingsRoute
   '/tenders': typeof AuthenticatedTendersRoute
   '/vault': typeof AuthenticatedVaultRoute
 }
@@ -94,6 +102,7 @@ export interface FileRoutesById {
   '/_authenticated/bank-references': typeof AuthenticatedBankReferencesRoute
   '/_authenticated/companies': typeof AuthenticatedCompaniesRoute
   '/_authenticated/dashboard': typeof AuthenticatedDashboardRoute
+  '/_authenticated/settings': typeof AuthenticatedSettingsRoute
   '/_authenticated/tenders': typeof AuthenticatedTendersRoute
   '/_authenticated/vault': typeof AuthenticatedVaultRoute
 }
@@ -106,6 +115,7 @@ export interface FileRouteTypes {
     | '/bank-references'
     | '/companies'
     | '/dashboard'
+    | '/settings'
     | '/tenders'
     | '/vault'
   fileRoutesByTo: FileRoutesByTo
@@ -116,6 +126,7 @@ export interface FileRouteTypes {
     | '/bank-references'
     | '/companies'
     | '/dashboard'
+    | '/settings'
     | '/tenders'
     | '/vault'
   id:
@@ -127,6 +138,7 @@ export interface FileRouteTypes {
     | '/_authenticated/bank-references'
     | '/_authenticated/companies'
     | '/_authenticated/dashboard'
+    | '/_authenticated/settings'
     | '/_authenticated/tenders'
     | '/_authenticated/vault'
   fileRoutesById: FileRoutesById
@@ -203,6 +215,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedBankReferencesRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
+    '/_authenticated/settings': {
+      id: '/_authenticated/settings'
+      path: '/settings'
+      fullPath: '/settings'
+      preLoaderRoute: typeof AuthenticatedSettingsRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
   }
 }
 
@@ -210,6 +229,7 @@ interface AuthenticatedRouteRouteChildren {
   AuthenticatedBankReferencesRoute: typeof AuthenticatedBankReferencesRoute
   AuthenticatedCompaniesRoute: typeof AuthenticatedCompaniesRoute
   AuthenticatedDashboardRoute: typeof AuthenticatedDashboardRoute
+  AuthenticatedSettingsRoute: typeof AuthenticatedSettingsRoute
   AuthenticatedTendersRoute: typeof AuthenticatedTendersRoute
   AuthenticatedVaultRoute: typeof AuthenticatedVaultRoute
 }
@@ -218,6 +238,7 @@ const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedBankReferencesRoute: AuthenticatedBankReferencesRoute,
   AuthenticatedCompaniesRoute: AuthenticatedCompaniesRoute,
   AuthenticatedDashboardRoute: AuthenticatedDashboardRoute,
+  AuthenticatedSettingsRoute: AuthenticatedSettingsRoute,
   AuthenticatedTendersRoute: AuthenticatedTendersRoute,
   AuthenticatedVaultRoute: AuthenticatedVaultRoute,
 }
