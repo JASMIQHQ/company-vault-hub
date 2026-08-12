@@ -17,7 +17,11 @@ export interface RequirementStatusCount {
   status: string | null;
 }
 
+/** Documents become a renewal mission when they expire within 30 days. */
 export const EXPIRY_WARNING_DAYS = 30;
+/** Dashboard deadline list looks 60 days ahead, while retaining a 7-day overdue grace window. */
+export const DEADLINE_LOOKAHEAD_DAYS = 60;
+export const OVERDUE_DEADLINE_GRACE_DAYS = 7;
 
 export function daysUntil(value: string | null): number | null {
   if (!value) return null;
@@ -66,7 +70,6 @@ export function buildReadiness(
     .filter((tender) => tender.analysis_status === "analyzed")
     .map((tender) => tender.compliance_percentage)
     .filter((value): value is number => typeof value === "number");
-
 
   return {
     activeDocuments: documents.length - expired,
@@ -219,7 +222,10 @@ export function buildDeadlines(tenders: TenderListItem[]): DeadlineItem[] {
         urgency: (days < 0 || days <= 3 ? "high" : days <= 14 ? "medium" : "low") as Urgency,
       };
     })
-    .filter((item) => (daysUntil(item.deadline) ?? 0) >= -7)
+    .filter((item) => {
+      const days = daysUntil(item.deadline) ?? 0;
+      return days >= -OVERDUE_DEADLINE_GRACE_DAYS && days <= DEADLINE_LOOKAHEAD_DAYS;
+    })
     .sort((a, b) => new Date(a.deadline).getTime() - new Date(b.deadline).getTime())
     .slice(0, 3);
 }
