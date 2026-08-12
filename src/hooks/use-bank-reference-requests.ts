@@ -198,10 +198,10 @@ export function useCreateBankReferenceRequest() {
       if (error) throw error;
       return mapRow(data as unknown as Row);
     },
-    onSuccess: (item) => {
-      queryClient.invalidateQueries({ queryKey: ["bank_reference_requests", "active", item.company_id] });
-      queryClient.invalidateQueries({ queryKey: ["bank_reference_requests", "templates", item.company_id] });
-      queryClient.invalidateQueries({ queryKey: ["bank_reference_requests"] });
+    onSuccess: (_item, variables) => {
+      queryClient.invalidateQueries({ queryKey: ["bank_reference_requests", "active", variables.organizationId] });
+      queryClient.invalidateQueries({ queryKey: ["bank_reference_requests", "templates", variables.organizationId] });
+      queryClient.invalidateQueries({ queryKey: ["bank_reference_requests", "templates", "count", variables.organizationId] });
     },
   });
 }
