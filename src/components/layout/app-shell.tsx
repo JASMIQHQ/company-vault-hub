@@ -2,6 +2,7 @@ import { useState, type ReactNode } from "react";
 import { Link, useRouter, useRouterState } from "@tanstack/react-router";
 import {
   Banknote,
+  BrainCircuit,
   Building2,
   FileStack,
   LayoutDashboard,
@@ -14,6 +15,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
 import { ThemeToggle } from "@/components/theme-toggle";
+import { JasmiqIntelligence } from "@/components/intelligence/jasmiq-intelligence";
 import { supabase } from "@/integrations/supabase/client";
 import { cn } from "@/lib/utils";
 
@@ -78,6 +80,7 @@ function Brand() {
 export function AppShell({ children }: { children: ReactNode }) {
   const router = useRouter();
   const [mobileOpen, setMobileOpen] = useState(false);
+  const [intelligenceOpen, setIntelligenceOpen] = useState(false);
 
   const signOut = async () => {
     await supabase.auth.signOut();
@@ -86,12 +89,23 @@ export function AppShell({ children }: { children: ReactNode }) {
 
   return (
     <div className="min-h-screen bg-app-gradient">
+      <JasmiqIntelligence open={intelligenceOpen} onOpenChange={setIntelligenceOpen} />
+
       <div className="flex min-h-screen w-full">
         <aside className="sticky top-0 hidden h-screen w-60 shrink-0 flex-col border-r border-border/50 bg-background/50 px-4 py-5 backdrop-blur-xl lg:flex">
           <Brand />
           <div className="mt-6 flex-1">
             <NavLinks />
           </div>
+          <Button
+            variant="outline"
+            size="sm"
+            className="mb-2 justify-start gap-2 rounded-xl border-primary/20 bg-primary/[0.04] text-primary hover:bg-primary/10 hover:text-primary"
+            onClick={() => setIntelligenceOpen(true)}
+          >
+            <BrainCircuit className="size-4" />
+            JASMIQ Intelligence
+          </Button>
           <Button
             variant="ghost"
             size="sm"
@@ -123,6 +137,17 @@ export function AppShell({ children }: { children: ReactNode }) {
                     <div className="mt-6">
                       <NavLinks onNavigate={() => setMobileOpen(false)} />
                     </div>
+                    <Button
+                      variant="outline"
+                      className="mt-5 w-full justify-start gap-2 rounded-xl border-primary/20 text-primary hover:bg-primary/10 hover:text-primary"
+                      onClick={() => {
+                        setMobileOpen(false);
+                        setIntelligenceOpen(true);
+                      }}
+                    >
+                      <BrainCircuit className="size-4" />
+                      JASMIQ Intelligence
+                    </Button>
                   </SheetContent>
                 </Sheet>
                 <div className="lg:hidden">
@@ -130,6 +155,15 @@ export function AppShell({ children }: { children: ReactNode }) {
                 </div>
               </div>
               <div className="flex items-center gap-1">
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="hidden gap-2 rounded-xl text-primary hover:bg-primary/10 hover:text-primary sm:inline-flex"
+                  onClick={() => setIntelligenceOpen(true)}
+                >
+                  <BrainCircuit className="size-4" />
+                  Intelligence
+                </Button>
                 <ThemeToggle />
                 <Button
                   variant="ghost"
