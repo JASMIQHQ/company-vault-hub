@@ -75,7 +75,12 @@ function DashboardPage() {
             tendersQuery.isPending ||
             requirementsQuery.isPending
           }
-          hasError={Boolean(org.error ?? documentsQuery.error ?? tendersQuery.error)}
+          hasError={Boolean(
+            org.error ??
+              documentsQuery.error ??
+              tendersQuery.error ??
+              requirementsQuery.error,
+          )}
           onRetry={() => {
             org.refetch();
             documentsQuery.refetch();
