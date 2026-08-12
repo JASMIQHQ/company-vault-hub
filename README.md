@@ -48,7 +48,7 @@ FIRST ACTION (MANDATORY)
 
 Before writing any code:
 
- Connect to my existing Supabase project using Lovable Integration.
+ Connect to the existing Supabase project through the configured application integration.
 
  Read the live database schema.
 
@@ -408,19 +408,9 @@ When Sprint 1 is complete, provide:
 
 Do not build anything beyond Sprint 1.
 
-This project was built with [Lovable](https://lovable.dev).
-
-## Build with Lovable
-
-Continue developing this project in the [Lovable editor](https://lovable.dev/projects/34dae358-75b2-4fd8-9bec-6fa63c1b748b).
-
-- **Ship faster**: describe what you want to build and Lovable handles the code.
-- **Stay in sync**: every change made in Lovable is committed straight to this repository.
-- **Full ownership**: this code is yours. Push to `main` on GitHub and your changes sync back into Lovable, ready for your next prompt.
-
 ## Development
 
-Prefer working locally? You need Node.js and npm — [install with nvm](https://github.com/nvm-sh/nvm#installing-and-updating).
+Prefer working locally? You need Node.js and npm.
 
 ```sh
 git clone <this-repository-url>
