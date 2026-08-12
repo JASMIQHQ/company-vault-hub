@@ -19,9 +19,8 @@ import { cn } from "@/lib/utils";
 
 type NavItem = {
   label: string;
-  to?: "/dashboard" | "/vault" | "/tenders" | "/companies" | "/bank-references";
+  to?: "/dashboard" | "/vault" | "/tenders" | "/companies" | "/bank-references" | "/settings";
   icon: typeof LayoutDashboard;
-  soon?: boolean;
 };
 
 const NAV_ITEMS: NavItem[] = [
@@ -30,7 +29,7 @@ const NAV_ITEMS: NavItem[] = [
   { label: "Tenders", to: "/tenders", icon: FileStack },
   { label: "Companies", to: "/companies", icon: Building2 },
   { label: "Bank References", to: "/bank-references", icon: Banknote },
-  { label: "Settings", icon: Settings, soon: true },
+  { label: "Settings", to: "/settings", icon: Settings },
 ];
 
 function NavLinks({ onNavigate }: { onNavigate?: () => void }) {
@@ -40,28 +39,11 @@ function NavLinks({ onNavigate }: { onNavigate?: () => void }) {
     <nav className="flex flex-col gap-1">
       {NAV_ITEMS.map((item) => {
         const Icon = item.icon;
-        if (!item.to) {
-          return (
-            <span
-              key={item.label}
-              className="flex cursor-not-allowed items-center justify-between gap-2 rounded-xl px-3 py-2 text-sm text-muted-foreground/60"
-              aria-disabled="true"
-            >
-              <span className="flex items-center gap-2">
-                <Icon className="size-4" />
-                {item.label}
-              </span>
-              <span className="rounded-full border border-border/60 px-1.5 py-0.5 text-[10px] uppercase tracking-wide">
-                Soon
-              </span>
-            </span>
-          );
-        }
         const active = pathname === item.to;
         return (
           <Link
             key={item.label}
-            to={item.to}
+            to={item.to!}
             onClick={onNavigate}
             className={cn(
               "flex items-center gap-2 rounded-xl px-3 py-2 text-sm font-medium transition-colors",
