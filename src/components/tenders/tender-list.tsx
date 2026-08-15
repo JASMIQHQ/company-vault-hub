@@ -23,6 +23,7 @@ import { createTenderSignedUrl, useAnalyzeTender, useTenderRequirements } from "
 import type { TenderListItem } from "@/lib/tenders";
 import { formatDate } from "@/lib/vault";
 import type { Session } from "@supabase/supabase-js";
+import { Link } from "@tanstack/react-router";
 
 function deadlineState(value: string | null) {
   if (!value) return null;
@@ -125,7 +126,7 @@ export function TenderList({ session, tenders, isLoading, error, onRetry }: Tend
         const deadline = deadlineState(tender.submission_deadline);
         return <Fragment key={tender.id}>
           <TableRow className="transition-colors">
-            <TableCell className="font-medium"><div className="flex items-center gap-1.5">{showDetails ? <button type="button" onClick={() => setExpanded(isOpen ? null : tender.id)} className="rounded-md p-0.5 text-muted-foreground hover:text-foreground" aria-label={isOpen ? "Hide analysis" : "Show analysis"}>{isOpen ? <ChevronDown className="size-4" /> : <ChevronRight className="size-4" />}</button> : <span className="inline-block size-5" />}{tender.title}</div></TableCell>
+            <TableCell className="font-medium"><div className="flex items-center gap-1.5">{showDetails ? <button type="button" onClick={() => setExpanded(isOpen ? null : tender.id)} className="rounded-md p-0.5 text-muted-foreground hover:text-foreground" aria-label={isOpen ? "Hide analysis" : "Show analysis"}>{isOpen ? <ChevronDown className="size-4" /> : <ChevronRight className="size-4" />}</button> : <span className="inline-block size-5" />}<Link to="/tenders/$tenderId" params={{ tenderId: tender.id }} className="hover:underline">{tender.title}</Link></div></TableCell>
             <TableCell className="hidden sm:table-cell"><div className="text-sm">{tender.submission_deadline ? formatDate(tender.submission_deadline) : "—"}</div>{deadline ? <div className={`text-xs font-medium ${deadline.className}`}>{deadline.label}</div> : <div className="text-xs text-muted-foreground">No deadline recorded</div>}</TableCell>
             <TableCell className="hidden md:table-cell text-muted-foreground">{formatDate(tender.created_at)}</TableCell>
             <TableCell className="hidden sm:table-cell"><StatusBadge status={status as never} /></TableCell>
