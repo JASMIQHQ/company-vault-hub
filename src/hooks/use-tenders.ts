@@ -81,7 +81,7 @@ export function useAnalyzeTender() {
     },
     onSuccess: (_, tenderId) => {
       queryClient.invalidateQueries({ queryKey: ["tenders"] });
-      queryClient.invalidateQueries({ queryKey: ["tender", undefined, tenderId] });
+      queryClient.invalidateQueries({ queryKey: ["tender"] });
       queryClient.invalidateQueries({ queryKey: ["tender_requirements", tenderId] });
     },
   });
