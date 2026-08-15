@@ -38,7 +38,7 @@ export function sanitizeFilename(filename: string): string {
 }
 
 export function buildStoragePath(organizationId: string, category: string, filename: string) {
-  return `${organizationId}/${category}/${Date.now()}_${sanitizeFilename(filename)}`;
+  return `${organizationId}/${category}/${Date.now()}_${crypto.randomUUID()}_${sanitizeFilename(filename)}`;
 }
 
 export function formatDate(value: string | null): string {
