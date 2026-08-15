@@ -16,6 +16,24 @@ export function useTenders(session: Session | null, organizationId: string | nul
   });
 }
 
+export function useTender(session: Session | null, organizationId: string | null | undefined, tenderId: string | null) {
+  return useQuery({
+    queryKey: ["tender", organizationId, tenderId],
+    enabled: Boolean(session) && Boolean(organizationId) && Boolean(tenderId),
+    queryFn: async (): Promise<TenderListItem> => {
+      const { data, error } = await supabase
+        .from("tenders")
+        .select("id, title, created_at, analysis_status, analysis_error, procuring_entity, submission_deadline, compliance_percentage, requires_bid_security, requires_bank_reference, requires_affidavit, tender_files(storage_path, created_at)")
+        .eq("organization_id", organizationId!)
+        .eq("id", tenderId!)
+        .maybeSingle();
+      if (error) throw error;
+      if (!data) throw new Error("Tender not found.");
+      return { ...data, storage_path: data.tender_files?.[0]?.storage_path ?? null };
+    },
+  });
+}
+
 /** Lightweight dashboard projection — only fields needed for mission/readiness calculations. */
 export function useDashboardTenders(session: Session | null, organizationId: string | null | undefined) {
   return useQuery({
@@ -61,9 +79,10 @@ export function useAnalyzeTender() {
       if (error) throw error;
       return data;
     },
-    onSuccess: () => {
+    onSuccess: (_, tenderId) => {
       queryClient.invalidateQueries({ queryKey: ["tenders"] });
-      queryClient.invalidateQueries({ queryKey: ["tender_requirements"] });
+      queryClient.invalidateQueries({ queryKey: ["tender"] });
+      queryClient.invalidateQueries({ queryKey: ["tender_requirements", tenderId] });
     },
   });
 }
