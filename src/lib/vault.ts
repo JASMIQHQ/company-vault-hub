@@ -6,14 +6,21 @@ export type AnalysisStatus = Database["public"]["Enums"]["document_analysis_stat
 export const BUCKET = "company-documents";
 export const MAX_FILE_SIZE = 25 * 1024 * 1024;
 
-export const ACCEPTED_MIME_TYPES = ["application/pdf", "image/png", "image/jpeg"] as const;
-export const ACCEPT_ATTRIBUTE = ".pdf,.png,.jpg,.jpeg";
+export const ACCEPTED_MIME_TYPES = [
+  "application/pdf",
+  "image/png",
+  "image/jpeg",
+  "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+  "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+] as const;
+
+export const ACCEPT_ATTRIBUTE = ".pdf,.docx,.xlsx,.jpg,.jpeg,.png";
 
 export function validateFile(file: File): string | null {
   const name = file.name.toLowerCase();
-  const extOk = [".pdf", ".png", ".jpg", ".jpeg"].some((ext) => name.endsWith(ext));
+  const extOk = [".pdf", ".docx", ".xlsx", ".png", ".jpg", ".jpeg"].some((ext) => name.endsWith(ext));
   const mimeOk = (ACCEPTED_MIME_TYPES as readonly string[]).includes(file.type);
-  if (!extOk && !mimeOk) return "Only PDF, PNG, JPG and JPEG files are supported.";
+  if (!extOk && !mimeOk) return "Only PDF, DOCX, XLSX, JPG, JPEG and PNG files are supported.";
   if (file.size > MAX_FILE_SIZE) return "File is larger than the 25MB limit.";
   return null;
 }
