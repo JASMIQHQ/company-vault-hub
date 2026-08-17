@@ -13,6 +13,7 @@ import { StatusBadge } from "@/components/vault/status-badge";
 import { useActiveOrganization } from "@/hooks/use-active-organization";
 import { useAnalyzeTender, useSession, useTender, useTenderRequirements, createTenderSignedUrl } from "@/hooks/use-tenders";
 import { supabase } from "@/integrations/supabase/client";
+import { parseAnalysisJson } from "@/lib/tender-analysis";
 import { formatDate } from "@/lib/vault";
 
 export const Route = createFileRoute("/_authenticated/tenders/$tenderId")({ component: TenderWorkspacePage });
@@ -58,9 +59,15 @@ function TenderWorkspacePage() {
   const status = safeStatus(tender.analysis_status);
   const matchedCount = requirements.filter((r) => Boolean(r.matched_document_id)).length;
   const missingEvidenceCount = requirements.length - matchedCount;
+  const analysis = parseAnalysisJson(tender.analysis_json);
+  const categoryCounts = requirements.reduce<Record<string, number>>((counts, requirement) => {
+    const key = requirement.category || "general";
+    counts[key] = (counts[key] ?? 0) + 1;
+    return counts;
+  }, {});
 
   const analyzeNow = async () => {
-    if (analyze.isPending) return;
+    if (analyze.isPending || status === "processing") return;
     try {
       await analyze.mutateAsync(tender.id);
       await Promise.all([tenderQuery.refetch(), requirementsQuery.refetch()]);
@@ -68,6 +75,7 @@ function TenderWorkspacePage() {
     } catch (error) {
       toast.error(error instanceof Error ? error.message : "Tender analysis failed");
       await tenderQuery.refetch();
+      await requirementsQuery.refetch();
     }
   };
 
@@ -93,7 +101,28 @@ function TenderWorkspacePage() {
       {status === "failed" && tender.analysis_error ? <div className="mt-3 rounded-xl border border-destructive/25 bg-destructive/5 p-3 text-sm text-destructive"><strong>Analysis error:</strong> {tender.analysis_error}</div> : null}
     </header>
 
-    <section className="mt-5 grid gap-3 sm:grid-cols-3"><Metric label="Extracted requirements" value={String(requirements.length)} /><Metric label="Evidence links" value={String(matchedCount)} /><Metric label="No evidence linked" value={String(missingEvidenceCount)} /></section>
+    <section className="mt-5 grid gap-3 sm:grid-cols-2 lg:grid-cols-4"><Metric label="Extracted requirements" value={String(requirements.length)} /><Metric label="Evidence links" value={String(matchedCount)} /><Metric label="No evidence linked" value={String(missingEvidenceCount)} /><Metric label="Tender status" value={status.replace("_", " ")} /></section>
+
+    {status === "analyzed" || status === "requires_review" ? <>
+      <section className="mt-5 glass-panel rounded-2xl p-5 sm:p-6">
+        <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+          <div><h2 className="text-lg font-semibold">Tender intelligence snapshot</h2><p className="mt-1 text-sm text-muted-foreground">Facts already stored by the existing analysis pipeline. This surface does not infer or recommend anything.</p></div>
+          <div className="flex flex-wrap gap-2">{tender.lot_number ? <Badge variant="outline" className="rounded-full">Lot {tender.lot_number}</Badge> : null}{tender.industry ? <Badge variant="outline" className="rounded-full">{tender.industry}</Badge> : null}</div>
+        </div>
+        <div className="mt-5 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+          <Snapshot label="Reference number" value={tender.reference_number} />
+          <Snapshot label="Procurement method" value={tender.procurement_method} />
+          <Snapshot label="Tender type" value={tender.tender_type} />
+          <Snapshot label="Opening date" value={tender.opening_date ? formatDate(tender.opening_date) : null} />
+          <Snapshot label="Lot description" value={tender.lot_description} />
+          <Snapshot label="Bid security" value={booleanText(tender.requires_bid_security)} />
+          <Snapshot label="Bank reference" value={booleanText(tender.requires_bank_reference)} />
+          <Snapshot label="Affidavit" value={booleanText(tender.requires_affidavit)} />
+          <Snapshot label="Requirement categories" value={Object.entries(categoryCounts).map(([key, count]) => `${key}: ${count}`).join(" · ") || null} />
+        </div>
+        {analysis.hasData ? <div className="mt-5 border-t border-border/50 pt-5"><p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">Stored analysis fields</p><div className="mt-3 flex flex-wrap gap-2">{analysis.metrics.map((metric) => <div key={`${metric.label}-${metric.value}`} className="rounded-xl border border-border/60 bg-muted/20 px-3 py-2 text-xs"><span className="text-muted-foreground">{metric.label}:</span> <span className="font-medium">{metric.value}</span></div>)}</div>{analysis.rawSummary ? <p className="mt-3 text-sm leading-6 text-muted-foreground">{analysis.rawSummary}</p> : null}</div> : null}
+      </section>
+    </> : null}
 
     <section className="glass-panel mt-5 overflow-hidden rounded-2xl">
       <div className="border-b border-border/50 p-5 sm:p-6"><div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between"><div><h2 className="text-lg font-semibold">Extracted requirements</h2><p className="mt-1 text-sm text-muted-foreground">Read-only view of what the current analysis stored. This page does not create matches or recommendations.</p></div><div className="relative w-full sm:max-w-xs"><Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" /><Input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Search requirements" className="rounded-xl pl-9" aria-label="Search extracted requirements" /></div></div></div>
@@ -104,7 +133,7 @@ function TenderWorkspacePage() {
   </div>;
 }
 
-function RequirementRow({ requirement }: { requirement: { id: string; category: string; requirement_name: string | null; requirement_text: string; status: string | null; confidence_score: number | null; explanation: string | null; matched_document_id: string | null } }) {
+function RequirementRow({ requirement }: { requirement: TenderRequirementItem }) {
   return <article className="p-5 sm:p-6"><div className="flex flex-wrap items-center gap-2"><RequirementStatusBadge status={requirement.status} /><CategoryBadge category={requirement.category} />{requirement.matched_document_id ? <Badge variant="outline" className="rounded-full border-success/25 bg-success-soft text-success">Evidence linked</Badge> : <Badge variant="outline" className="rounded-full">No evidence linked</Badge>}</div><h3 className="mt-3 text-sm font-semibold">{requirement.requirement_name ?? "Unnamed requirement"}</h3><p className="mt-1.5 text-sm leading-6 text-muted-foreground">{requirement.requirement_text}</p>{requirement.explanation ? <p className="mt-3 border-l-2 border-border pl-3 text-xs leading-5 text-muted-foreground"><span className="font-medium text-foreground">Analysis explanation:</span> {requirement.explanation}</p> : null}{typeof requirement.confidence_score === "number" ? <p className="mt-2 text-xs text-muted-foreground">Stored confidence: {Math.round(requirement.confidence_score * 100)}%</p> : null}{requirement.matched_document_id ? <EvidenceReference documentId={requirement.matched_document_id} /> : null}</article>;
 }
 
@@ -126,5 +155,7 @@ function EvidenceReference({ documentId }: { documentId: string }) {
   return <div className="mt-3 flex flex-wrap items-center gap-2"><Button variant="outline" size="sm" className="rounded-lg" onClick={open} disabled={state === "loading"}>{state === "loading" ? <Loader2 className="size-4 animate-spin" /> : <Eye className="size-4" />}<span className="ml-1.5">Open linked Vault evidence</span></Button><span className="text-[11px] text-muted-foreground">Existing backend link: {documentId.slice(0, 8)}…</span></div>;
 }
 
-function Metric({ label, value }: { label: string; value: string }) { return <div className="glass-panel rounded-2xl p-4"><p className="text-xs uppercase tracking-wide text-muted-foreground">{label}</p><p className="mt-1 text-2xl font-semibold tracking-tight">{value}</p></div>; }
+function Metric({ label, value }: { label: string; value: string }) { return <div className="glass-panel rounded-2xl p-4"><p className="text-xs uppercase tracking-wide text-muted-foreground">{label}</p><p className="mt-1 text-2xl font-semibold tracking-tight capitalize">{value}</p></div>; }
+function Snapshot({ label, value }: { label: string; value: string | null }) { return <div className="rounded-xl border border-border/60 bg-muted/10 p-3"><p className="text-[11px] uppercase tracking-wide text-muted-foreground">{label}</p><p className="mt-1 text-sm font-medium">{value || "Not recorded"}</p></div>; }
+function booleanText(value: boolean | null) { return value === true ? "Required" : value === false ? "Not stated as required" : "Not recorded"; }
 function WorkspaceMessage({ title, message }: { title: string; message: string }) { return <div className="mx-auto max-w-2xl px-4 py-20 text-center"><TriangleAlert className="mx-auto size-8 text-warning" /><h1 className="mt-4 text-xl font-semibold">{title}</h1><p className="mt-2 text-sm text-muted-foreground">{message}</p><Button asChild variant="outline" className="mt-5 rounded-xl"><Link to="/tenders">Back to Tenders</Link></Button></div>; }
