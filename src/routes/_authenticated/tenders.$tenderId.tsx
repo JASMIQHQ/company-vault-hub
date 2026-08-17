@@ -3,33 +3,35 @@ import { ArrowLeft, Download, Eye, FileText, Loader2, RefreshCw, Search, ShieldC
 import { useMemo, useState } from "react";
 import { toast } from "sonner";
 
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Badge } from "@/components/ui/badge";
 import { CategoryBadge } from "@/components/tenders/category-badge";
 import { RequirementStatusBadge } from "@/components/tenders/requirement-status-badge";
 import { StatusBadge } from "@/components/vault/status-badge";
 import { useActiveOrganization } from "@/hooks/use-active-organization";
-import { useAnalyzeTender, useSession, useTender, useTenderRequirements, createTenderSignedUrl } from "@/hooks/use-tenders";
+import { createTenderSignedUrl, useAnalyzeTender, useSession, useTender, useTenderRequirements } from "@/hooks/use-tenders";
 import { supabase } from "@/integrations/supabase/client";
+import type { TenderRequirementItem } from "@/lib/tenders";
 import { parseAnalysisJson } from "@/lib/tender-analysis";
 import { formatDate } from "@/lib/vault";
 
 export const Route = createFileRoute("/_authenticated/tenders/$tenderId")({ component: TenderWorkspacePage });
 
 const ANALYSIS_STATES = new Set(["pending", "processing", "analyzed", "failed", "requires_review"]);
+type AnalysisStatus = "pending" | "processing" | "analyzed" | "failed" | "requires_review";
 
-function safeStatus(value: string | null | undefined) {
-  return ANALYSIS_STATES.has(value ?? "") ? (value as "pending" | "processing" | "analyzed" | "failed" | "requires_review") : "pending";
+function safeStatus(value: string | null | undefined): AnalysisStatus {
+  return ANALYSIS_STATES.has(value ?? "") ? value as AnalysisStatus : "pending";
 }
 
-function statusMessage(status: string) {
+function statusMessage(status: AnalysisStatus) {
   switch (status) {
     case "processing": return "JASMIQ is processing the tender. Requirements may update when analysis completes.";
-    case "analyzed": return "Requirements below are the records currently stored by the tender analysis pipeline.";
-    case "requires_review": return "Analysis completed with items that require human review before they should be trusted.";
-    case "failed": return "The last analysis did not complete successfully. No new requirements are invented by this workspace.";
+    case "analyzed": return "Showing the requirements and metadata currently stored by the analysis pipeline.";
+    case "requires_review": return "Analysis completed, but some results require human review before they should be trusted.";
+    case "failed": return "The last analysis did not complete successfully. This workspace will not invent replacement requirements.";
     default: return "This tender has not completed analysis yet.";
   }
 }
@@ -39,7 +41,8 @@ function TenderWorkspacePage() {
   const { session, isLoading: sessionLoading } = useSession();
   const org = useActiveOrganization(session, sessionLoading);
   const tenderQuery = useTender(session, org.activeOrgId, tenderId);
-  const requirementsQuery = useTenderRequirements(session, tenderId, safeStatus(tenderQuery.data?.analysis_status) !== "pending");
+  const status = safeStatus(tenderQuery.data?.analysis_status);
+  const requirementsQuery = useTenderRequirements(session, tenderId, status !== "pending");
   const analyze = useAnalyzeTender();
   const [search, setSearch] = useState("");
   const [busyFile, setBusyFile] = useState<"preview" | "download" | null>(null);
@@ -51,14 +54,14 @@ function TenderWorkspacePage() {
     return requirements.filter((item) => `${item.requirement_name ?? ""} ${item.requirement_text} ${item.category}`.toLowerCase().includes(term));
   }, [requirements, search]);
 
-  if (sessionLoading || org.bootstrapping || tenderQuery.isPending) return <div className="mx-auto max-w-6xl space-y-5 px-4 py-8 sm:px-6 sm:py-12"><Skeleton className="h-8 w-2/3 rounded-xl" /><Skeleton className="h-24 w-full rounded-2xl" /><Skeleton className="h-64 w-full rounded-2xl" /></div>;
+  if (sessionLoading || org.bootstrapping || tenderQuery.isPending) {
+    return <div className="mx-auto max-w-6xl space-y-5 px-4 py-8 sm:px-6 sm:py-12"><Skeleton className="h-8 w-2/3 rounded-xl" /><Skeleton className="h-28 w-full rounded-2xl" /><Skeleton className="h-72 w-full rounded-2xl" /></div>;
+  }
   if (tenderQuery.error) return <WorkspaceMessage title="Unable to load tender" message={(tenderQuery.error as Error).message} />;
   const tender = tenderQuery.data;
   if (!tender) return <WorkspaceMessage title="Tender not found" message="This tender is not available in your active organization." />;
 
-  const status = safeStatus(tender.analysis_status);
   const matchedCount = requirements.filter((r) => Boolean(r.matched_document_id)).length;
-  const missingEvidenceCount = requirements.length - matchedCount;
   const analysis = parseAnalysisJson(tender.analysis_json);
   const categoryCounts = requirements.reduce<Record<string, number>>((counts, requirement) => {
     const key = requirement.category || "general";
@@ -74,8 +77,7 @@ function TenderWorkspacePage() {
       toast.success("Tender analysis refreshed");
     } catch (error) {
       toast.error(error instanceof Error ? error.message : "Tender analysis failed");
-      await tenderQuery.refetch();
-      await requirementsQuery.refetch();
+      await Promise.all([tenderQuery.refetch(), requirementsQuery.refetch()]);
     }
   };
 
@@ -87,49 +89,67 @@ function TenderWorkspacePage() {
       window.open(url, "_blank", "noopener,noreferrer");
     } catch (error) {
       toast.error(error instanceof Error ? error.message : "Could not open tender file");
-    } finally { setBusyFile(null); }
+    } finally {
+      setBusyFile(null);
+    }
   };
 
   return <div className="mx-auto max-w-6xl px-4 py-8 sm:px-6 sm:py-12">
     <div className="mb-5"><Link to="/tenders" className="inline-flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground"><ArrowLeft className="size-4" />Back to Tender Command</Link></div>
+
     <header className="glass-panel overflow-hidden rounded-2xl p-5 sm:p-7">
       <div className="flex flex-col gap-5 lg:flex-row lg:items-start lg:justify-between">
-        <div className="min-w-0"><div className="flex flex-wrap items-center gap-2"><Badge variant="outline" className="rounded-full">Tender workspace</Badge><StatusBadge status={status} /></div><h1 className="mt-3 break-words text-2xl font-semibold tracking-tight sm:text-3xl">{tender.title}</h1><div className="mt-3 grid gap-3 text-sm text-muted-foreground sm:grid-cols-3"><div><span className="block text-xs uppercase tracking-wide">Procuring entity</span><span className="font-medium text-foreground">{tender.procuring_entity ?? "Not recorded"}</span></div><div><span className="block text-xs uppercase tracking-wide">Submission deadline</span><span className="font-medium text-foreground">{tender.submission_deadline ? formatDate(tender.submission_deadline) : "Not recorded"}</span></div><div><span className="block text-xs uppercase tracking-wide">Uploaded</span><span className="font-medium text-foreground">{tender.created_at ? formatDate(tender.created_at) : "Not recorded"}</span></div></div></div>
-        <div className="flex shrink-0 flex-wrap gap-2"><Button variant="outline" className="rounded-xl" onClick={() => openTenderFile("preview")} disabled={!tender.storage_path || busyFile !== null}>{busyFile === "preview" ? <Loader2 className="size-4 animate-spin" /> : <Eye className="size-4" />}<span className="ml-2">Preview</span></Button><Button variant="outline" className="rounded-xl" onClick={() => openTenderFile("download")} disabled={!tender.storage_path || busyFile !== null}>{busyFile === "download" ? <Loader2 className="size-4 animate-spin" /> : <Download className="size-4" />}<span className="ml-2">Download</span></Button><Button className="rounded-xl" onClick={analyzeNow} disabled={analyze.isPending || status === "processing"}>{analyze.isPending || status === "processing" ? <Loader2 className="size-4 animate-spin" /> : <RefreshCw className="size-4" />}<span className="ml-2">{status === "analyzed" || status === "requires_review" ? "Re-analyze" : "Analyze"}</span></Button></div>
+        <div className="min-w-0">
+          <div className="flex flex-wrap items-center gap-2"><Badge variant="outline" className="rounded-full">Tender workspace</Badge><StatusBadge status={status} /></div>
+          <h1 className="mt-3 break-words text-2xl font-semibold tracking-tight sm:text-3xl">{tender.title}</h1>
+          <div className="mt-3 grid gap-3 text-sm text-muted-foreground sm:grid-cols-3">
+            <Snapshot label="Procuring entity" value={tender.procuring_entity} />
+            <Snapshot label="Submission deadline" value={tender.submission_deadline ? formatDate(tender.submission_deadline) : null} />
+            <Snapshot label="Uploaded" value={tender.created_at ? formatDate(tender.created_at) : null} />
+          </div>
+        </div>
+        <div className="flex shrink-0 flex-wrap gap-2">
+          <Button variant="outline" className="rounded-xl" onClick={() => openTenderFile("preview")} disabled={!tender.storage_path || busyFile !== null}>{busyFile === "preview" ? <Loader2 className="size-4 animate-spin" /> : <Eye className="size-4" />}<span className="ml-2">Preview</span></Button>
+          <Button variant="outline" className="rounded-xl" onClick={() => openTenderFile("download")} disabled={!tender.storage_path || busyFile !== null}>{busyFile === "download" ? <Loader2 className="size-4 animate-spin" /> : <Download className="size-4" />}<span className="ml-2">Download</span></Button>
+          <Button className="rounded-xl" onClick={analyzeNow} disabled={analyze.isPending || status === "processing"}>{analyze.isPending || status === "processing" ? <Loader2 className="size-4 animate-spin" /> : <RefreshCw className="size-4" />}<span className="ml-2">{status === "analyzed" || status === "requires_review" ? "Re-analyze" : "Analyze"}</span></Button>
+        </div>
       </div>
       <div className="mt-5 rounded-xl border border-border/60 bg-muted/20 p-3 text-sm text-muted-foreground">{statusMessage(status)}</div>
       {status === "failed" && tender.analysis_error ? <div className="mt-3 rounded-xl border border-destructive/25 bg-destructive/5 p-3 text-sm text-destructive"><strong>Analysis error:</strong> {tender.analysis_error}</div> : null}
     </header>
 
-    <section className="mt-5 grid gap-3 sm:grid-cols-2 lg:grid-cols-4"><Metric label="Extracted requirements" value={String(requirements.length)} /><Metric label="Evidence links" value={String(matchedCount)} /><Metric label="No evidence linked" value={String(missingEvidenceCount)} /><Metric label="Tender status" value={status.replace("_", " ")} /></section>
-
-    {status === "analyzed" || status === "requires_review" ? <>
-      <section className="mt-5 glass-panel rounded-2xl p-5 sm:p-6">
-        <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
-          <div><h2 className="text-lg font-semibold">Tender intelligence snapshot</h2><p className="mt-1 text-sm text-muted-foreground">Facts already stored by the existing analysis pipeline. This surface does not infer or recommend anything.</p></div>
-          <div className="flex flex-wrap gap-2">{tender.lot_number ? <Badge variant="outline" className="rounded-full">Lot {tender.lot_number}</Badge> : null}{tender.industry ? <Badge variant="outline" className="rounded-full">{tender.industry}</Badge> : null}</div>
-        </div>
-        <div className="mt-5 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-          <Snapshot label="Reference number" value={tender.reference_number} />
-          <Snapshot label="Procurement method" value={tender.procurement_method} />
-          <Snapshot label="Tender type" value={tender.tender_type} />
-          <Snapshot label="Opening date" value={tender.opening_date ? formatDate(tender.opening_date) : null} />
-          <Snapshot label="Lot description" value={tender.lot_description} />
-          <Snapshot label="Bid security" value={booleanText(tender.requires_bid_security)} />
-          <Snapshot label="Bank reference" value={booleanText(tender.requires_bank_reference)} />
-          <Snapshot label="Affidavit" value={booleanText(tender.requires_affidavit)} />
-          <Snapshot label="Requirement categories" value={Object.entries(categoryCounts).map(([key, count]) => `${key}: ${count}`).join(" · ") || null} />
-        </div>
-        {analysis.hasData ? <div className="mt-5 border-t border-border/50 pt-5"><p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">Stored analysis fields</p><div className="mt-3 flex flex-wrap gap-2">{analysis.metrics.map((metric) => <div key={`${metric.label}-${metric.value}`} className="rounded-xl border border-border/60 bg-muted/20 px-3 py-2 text-xs"><span className="text-muted-foreground">{metric.label}:</span> <span className="font-medium">{metric.value}</span></div>)}</div>{analysis.rawSummary ? <p className="mt-3 text-sm leading-6 text-muted-foreground">{analysis.rawSummary}</p> : null}</div> : null}
-      </section>
-    </> : null}
-
-    <section className="glass-panel mt-5 overflow-hidden rounded-2xl">
-      <div className="border-b border-border/50 p-5 sm:p-6"><div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between"><div><h2 className="text-lg font-semibold">Extracted requirements</h2><p className="mt-1 text-sm text-muted-foreground">Read-only view of what the current analysis stored. This page does not create matches or recommendations.</p></div><div className="relative w-full sm:max-w-xs"><Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" /><Input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Search requirements" className="rounded-xl pl-9" aria-label="Search extracted requirements" /></div></div></div>
-      {status === "pending" ? <div className="p-10 text-center"><FileText className="mx-auto size-7 text-muted-foreground" /><p className="mt-3 text-sm font-medium">Analysis has not produced a checklist yet.</p><p className="mt-1 text-sm text-muted-foreground">Use Analyze to invoke the existing tender analysis pipeline.</p></div> : requirementsQuery.isPending ? <div className="space-y-3 p-5"><Skeleton className="h-20 rounded-xl" /><Skeleton className="h-20 rounded-xl" /><Skeleton className="h-20 rounded-xl" /></div> : requirementsQuery.error ? <div className="p-10 text-center text-sm text-destructive">{(requirementsQuery.error as Error).message}</div> : filtered.length === 0 ? <div className="p-10 text-center"><p className="text-sm font-medium">{requirements.length === 0 ? "No requirements are currently stored." : "No requirements match this search."}</p><p className="mt-1 text-sm text-muted-foreground">{requirements.length === 0 ? "This is an honest empty state; the workspace will not invent requirements." : "Try another search term."}</p></div> : <div className="divide-y divide-border/50">{filtered.map((requirement) => <RequirementRow key={requirement.id} requirement={requirement} />)}</div>}
+    <section className="mt-5 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+      <Metric label="Extracted requirements" value={String(requirements.length)} />
+      <Metric label="Evidence links" value={String(matchedCount)} />
+      <Metric label="No evidence linked" value={String(requirements.length - matchedCount)} />
+      <Metric label="Tender status" value={status.replace("_", " ")} />
     </section>
 
-    <section className="mt-5 rounded-2xl border border-info/20 bg-info-soft/40 p-4 text-sm text-muted-foreground"><div className="flex gap-3"><ShieldCheck className="mt-0.5 size-5 shrink-0 text-info" /><div><p className="font-medium text-foreground">Evidence is descriptive, not a recommendation.</p><p className="mt-1">A document is only shown as linked evidence when the backend has actually populated <code className="rounded bg-background/60 px-1">matched_document_id</code>. The workspace does not infer qualification from a score.</p></div></div></section>
+    {status === "analyzed" || status === "requires_review" ? <section className="glass-panel mt-5 rounded-2xl p-5 sm:p-6">
+      <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+        <div><h2 className="text-lg font-semibold">Tender intelligence snapshot</h2><p className="mt-1 text-sm text-muted-foreground">Only facts already stored by the existing analysis pipeline are displayed here.</p></div>
+        <div className="flex flex-wrap gap-2">{tender.lot_number ? <Badge variant="outline" className="rounded-full">Lot {tender.lot_number}</Badge> : null}{tender.industry ? <Badge variant="outline" className="rounded-full">{tender.industry}</Badge> : null}</div>
+      </div>
+      <div className="mt-5 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+        <Snapshot label="Reference number" value={tender.reference_number} />
+        <Snapshot label="Procurement method" value={tender.procurement_method} />
+        <Snapshot label="Tender type" value={tender.tender_type} />
+        <Snapshot label="Opening date" value={tender.opening_date ? formatDate(tender.opening_date) : null} />
+        <Snapshot label="Lot description" value={tender.lot_description} />
+        <Snapshot label="Bid security" value={booleanText(tender.requires_bid_security)} />
+        <Snapshot label="Bank reference" value={booleanText(tender.requires_bank_reference)} />
+        <Snapshot label="Affidavit" value={booleanText(tender.requires_affidavit)} />
+        <Snapshot label="Requirement categories" value={Object.entries(categoryCounts).map(([key, count]) => `${key}: ${count}`).join(" · ") || null} />
+      </div>
+      {analysis.hasData ? <div className="mt-5 border-t border-border/50 pt-5"><p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">Stored analysis fields</p><div className="mt-3 flex flex-wrap gap-2">{analysis.metrics.map((metric) => <div key={`${metric.label}-${metric.value}`} className="rounded-xl border border-border/60 bg-muted/20 px-3 py-2 text-xs"><span className="text-muted-foreground">{metric.label}:</span> <span className="font-medium">{metric.value}</span></div>)}</div>{analysis.rawSummary ? <p className="mt-3 text-sm leading-6 text-muted-foreground">{analysis.rawSummary}</p> : null}</div> : null}
+    </section> : null}
+
+    <section className="glass-panel mt-5 overflow-hidden rounded-2xl">
+      <div className="border-b border-border/50 p-5 sm:p-6"><div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between"><div><h2 className="text-lg font-semibold">Extracted requirements</h2><p className="mt-1 text-sm text-muted-foreground">Read-only records from the analysis pipeline. No new matches or recommendations are created here.</p></div><div className="relative w-full sm:max-w-xs"><Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" /><Input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Search requirements" className="rounded-xl pl-9" aria-label="Search extracted requirements" /></div></div></div>
+      {status === "pending" ? <EmptyState title="Analysis has not produced a checklist yet." message="Use Analyze to invoke the existing tender analysis pipeline." /> : requirementsQuery.isPending ? <div className="space-y-3 p-5"><Skeleton className="h-20 rounded-xl" /><Skeleton className="h-20 rounded-xl" /><Skeleton className="h-20 rounded-xl" /></div> : requirementsQuery.error ? <div className="p-10 text-center text-sm text-destructive">{(requirementsQuery.error as Error).message}</div> : filtered.length === 0 ? <EmptyState title={requirements.length === 0 ? "No requirements are currently stored." : "No requirements match this search."} message={requirements.length === 0 ? "This is an honest empty state; the workspace will not invent requirements." : "Try another search term."} /> : <div className="divide-y divide-border/50">{filtered.map((requirement) => <RequirementRow key={requirement.id} requirement={requirement} />)}</div>}
+    </section>
+
+    <section className="mt-5 rounded-2xl border border-info/20 bg-info-soft/40 p-4 text-sm text-muted-foreground"><div className="flex gap-3"><ShieldCheck className="mt-0.5 size-5 shrink-0 text-info" /><div><p className="font-medium text-foreground">Evidence is descriptive, not a recommendation.</p><p className="mt-1">A document is only shown as linked evidence when the backend has populated <code className="rounded bg-background/60 px-1">matched_document_id</code>.</p></div></div></section>
   </div>;
 }
 
@@ -158,4 +178,5 @@ function EvidenceReference({ documentId }: { documentId: string }) {
 function Metric({ label, value }: { label: string; value: string }) { return <div className="glass-panel rounded-2xl p-4"><p className="text-xs uppercase tracking-wide text-muted-foreground">{label}</p><p className="mt-1 text-2xl font-semibold tracking-tight capitalize">{value}</p></div>; }
 function Snapshot({ label, value }: { label: string; value: string | null }) { return <div className="rounded-xl border border-border/60 bg-muted/10 p-3"><p className="text-[11px] uppercase tracking-wide text-muted-foreground">{label}</p><p className="mt-1 text-sm font-medium">{value || "Not recorded"}</p></div>; }
 function booleanText(value: boolean | null) { return value === true ? "Required" : value === false ? "Not stated as required" : "Not recorded"; }
+function EmptyState({ title, message }: { title: string; message: string }) { return <div className="p-10 text-center"><FileText className="mx-auto size-7 text-muted-foreground" /><p className="mt-3 text-sm font-medium">{title}</p><p className="mt-1 text-sm text-muted-foreground">{message}</p></div>; }
 function WorkspaceMessage({ title, message }: { title: string; message: string }) { return <div className="mx-auto max-w-2xl px-4 py-20 text-center"><TriangleAlert className="mx-auto size-8 text-warning" /><h1 className="mt-4 text-xl font-semibold">{title}</h1><p className="mt-2 text-sm text-muted-foreground">{message}</p><Button asChild variant="outline" className="mt-5 rounded-xl"><Link to="/tenders">Back to Tenders</Link></Button></div>; }
