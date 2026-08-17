@@ -17,6 +17,14 @@ export interface TenderListItem {
   requires_bid_security: boolean | null;
   requires_bank_reference: boolean | null;
   requires_affidavit: boolean | null;
+  opening_date: string | null;
+  reference_number: string | null;
+  procurement_method: string | null;
+  tender_type: string | null;
+  industry: string | null;
+  lot_number: string | null;
+  lot_description: string | null;
+  analysis_json: unknown;
 }
 
 export interface TenderRequirementItem {
@@ -30,7 +38,6 @@ export interface TenderRequirementItem {
   explanation: string | null;
   matched_document_id: string | null;
 }
-
 
 export function validateTenderFile(file: File): string | null {
   const isPdf = file.name.toLowerCase().endsWith(".pdf") || file.type === "application/pdf";
