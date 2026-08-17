@@ -4,7 +4,8 @@ import { supabase } from "@/integrations/supabase/client";
 import { TENDER_BUCKET, buildTenderStoragePath, type TenderListItem, type TenderRequirementItem } from "@/lib/tenders";
 import { sha256Hex } from "@/lib/vault";
 
-const TENDER_PROJECTION = "id, title, created_at, analysis_status, analysis_error, procuring_entity, submission_deadline, compliance_percentage, requires_bid_security, requires_bank_reference, requires_affidavit, opening_date, reference_number, procurement_method, tender_type, industry, lot_number, lot_description, analysis_json, tender_files(storage_path, created_at)";
+const TENDER_LIST_PROJECTION = "id, title, created_at, analysis_status, analysis_error, procuring_entity, submission_deadline, compliance_percentage, requires_bid_security, requires_bank_reference, requires_affidavit, opening_date, reference_number, procurement_method, tender_type, industry, lot_number, lot_description, tender_files(storage_path, created_at)";
+const TENDER_DETAIL_PROJECTION = `${TENDER_LIST_PROJECTION}, analysis_json`;
 
 function mapTender(tender: any): TenderListItem {
   return { ...tender, storage_path: tender.tender_files?.[0]?.storage_path ?? null };
@@ -15,7 +16,7 @@ export function useTenders(session: Session | null, organizationId: string | nul
     queryKey: ["tenders", organizationId],
     enabled: Boolean(session) && Boolean(organizationId),
     queryFn: async (): Promise<TenderListItem[]> => {
-      const { data, error } = await supabase.from("tenders").select(TENDER_PROJECTION).eq("organization_id", organizationId!).order("created_at", { ascending: false });
+      const { data, error } = await supabase.from("tenders").select(TENDER_LIST_PROJECTION).eq("organization_id", organizationId!).order("created_at", { ascending: false });
       if (error) throw error;
       return (data ?? []).map(mapTender);
     },
@@ -27,7 +28,7 @@ export function useTender(session: Session | null, organizationId: string | null
     queryKey: ["tender", organizationId, tenderId],
     enabled: Boolean(session) && Boolean(organizationId) && Boolean(tenderId),
     queryFn: async (): Promise<TenderListItem | null> => {
-      const { data, error } = await supabase.from("tenders").select(TENDER_PROJECTION).eq("organization_id", organizationId!).eq("id", tenderId!).maybeSingle();
+      const { data, error } = await supabase.from("tenders").select(TENDER_DETAIL_PROJECTION).eq("organization_id", organizationId!).eq("id", tenderId!).maybeSingle();
       if (error) throw error;
       return data ? mapTender(data) : null;
     },
@@ -39,7 +40,7 @@ export function useDashboardTenders(session: Session | null, organizationId: str
     queryKey: ["tenders", "dashboard", organizationId],
     enabled: Boolean(session) && Boolean(organizationId),
     queryFn: async (): Promise<TenderListItem[]> => {
-      const { data, error } = await supabase.from("tenders").select(TENDER_PROJECTION).eq("organization_id", organizationId!).order("created_at", { ascending: false });
+      const { data, error } = await supabase.from("tenders").select(TENDER_LIST_PROJECTION).eq("organization_id", organizationId!).order("created_at", { ascending: false });
       if (error) throw error;
       return (data ?? []).map(mapTender);
     },
