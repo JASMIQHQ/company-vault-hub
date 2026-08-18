@@ -77,7 +77,9 @@ export function useAnalyzeTender() {
     mutationFn: async (tenderId: string) => {
       const { data, error } = await supabase.functions.invoke("analyze-tender", { body: { tender_id: tenderId } });
       if (error) throw error;
-      return data;
+      const { data: matching, error: matchingError } = await supabase.functions.invoke("match-tender-evidence", { body: { tender_id: tenderId } });
+      if (matchingError) throw matchingError;
+      return { analysis: data, matching };
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["tenders"] });
