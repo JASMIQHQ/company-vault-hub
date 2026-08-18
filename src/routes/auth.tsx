@@ -97,6 +97,7 @@ function AuthPage() {
           email: email.trim(),
           password,
           options: {
+            emailRedirectTo: `${window.location.origin}/auth`,
             data: {
               full_name: trimmedName,
               display_name: trimmedName,
