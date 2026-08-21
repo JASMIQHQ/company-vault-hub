@@ -78,7 +78,6 @@ function identityConflict(doc: any, company: any) {
 function documentUsable(doc: any) {
   if (doc.deleted_at) return false;
   if (doc.document_status && doc.document_status !== "active") return false;
-  if (doc.analysis_status === "failed") return false;
   return true;
 }
 
@@ -136,6 +135,14 @@ function validateCandidate(candidate: Candidate, requirement: any, tender: any, 
   const { doc, concept, historicalIssuer } = candidate;
   const deadline = tender.submission_deadline ? new Date(tender.submission_deadline) : null;
   const requiredYear = explicitRequiredYear(requirement, tender.submission_deadline);
+
+  if (doc.analysis_status === "failed" || (doc.analysis_json != null && (typeof doc.analysis_json !== "object" || Array.isArray(doc.analysis_json)))) {
+    return {
+      status: "manual_review",
+      confidence: Math.min(candidate.score, 0.79),
+      explanation: `${doc.document_name} is a potentially relevant Vault document, but its analysis data could not be reliably read. Manual review is required.`,
+    };
+  }
 
   if (deadline && doc.expiry_date && new Date(doc.expiry_date) < deadline) {
     return {
