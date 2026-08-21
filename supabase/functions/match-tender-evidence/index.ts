@@ -46,7 +46,41 @@ Deno.serve(async (req) => {
     if (!tender || !orgIds.includes(tender.organization_id)) return json({ error: "You are not allowed to match this tender." }, 403);
 
     const result = await runEvidenceMatching(admin, tenderId);
-    return json({ tender_id: tenderId, ...result });
+
+    // Re-read the authoritative tender_requirements ledger so the API contract
+    // reports exactly what was persisted, rather than treating processed rows
+    // as successful matches.
+    const { data: ledgerResults, error: ledgerError } = await admin
+      .from("tender_requirements")
+      .select("id, status, matched_document_id, confidence_score, explanation, display_order")
+      .eq("tender_id", tenderId)
+      .eq("organization_id", tender.organization_id)
+      .order("display_order", { ascending: true });
+    if (ledgerError) throw ledgerError;
+
+    const results = (ledgerResults ?? []).map((row) => ({
+      id: row.id,
+      status: row.status,
+      matched_document_id: row.matched_document_id,
+      confidence: row.confidence_score ?? 0,
+      explanation: row.explanation ?? "",
+    }));
+
+    const summary = {
+      processed: results.length,
+      matched: results.filter((row) => row.status === "matched").length,
+      manual_review: results.filter((row) => row.status === "manual_review").length,
+      missing: results.filter((row) => row.status === "missing").length,
+      expired: results.filter((row) => row.status === "expired").length,
+    };
+
+    return json({
+      tender_id: tenderId,
+      summary,
+      results,
+      readiness: result.readiness,
+      mandatory_blocked: result.mandatoryBlocked,
+    });
   } catch (error) {
     console.error("match-tender-evidence failed", error);
     return json({ error: error instanceof Error ? error.message : "Evidence matching failed." }, 500);
