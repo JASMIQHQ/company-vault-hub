@@ -27,6 +27,8 @@ export interface TenderListItem {
   analysis_json: unknown;
 }
 
+export type MatchBasis = "METADATA" | "HYBRID" | "CONTENT" | "CONFLICT";
+
 export interface TenderRequirementItem {
   id: string;
   category: string;
@@ -37,6 +39,7 @@ export interface TenderRequirementItem {
   confidence_score: number | null;
   explanation: string | null;
   matched_document_id: string | null;
+  match_basis: MatchBasis | null;
 }
 
 export function validateTenderFile(file: File): string | null {
