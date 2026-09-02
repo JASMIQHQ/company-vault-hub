@@ -128,7 +128,9 @@ export function UploadDialog({ organizationId }: { organizationId: string }) {
         companyId,
       });
 
-      toast.success("Document uploaded. Verification is running in the background.");
+      toast.success(
+        "Document uploaded. Verification is running in the background.",
+      );
       reset();
       setOpen(false);
 
@@ -160,7 +162,8 @@ export function UploadDialog({ organizationId }: { organizationId: string }) {
         <DialogHeader>
           <DialogTitle>Upload document</DialogTitle>
           <DialogDescription>
-            Upload the original document. JASMIQ keeps your display name and verifies the PDF separately.
+            Upload the original document. JASMIQ keeps your display name and
+            verifies the PDF separately.
           </DialogDescription>
         </DialogHeader>
 
@@ -198,7 +201,8 @@ export function UploadDialog({ organizationId }: { organizationId: string }) {
                       : suggestion.name}
                   </p>
                   <p className="text-xs text-muted-foreground">
-                    This suggestion uses the filename only. PDF verification remains the source of truth.
+                    This suggestion uses the filename only. PDF verification
+                    remains the source of truth.
                   </p>
                   <Button
                     type="button"
