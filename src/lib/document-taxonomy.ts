@@ -36,9 +36,7 @@ export const DOCUMENT_TYPE_ALIASES: Record<string, FederalTenderDocumentType> = 
 export function normalizeDocumentType(value: string | null | undefined): FederalTenderDocumentType | null {
   if (!value) return null;
   const normalized = value.trim().toUpperCase().replace(/\s+/g, " ");
-  if ((FEDERAL_TENDER_DOCUMENT_TYPES as readonly string[]).includes(normalized)) {
-    return normalized as FederalTenderDocumentType;
-  }
+  if ((FEDERAL_TENDER_DOCUMENT_TYPES as readonly string[]).includes(normalized)) return normalized as FederalTenderDocumentType;
   return DOCUMENT_TYPE_ALIASES[normalized] ?? null;
 }
 
