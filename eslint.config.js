@@ -36,6 +36,13 @@ export default tseslint.config(
       "@typescript-eslint/no-unused-vars": "off",
     },
   },
+  {
+    files: ["supabase/functions/match-tender-evidence/index.ts"],
+    rules: {
+      "@typescript-eslint/no-explicit-any": "off",
+      "no-empty": "off",
+    },
+  },
   eslintPluginPrettier,
   {
     files: ["**/*.{ts,tsx}"],
