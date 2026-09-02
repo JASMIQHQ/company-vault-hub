@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Download, Eye, FileText, Loader2, Pencil, Trash2 } from "lucide-react";
+import { CheckCircle2, Download, Eye, FileText, Loader2, Pencil, RefreshCw, ShieldCheck, Trash2, TriangleAlert } from "lucide-react";
 import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
@@ -33,7 +33,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { StatusBadge } from "@/components/vault/status-badge";
-import { createSignedUrl, useRenameDocument, useSoftDeleteDocument } from "@/hooks/use-vault";
+import { createSignedUrl, useRenameDocument, useSoftDeleteDocument, useVerifyDocument } from "@/hooks/use-vault";
 import { expiryState } from "@/lib/command-center";
 import { cn } from "@/lib/utils";
 import { formatDate, type CompanyDocument } from "@/lib/vault";
@@ -102,11 +102,46 @@ function RenameDialog({
   );
 }
 
+function VerificationBadge({ document }: { document: CompanyDocument }) {
+  const status = document.verification_status ?? "unverified";
+  const type = document.verified_doc_type?.replace(/_/g, " ");
+
+  if (status === "verified") {
+    return (
+      <div className="flex min-w-0 flex-col gap-0.5">
+        <span className="inline-flex items-center gap-1 text-xs font-medium text-success">
+          <CheckCircle2 className="size-3.5" /> Verified
+        </span>
+        {type && <span className="truncate text-[11px] text-muted-foreground">{type}</span>}
+      </div>
+    );
+  }
+
+  if (status === "mismatch") {
+    return (
+      <span className="inline-flex items-center gap-1 text-xs font-medium text-warning">
+        <TriangleAlert className="size-3.5" /> Needs review
+      </span>
+    );
+  }
+
+  if (status === "failed") {
+    return (
+      <span className="inline-flex items-center gap-1 text-xs font-medium text-destructive">
+        <TriangleAlert className="size-3.5" /> Verification failed
+      </span>
+    );
+  }
+
+  return <span className="text-xs text-muted-foreground">Not verified</span>;
+}
+
 function RowActions({ document }: { document: CompanyDocument }) {
   const [busy, setBusy] = useState<"preview" | "download" | null>(null);
   const [renaming, setRenaming] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(false);
   const softDelete = useSoftDeleteDocument();
+  const verify = useVerifyDocument();
 
   const open = async (mode: "preview" | "download") => {
     setBusy(mode);
@@ -120,6 +155,19 @@ function RowActions({ document }: { document: CompanyDocument }) {
     }
   };
 
+  const verifyDocument = async () => {
+    try {
+      const result = await verify.mutateAsync(document.id);
+      toast.success(
+        result.verification_status === "verified"
+          ? "Document verified successfully."
+          : "Verification completed — review the result on the document row.",
+      );
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Could not verify the document");
+    }
+  };
+
   const moveToBin = async () => {
     try {
       await softDelete.mutateAsync({ id: document.id });
@@ -130,14 +178,34 @@ function RowActions({ document }: { document: CompanyDocument }) {
     }
   };
 
+  const verified = document.verification_status === "verified";
+
   return (
-    <div className="flex justify-end gap-1">
+    <div className="flex flex-wrap justify-end gap-1">
+      <Button
+        variant={verified ? "ghost" : "outline"}
+        size="sm"
+        className="rounded-lg"
+        onClick={() => void verifyDocument()}
+        disabled={verify.isPending}
+        aria-label={`${verified ? "Reverify" : "Verify"} ${document.document_name}`}
+        title={verified ? "Scan the document again" : "Verify document contents"}
+      >
+        {verify.isPending ? (
+          <Loader2 className="size-4 animate-spin" />
+        ) : verified ? (
+          <RefreshCw className="size-4" />
+        ) : (
+          <ShieldCheck className="size-4" />
+        )}
+        <span className="ml-1.5 hidden sm:inline">{verified ? "Reverify" : "Verify"}</span>
+      </Button>
       <Button
         variant="ghost"
         size="sm"
         className="rounded-lg"
         onClick={() => open("preview")}
-        disabled={busy !== null}
+        disabled={busy !== null || verify.isPending}
         aria-label={`Preview ${document.document_name}`}
       >
         {busy === "preview" ? (
@@ -152,7 +220,7 @@ function RowActions({ document }: { document: CompanyDocument }) {
         size="sm"
         className="rounded-lg"
         onClick={() => open("download")}
-        disabled={busy !== null}
+        disabled={busy !== null || verify.isPending}
         aria-label={`Download ${document.document_name}`}
       >
         {busy === "download" ? (
@@ -167,6 +235,7 @@ function RowActions({ document }: { document: CompanyDocument }) {
         size="sm"
         className="rounded-lg"
         onClick={() => setRenaming(true)}
+        disabled={verify.isPending}
         aria-label={`Rename ${document.document_name}`}
       >
         <Pencil className="size-4" />
@@ -176,6 +245,7 @@ function RowActions({ document }: { document: CompanyDocument }) {
         size="sm"
         className="rounded-lg text-destructive hover:text-destructive"
         onClick={() => setConfirmDelete(true)}
+        disabled={verify.isPending}
         aria-label={`Delete ${document.document_name}`}
       >
         <Trash2 className="size-4" />
@@ -211,7 +281,6 @@ function RowActions({ document }: { document: CompanyDocument }) {
     </div>
   );
 }
-
 
 interface DocumentListProps {
   documents: CompanyDocument[];
@@ -278,6 +347,7 @@ export function DocumentList({
             <TableHead className="hidden md:table-cell">Type</TableHead>
             <TableHead className="hidden sm:table-cell">Uploaded</TableHead>
             <TableHead className="hidden lg:table-cell">Validity</TableHead>
+            <TableHead>Verification</TableHead>
             <TableHead>Status</TableHead>
             <TableHead className="text-right">Actions</TableHead>
           </TableRow>
@@ -319,6 +389,9 @@ export function DocumentList({
                   )}
                 </TableCell>
                 <TableCell>
+                  <VerificationBadge document={document} />
+                </TableCell>
+                <TableCell>
                   <StatusBadge status={document.analysis_status} />
                 </TableCell>
                 <TableCell className="text-right">
@@ -332,4 +405,3 @@ export function DocumentList({
     </div>
   );
 }
-
