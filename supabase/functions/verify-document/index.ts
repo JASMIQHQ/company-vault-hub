@@ -5,8 +5,6 @@ import { DOCUMENT_TYPES, type VerifiedDocType } from "../_shared/document-classi
 const corsHeaders = { "Access-Control-Allow-Origin": "*", "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type", "Access-Control-Allow-Methods": "POST, OPTIONS" };
 const json = (body: unknown, status = 200) => new Response(JSON.stringify(body), { status, headers: { ...corsHeaders, "Content-Type": "application/json" } });
 const MAX_RAW_PDF_BYTES = 20 * 1024 * 1024;
-const GEMINI_MODEL = "gemini-2.5-flash";
-const ANTHROPIC_MODEL = "claude-sonnet-4-6";
 type Provider = "gemini" | "anthropic";
 
 function parseJson(text: string) {
@@ -28,7 +26,7 @@ function buildPrompt() {
 }
 
 async function callAnthropic(args: { apiKey: string; base64: string; filename: string; prompt: string; documentId: string; rawBytes: number }) {
-  const model = ANTHROPIC_MODEL;
+  const model = Deno.env.get("ANTHROPIC_MODEL") || "claude-sonnet-4-6";
   console.log("verify-document anthropic payload", { document_id: args.documentId, model, max_tokens: 300, message_count: 1, content_types: ["document", "text"], document_source_type: "base64", document_media_type: "application/pdf", base64_bytes: args.base64.length, has_data_uri_prefix: args.base64.startsWith("data:"), prompt_present: true });
   const response = await fetch("https://api.anthropic.com/v1/messages", {
     method: "POST",
@@ -46,7 +44,7 @@ async function callAnthropic(args: { apiKey: string; base64: string; filename: s
 }
 
 async function callGemini(args: { apiKey: string; base64: string; filename: string; prompt: string; documentId: string; rawBytes: number }) {
-  const model = GEMINI_MODEL;
+  const model = Deno.env.get("GEMINI_MODEL") || "gemini-3.6-flash";
   console.log("verify-document gemini payload", { document_id: args.documentId, model, content_types: ["text", "inlineData", "text"], document_media_type: "application/pdf", base64_bytes: args.base64.length, prompt_present: true });
   const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`, {
     method: "POST",
@@ -78,7 +76,6 @@ Deno.serve(async (req) => {
     const provider = providerFromEnv();
     const anthropicKey = Deno.env.get("ANTHROPIC_API_KEY");
     const geminiKey = Deno.env.get("GEMINI_API_KEY");
-    const model = provider === "gemini" ? GEMINI_MODEL : ANTHROPIC_MODEL;
     if (!url || !serviceKey) return json({ error: "Supabase service configuration is missing." }, 500);
     if (provider === "gemini" && !geminiKey) return json({ error: "GEMINI_API_KEY is not configured.", provider }, 500);
     if (provider === "anthropic" && !anthropicKey) return json({ error: "ANTHROPIC_API_KEY is not configured.", provider }, 500);
@@ -110,6 +107,7 @@ Deno.serve(async (req) => {
     const bytes = new Uint8Array(await blob.arrayBuffer());
     const rawBytes = bytes.byteLength;
     const filename = doc.original_filename ?? doc.document_name ?? "unknown";
+    const model = provider === "gemini" ? (Deno.env.get("GEMINI_MODEL") || "gemini-3.6-flash") : (Deno.env.get("ANTHROPIC_MODEL") || "claude-sonnet-4-6");
     console.log("verify-document preflight", { document_id: doc.id, filename, mime_type: doc.mime_type ?? blob.type ?? null, raw_bytes: rawBytes, provider, model });
     if (rawBytes > MAX_RAW_PDF_BYTES) {
       console.warn("verify-document PDF_TOO_LARGE", { document_id: doc.id, raw_bytes: rawBytes, max_raw_bytes: MAX_RAW_PDF_BYTES, provider, model });
