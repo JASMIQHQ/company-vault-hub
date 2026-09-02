@@ -28,44 +28,67 @@ function buildPrompt() {
 async function callAnthropic(args: { apiKey: string; base64: string; filename: string; prompt: string; documentId: string; rawBytes: number }) {
   const model = Deno.env.get("ANTHROPIC_MODEL") || "claude-sonnet-4-6";
   console.log("verify-document anthropic payload", { document_id: args.documentId, model, max_tokens: 300, message_count: 1, content_types: ["document", "text"], document_source_type: "base64", document_media_type: "application/pdf", base64_bytes: args.base64.length, has_data_uri_prefix: args.base64.startsWith("data:"), prompt_present: true });
-  const response = await fetch("https://api.anthropic.com/v1/messages", {
-    method: "POST",
-    headers: { "x-api-key": args.apiKey, "anthropic-version": "2023-06-01", "content-type": "application/json" },
-    body: JSON.stringify({ model, max_tokens: 300, system: args.prompt, messages: [{ role: "user", content: [{ type: "document", source: { type: "base64", media_type: "application/pdf", data: args.base64 } }, { type: "text", text: `Filename: ${args.filename}` }] }] }),
-  });
-  if (!response.ok) {
-    const detail = await response.text(); let parsed: any = null; try { parsed = JSON.parse(detail); } catch {}
-    console.error("verify-document Anthropic error", { document_id: args.documentId, model, http_status: response.status, full_body: detail, anthropic_error_type: parsed?.error?.type ?? null, anthropic_error_message: parsed?.error?.message ?? null, anthropic_request_id: parsed?.request_id ?? response.headers.get("request-id") ?? null, raw_pdf_bytes: args.rawBytes, base64_bytes: args.base64.length });
-    return { ok: false as const, error: "Claude verification failed.", diagnostics: { http_status: response.status, error_type: parsed?.error?.type ?? null, error_message: parsed?.error?.message ?? null, request_id: parsed?.request_id ?? response.headers.get("request-id") ?? null, model } };
+  let response: Response;
+  try {
+    response = await fetch("https://api.anthropic.com/v1/messages", {
+      method: "POST",
+      headers: { "x-api-key": args.apiKey, "anthropic-version": "2023-06-01", "content-type": "application/json" },
+      body: JSON.stringify({ model, max_tokens: 300, system: args.prompt, messages: [{ role: "user", content: [{ type: "document", source: { type: "base64", media_type: "application/pdf", data: args.base64 } }, { type: "text", text: `Filename: ${args.filename}` }] }] }),
+    });
+  } catch (error) {
+    return { ok: false as const, stage: "AI_REQUEST_EXCEPTION", error: "Claude request threw an exception.", diagnostics: { error_message: error instanceof Error ? error.message : String(error), model } };
   }
-  const payload = await response.json();
-  const text = (payload?.content ?? []).filter((item: any) => item?.type === "text").map((item: any) => item.text).join("\n");
-  return { ok: true as const, text, model };
+  if (!response.ok) {
+    const detail = await response.text();
+    let parsed: any = null;
+    try { parsed = JSON.parse(detail); } catch {}
+    console.error("verify-document Anthropic error", { document_id: args.documentId, model, http_status: response.status, full_body: detail, anthropic_error_type: parsed?.error?.type ?? null, anthropic_error_message: parsed?.error?.message ?? null, anthropic_request_id: parsed?.request_id ?? response.headers.get("request-id") ?? null, raw_pdf_bytes: args.rawBytes, base64_bytes: args.base64.length });
+    return { ok: false as const, stage: "AI_UPSTREAM_HTTP", error: "Claude verification failed.", diagnostics: { http_status: response.status, error_type: parsed?.error?.type ?? null, error_message: parsed?.error?.message ?? null, request_id: parsed?.request_id ?? response.headers.get("request-id") ?? null, model } };
+  }
+  let payload: any;
+  try { payload = await response.json(); } catch (error) {
+    return { ok: false as const, stage: "AI_RESPONSE_PARSE_EXCEPTION", error: "Claude response JSON could not be parsed.", diagnostics: { error_message: error instanceof Error ? error.message : String(error), model } };
+  }
+  try {
+    const text = (payload?.content ?? []).filter((item: any) => item?.type === "text").map((item: any) => item.text).join("\n");
+    return { ok: true as const, text, model };
+  } catch (error) {
+    return { ok: false as const, stage: "AI_CONTENT_PARSE_EXCEPTION", error: "Claude response content could not be parsed.", diagnostics: { error_message: error instanceof Error ? error.message : String(error), model } };
+  }
 }
 
 async function callGemini(args: { apiKey: string; base64: string; filename: string; prompt: string; documentId: string; rawBytes: number }) {
   const model = Deno.env.get("GEMINI_MODEL") || "gemini-3.6-flash";
   console.log("verify-document gemini payload", { document_id: args.documentId, model, content_types: ["text", "inlineData", "text"], document_media_type: "application/pdf", base64_bytes: args.base64.length, prompt_present: true });
-  const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`, {
-    method: "POST",
-    headers: { "x-goog-api-key": args.apiKey, "content-type": "application/json" },
-    body: JSON.stringify({
-      contents: [{ role: "user", parts: [
-        { text: args.prompt },
-        { inlineData: { mimeType: "application/pdf", data: args.base64 } },
-        { text: `Filename: ${args.filename}` },
-      ] }],
-      generationConfig: { responseMimeType: "application/json", temperature: 0, maxOutputTokens: 300 },
-    }),
-  });
-  if (!response.ok) {
-    const detail = await response.text(); let parsed: any = null; try { parsed = JSON.parse(detail); } catch {}
-    console.error("verify-document Gemini error", { document_id: args.documentId, model, http_status: response.status, full_body: detail, gemini_error_status: parsed?.error?.status ?? null, gemini_error_message: parsed?.error?.message ?? null, gemini_request_id: response.headers.get("x-goog-request-id") ?? response.headers.get("request-id") ?? null, raw_pdf_bytes: args.rawBytes, base64_bytes: args.base64.length });
-    return { ok: false as const, error: "Gemini verification failed.", diagnostics: { http_status: response.status, error_type: parsed?.error?.status ?? parsed?.error?.code ?? null, error_message: parsed?.error?.message ?? null, request_id: response.headers.get("x-goog-request-id") ?? response.headers.get("request-id") ?? null, model } };
+  let response: Response;
+  try {
+    response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`, {
+      method: "POST",
+      headers: { "x-goog-api-key": args.apiKey, "content-type": "application/json" },
+      body: JSON.stringify({ contents: [{ role: "user", parts: [{ text: args.prompt }, { inlineData: { mimeType: "application/pdf", data: args.base64 } }, { text: `Filename: ${args.filename}` }] }], generationConfig: { responseMimeType: "application/json", temperature: 0, maxOutputTokens: 300 } }),
+    });
+  } catch (error) {
+    return { ok: false as const, stage: "AI_REQUEST_EXCEPTION", error: "Gemini request threw an exception.", diagnostics: { error_message: error instanceof Error ? error.message : String(error), model } };
   }
-  const payload = await response.json();
-  const text = (payload?.candidates?.[0]?.content?.parts ?? []).filter((item: any) => typeof item?.text === "string").map((item: any) => item.text).join("\n");
-  return { ok: true as const, text, model };
+  if (!response.ok) {
+    const detail = await response.text();
+    let parsed: any = null;
+    try { parsed = JSON.parse(detail); } catch {}
+    console.error("verify-document Gemini error", { document_id: args.documentId, model, http_status: response.status, full_body: detail, gemini_error_status: parsed?.error?.status ?? null, gemini_error_message: parsed?.error?.message ?? null, gemini_request_id: response.headers.get("x-goog-request-id") ?? response.headers.get("request-id") ?? null, raw_pdf_bytes: args.rawBytes, base64_bytes: args.base64.length });
+    return { ok: false as const, stage: "AI_UPSTREAM_HTTP", error: "Gemini verification failed.", diagnostics: { http_status: response.status, error_type: parsed?.error?.status ?? parsed?.error?.code ?? null, error_message: parsed?.error?.message ?? null, request_id: response.headers.get("x-goog-request-id") ?? response.headers.get("request-id") ?? null, model } };
+  }
+  let payload: any;
+  try { payload = await response.json(); } catch (error) {
+    return { ok: false as const, stage: "AI_RESPONSE_PARSE_EXCEPTION", error: "Gemini response JSON could not be parsed.", diagnostics: { error_message: error instanceof Error ? error.message : String(error), model } };
+  }
+  try {
+    const candidates = payload?.candidates;
+    const text = (candidates?.[0]?.content?.parts ?? []).filter((item: any) => typeof item?.text === "string").map((item: any) => item.text).join("\n");
+    console.log("verify-document gemini content received", { document_id: args.documentId, model, candidate_count: Array.isArray(candidates) ? candidates.length : null, content_text_present: Boolean(text), content_text_length: text.length, finish_reason: candidates?.[0]?.finishReason ?? null });
+    return { ok: true as const, text, model };
+  } catch (error) {
+    return { ok: false as const, stage: "AI_CONTENT_PARSE_EXCEPTION", error: "Gemini response content could not be parsed.", diagnostics: { error_message: error instanceof Error ? error.message : String(error), model } };
+  }
 }
 
 Deno.serve(async (req) => {
@@ -115,25 +138,38 @@ Deno.serve(async (req) => {
       return json({ error: "PDF_TOO_LARGE", document_id: doc.id, raw_bytes: rawBytes, max_raw_bytes: MAX_RAW_PDF_BYTES }, 413);
     }
 
-    let binary = "";
+    const binaryChunks: string[] = [];
     const chunk = 0x8000;
-    for (let i = 0; i < bytes.length; i += chunk) binary += String.fromCharCode(...bytes.subarray(i, i + chunk));
-    const base64 = btoa(binary);
+    for (let i = 0; i < bytes.length; i += chunk) binaryChunks.push(String.fromCharCode(...bytes.subarray(i, i + chunk)));
+    const base64 = btoa(binaryChunks.join(""));
     const prompt = buildPrompt();
     const result = provider === "gemini"
       ? await callGemini({ apiKey: geminiKey!, base64, filename, prompt, documentId: doc.id, rawBytes })
       : await callAnthropic({ apiKey: anthropicKey!, base64, filename, prompt, documentId: doc.id, rawBytes });
 
     if (!result.ok) {
-      await admin.from("company_documents").update({ verification_status: "failed", verified_at: new Date().toISOString() }).eq("id", doc.id).eq("organization_id", doc.organization_id);
-      return json({ error: result.error, provider, diagnostics: result.diagnostics }, 502);
+      try {
+        await admin.from("company_documents").update({ verification_status: "failed", verified_at: new Date().toISOString() }).eq("id", doc.id).eq("organization_id", doc.organization_id);
+      } catch (error) {
+        console.error("verify-document failure-status update threw", error);
+      }
+      return json({ error: result.error, provider, stage: result.stage, diagnostics: result.diagnostics }, 502);
     }
 
-    const parsedResult = parseJson(result.text);
+    let parsedResult: Record<string, unknown> | null;
+    try {
+      parsedResult = parseJson(result.text);
+    } catch (error) {
+      return json({ error: "Verification response JSON parsing threw an exception.", provider, model: result.model, stage: "AI_CONTENT_PARSE_EXCEPTION", diagnostics: { error_message: error instanceof Error ? error.message : String(error) } }, 502);
+    }
     if (!parsedResult || !validType(parsedResult.doc_type)) {
       console.error(`verify-document invalid ${provider} payload`, { document_id: doc.id, model, content_text_present: Boolean(result.text), content_text_length: result.text?.length ?? 0 });
-      await admin.from("company_documents").update({ verification_status: "failed", verified_at: new Date().toISOString() }).eq("id", doc.id).eq("organization_id", doc.organization_id);
-      return json({ error: `${provider === "gemini" ? "Gemini" : "Claude"} returned an invalid verification payload.`, provider, model }, 502);
+      try {
+        await admin.from("company_documents").update({ verification_status: "failed", verified_at: new Date().toISOString() }).eq("id", doc.id).eq("organization_id", doc.organization_id);
+      } catch (error) {
+        console.error("verify-document invalid-payload status update threw", error);
+      }
+      return json({ error: `${provider === "gemini" ? "Gemini" : "Claude"} returned an invalid verification payload.`, provider, model: result.model, stage: "AI_CONTENT_PARSE_EXCEPTION", diagnostics: { content_text_present: Boolean(result.text), content_text_length: result.text?.length ?? 0 } }, 502);
     }
 
     const year = typeof parsedResult.year === "number" && Number.isInteger(parsedResult.year) && parsedResult.year >= 1900 && parsedResult.year <= 2100 ? parsedResult.year : null;
@@ -144,12 +180,17 @@ Deno.serve(async (req) => {
     const mismatch = validType(parsedResult.doc_type) && existingType && existingType !== "unspecified" && existingType !== String(parsedResult.doc_type).toLowerCase() && !existingType.includes(String(parsedResult.doc_type).toLowerCase().replaceAll("_", " ")) && !filenameType.includes(String(parsedResult.doc_type).toLowerCase().split("_")[0]);
     const status = parsedResult.doc_type === "OTHER" ? "mismatch" : mismatch && confidence === "high" ? "mismatch" : "verified";
 
-    const { error: updateError } = await admin.from("company_documents").update({ verified_doc_type: parsedResult.doc_type, verified_year: year, verified_expiry_date: expiryDate, verification_status: status, verified_at: new Date().toISOString() }).eq("id", doc.id).eq("organization_id", doc.organization_id).eq("company_id", doc.company_id);
-    if (updateError) throw updateError;
+    try {
+      const { error: updateError } = await admin.from("company_documents").update({ verified_doc_type: parsedResult.doc_type, verified_year: year, verified_expiry_date: expiryDate, verification_status: status, verified_at: new Date().toISOString() }).eq("id", doc.id).eq("organization_id", doc.organization_id).eq("company_id", doc.company_id);
+      if (updateError) throw updateError;
+    } catch (error) {
+      console.error("verify-document database update failed", { document_id: doc.id, error: error instanceof Error ? error.message : String(error) });
+      return json({ error: "Document verification succeeded but the database update failed.", provider, model: result.model, stage: "DATABASE_UPDATE_EXCEPTION", diagnostics: { error_message: error instanceof Error ? error.message : String(error) } }, 500);
+    }
 
-    return json({ document_id: doc.id, verified_doc_type: parsedResult.doc_type, verified_year: year, verified_expiry_date: expiryDate, verification_status: status, confidence, provider, model });
+    return json({ document_id: doc.id, verified_doc_type: parsedResult.doc_type, verified_year: year, verified_expiry_date: expiryDate, verification_status: status, confidence, provider, model: result.model });
   } catch (error) {
     console.error("verify-document failed", error);
-    return json({ error: error instanceof Error ? error.message : "Document verification failed." }, 500);
+    return json({ error: error instanceof Error ? error.message : "Document verification failed.", stage: "UNHANDLED_EXCEPTION" }, 500);
   }
 });
