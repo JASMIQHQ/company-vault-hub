@@ -110,6 +110,32 @@ export function useRenameDocument() {
   });
 }
 
+export function useVerifyDocument() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async (documentId: string) => {
+      const { data, error } = await supabase.functions.invoke("verify-document", {
+        body: { document_id: documentId },
+      });
+      if (error) throw error;
+      if (data?.error) throw new Error(data.error);
+      return data as {
+        document_id: string;
+        verified_doc_type: string;
+        verified_year: number | null;
+        verified_expiry_date: string | null;
+        verification_status: string;
+        confidence: string;
+        provider: string;
+        model: string;
+      };
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["company-documents"] });
+    },
+  });
+}
+
 export function useSoftDeleteDocument() {
   return useDocumentMutation<{ id: string }>(async ({ id }) => {
     const { error } = await supabase.from("company_documents").update({ deleted_at: new Date().toISOString() }).eq("id", id);
