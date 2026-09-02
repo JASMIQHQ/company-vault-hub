@@ -33,7 +33,11 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { StatusBadge } from "@/components/vault/status-badge";
-import { createSignedUrl, useRenameDocument, useSoftDeleteDocument } from "@/hooks/use-vault";
+import {
+  createSignedUrl,
+  useRenameDocument,
+  useSoftDeleteDocument,
+} from "@/hooks/use-vault";
 import { expiryState } from "@/lib/command-center";
 import { cn } from "@/lib/utils";
 import { formatDate, type CompanyDocument } from "@/lib/vault";
@@ -56,7 +60,9 @@ function RenameDialog({
       toast.success("Document name updated.");
       onOpenChange(false);
     } catch (error) {
-      toast.error(error instanceof Error ? error.message : "Could not rename the document");
+      toast.error(
+        error instanceof Error ? error.message : "Could not rename the document",
+      );
     }
   };
 
@@ -85,7 +91,11 @@ function RenameDialog({
           />
         </div>
         <DialogFooter>
-          <Button variant="ghost" className="rounded-xl" onClick={() => onOpenChange(false)}>
+          <Button
+            variant="ghost"
+            className="rounded-xl"
+            onClick={() => onOpenChange(false)}
+          >
             Cancel
           </Button>
           <Button
@@ -114,7 +124,9 @@ function RowActions({ document }: { document: CompanyDocument }) {
       const url = await createSignedUrl(document.storage_path, mode === "download");
       window.open(url, "_blank", "noopener,noreferrer");
     } catch (error) {
-      toast.error(error instanceof Error ? error.message : "Could not open the file");
+      toast.error(
+        error instanceof Error ? error.message : "Could not open the file",
+      );
     } finally {
       setBusy(null);
     }
@@ -126,7 +138,9 @@ function RowActions({ document }: { document: CompanyDocument }) {
       toast.success("Document moved to Bin.");
       setConfirmDelete(false);
     } catch (error) {
-      toast.error(error instanceof Error ? error.message : "Could not move the document");
+      toast.error(
+        error instanceof Error ? error.message : "Could not move the document",
+      );
     }
   };
 
@@ -188,8 +202,8 @@ function RowActions({ document }: { document: CompanyDocument }) {
           <AlertDialogHeader>
             <AlertDialogTitle>Delete document?</AlertDialogTitle>
             <AlertDialogDescription>
-              Are you sure you want to move &ldquo;{document.document_name}&rdquo; to the Bin? The
-              document will be recoverable from the Bin.
+              Are you sure you want to move &ldquo;{document.document_name}&rdquo; to the
+              Bin? The document will be recoverable from the Bin.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
@@ -211,7 +225,6 @@ function RowActions({ document }: { document: CompanyDocument }) {
     </div>
   );
 }
-
 
 interface DocumentListProps {
   documents: CompanyDocument[];
