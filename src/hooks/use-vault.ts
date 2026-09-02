@@ -43,30 +43,19 @@ export function useDocuments(session: Session | null, organizationId: string | n
     queryKey: ["company-documents", organizationId],
     enabled: Boolean(session) && Boolean(organizationId),
     queryFn: async (): Promise<CompanyDocument[]> => {
-      const { data, error } = await supabase
-        .from("company_documents")
-        .select("*")
-        .eq("organization_id", organizationId!)
-        .is("deleted_at", null)
-        .order("created_at", { ascending: false });
+      const { data, error } = await supabase.from("company_documents").select("*").eq("organization_id", organizationId!).is("deleted_at", null).order("created_at", { ascending: false });
       if (error) throw error;
       return data ?? [];
     },
   });
 }
 
-/** Lightweight dashboard projection — avoids downloading full document rows for aggregate cards. */
 export function useDashboardDocuments(session: Session | null, organizationId: string | null | undefined) {
   return useQuery({
     queryKey: ["company-documents", "dashboard", organizationId],
     enabled: Boolean(session) && Boolean(organizationId),
     queryFn: async () => {
-      const { data, error } = await supabase
-        .from("company_documents")
-        .select("id, document_name, document_status, expiry_date")
-        .eq("organization_id", organizationId!)
-        .is("deleted_at", null)
-        .order("created_at", { ascending: false });
+      const { data, error } = await supabase.from("company_documents").select("id, document_name, document_status, expiry_date").eq("organization_id", organizationId!).is("deleted_at", null).order("created_at", { ascending: false });
       if (error) throw error;
       return data ?? [];
     },
@@ -78,12 +67,7 @@ export function useDeletedDocuments(session: Session | null, organizationId: str
     queryKey: ["company-documents-deleted", organizationId],
     enabled: Boolean(session) && Boolean(organizationId),
     queryFn: async (): Promise<CompanyDocument[]> => {
-      const { data, error } = await supabase
-        .from("company_documents")
-        .select("*")
-        .eq("organization_id", organizationId!)
-        .not("deleted_at", "is", null)
-        .order("deleted_at", { ascending: false });
+      const { data, error } = await supabase.from("company_documents").select("*").eq("organization_id", organizationId!).not("deleted_at", "is", null).order("deleted_at", { ascending: false });
       if (error) throw error;
       return data ?? [];
     },
@@ -150,22 +134,7 @@ export function useUploadDocument() {
       const { error: uploadError } = await supabase.storage.from(BUCKET).upload(storagePath, file, { contentType: file.type, upsert: false });
       if (uploadError) throw uploadError;
       const { data: profileId } = await supabase.rpc("current_profile_id");
-      const { data, error } = await supabase.from("company_documents").insert({
-        organization_id: organizationId,
-        company_id: companyId,
-        uploaded_by: (profileId as string | null) ?? null,
-        category,
-        document_type: documentType,
-        document_name: documentName,
-        original_filename: file.name,
-        storage_path: storagePath,
-        mime_type: file.type,
-        file_size: file.size,
-        sha256_hash: hash,
-        analysis_status: "pending",
-        document_status: "active",
-        version: 1,
-      }).select("id").single();
+      const { data, error } = await supabase.from("company_documents").insert({ organization_id: organizationId, company_id: companyId, uploaded_by: (profileId as string | null) ?? null, category, document_type: documentType, document_name: documentName, original_filename: file.name, storage_path: storagePath, mime_type: file.type, file_size: file.size, sha256_hash: hash, analysis_status: "pending", document_status: "active", version: 1 }).select("id").single();
       if (error) {
         await supabase.storage.from(BUCKET).remove([storagePath]);
         throw error;
@@ -173,6 +142,19 @@ export function useUploadDocument() {
       return data.id as string;
     },
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ["company-documents"] }),
+  });
+}
+
+export function useVerifyDocument() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async ({ documentId }: { documentId: string }) => {
+      const { data, error } = await supabase.functions.invoke("verify-document", { body: { document_id: documentId } });
+      if (error) throw error;
+      if (data?.error) throw new Error(data.error);
+      return data as { document_id: string; verified_doc_type: string; verified_year: number | null; verified_expiry_date: string | null; verification_status: string; confidence: string };
+    },
+    onSettled: () => queryClient.invalidateQueries({ queryKey: ["company-documents"] }),
   });
 }
 
