@@ -8,117 +8,20 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { CompanyPicker } from "@/components/vault/company-picker";
 import { useCompanies } from "@/hooks/use-companies";
-import { useSession, useUploadDocument, useVerifyDocument } from "@/hooks/use-vault";
+import { useSession, useUploadDocument } from "@/hooks/use-vault";
+import { supabase } from "@/integrations/supabase/client";
 import { ACCEPT_ATTRIBUTE, validateFile } from "@/lib/vault";
 import { DOCUMENT_TYPE_LABELS, FEDERAL_TENDER_DOCUMENT_TYPES, normalizeDocumentType } from "@/lib/document-taxonomy";
 
-const CATEGORY_BY_TYPE: Record<string, string> = {
-  TAX_CLEARANCE_CERTIFICATE: "tax",
-  PENCOM_CERTIFICATE: "statutory_compliance",
-  ITF_CERTIFICATE: "statutory_compliance",
-  NSITF_CERTIFICATE: "statutory_compliance",
-  BPP_CERTIFICATE: "bpp_registration",
-  CAC_CERTIFICATE: "corporate",
-  OGISP_CERTIFICATE: "professional_regulatory",
-  CPN_CERTIFICATE: "professional_regulatory",
-  NEMSA_CERTIFICATE: "professional_regulatory",
-  AUDITED_ACCOUNTS: "financial",
-};
-
-function suggestFromFilename(filename: string) {
-  const normalized = filename.replace(/\.[^.]+$/, "").replace(/[_-]+/g, " ").trim();
-  const type = normalizeDocumentType(normalized);
-  return { name: normalized || filename, type, category: type ? CATEGORY_BY_TYPE[type] ?? "corporate" : "corporate" };
-}
+const CATEGORY_BY_TYPE: Record<string, string> = { TAX_CLEARANCE_CERTIFICATE: "tax", PENCOM_CERTIFICATE: "statutory_compliance", ITF_CERTIFICATE: "statutory_compliance", NSITF_CERTIFICATE: "statutory_compliance", BPP_CERTIFICATE: "bpp_registration", CAC_CERTIFICATE: "corporate", OGISP_CERTIFICATE: "professional_regulatory", CPN_CERTIFICATE: "professional_regulatory", NEMSA_CERTIFICATE: "professional_regulatory", AUDITED_ACCOUNTS: "financial" };
+function suggestFromFilename(filename: string) { const normalized = filename.replace(/\.[^.]+$/, "").replace(/[_-]+/g, " ").trim(); const type = normalizeDocumentType(normalized); return { name: normalized || filename, type, category: type ? CATEGORY_BY_TYPE[type] ?? "corporate" : "corporate" }; }
 
 export function UploadDialog({ organizationId }: { organizationId: string }) {
-  const [open, setOpen] = useState(false);
-  const [file, setFile] = useState<File | null>(null);
-  const [documentName, setDocumentName] = useState("");
-  const [documentType, setDocumentType] = useState("");
-  const [category, setCategory] = useState("corporate");
-  const [companyId, setCompanyId] = useState<string | null>(null);
-  const [suggestionAccepted, setSuggestionAccepted] = useState(false);
-  const upload = useUploadDocument();
-  const verify = useVerifyDocument();
-  const { session } = useSession();
-  const companiesQuery = useCompanies(session, organizationId);
-  const companies = companiesQuery.data ?? [];
-  const suggestion = useMemo(() => (file ? suggestFromFilename(file.name) : null), [file]);
-
-  const reset = () => {
-    setFile(null); setDocumentName(""); setDocumentType(""); setCategory("corporate"); setCompanyId(null); setSuggestionAccepted(false);
-  };
-
-  const acceptSuggestion = () => {
-    if (!suggestion) return;
-    setDocumentName(suggestion.name); setDocumentType(suggestion.type ?? "unspecified"); setCategory(suggestion.category); setSuggestionAccepted(true);
-  };
-
-  const onFileChange = (event: ChangeEvent<HTMLInputElement>) => {
-    const selected = event.target.files?.[0] ?? null;
-    if (!selected) { setFile(null); return; }
-    const error = validateFile(selected);
-    if (error) { toast.error(error); event.target.value = ""; setFile(null); return; }
-    setFile(selected);
-    const nextSuggestion = suggestFromFilename(selected.name);
-    setDocumentName(nextSuggestion.name); setDocumentType(nextSuggestion.type ?? ""); setCategory(nextSuggestion.category); setSuggestionAccepted(false);
-  };
-
-  const onSubmit = async () => {
-    if (!file) return;
-    if (!companyId) { toast.error("Select the company this document belongs to."); return; }
-    try {
-      const documentId = await upload.mutateAsync({
-        file,
-        documentName: documentName.trim() || file.name,
-        documentType: normalizeDocumentType(documentType) ?? (documentType.trim() || "unspecified"),
-        category,
-        organizationId,
-        companyId,
-      });
-      toast.success("Document uploaded. Verification is running in the background.");
-      reset(); setOpen(false);
-      void verify.mutateAsync({ documentId }).catch((error) => {
-        toast.error(error instanceof Error ? `Verification failed: ${error.message}` : "Document verification failed");
-      });
-    } catch (error) {
-      toast.error(error instanceof Error ? error.message : "Upload failed");
-    }
-  };
-
-  return (
-    <Dialog open={open} onOpenChange={(next) => { setOpen(next); if (!next) reset(); }}>
-      <DialogTrigger asChild><Button className="rounded-xl shadow-elegant"><UploadCloud className="mr-2 size-4" />Upload document</Button></DialogTrigger>
-      <DialogContent className="glass-panel sm:max-w-lg">
-        <DialogHeader>
-          <DialogTitle>Upload document</DialogTitle>
-          <DialogDescription>Upload the original document. JASMIQ keeps your display name and verifies the PDF separately.</DialogDescription>
-        </DialogHeader>
-        <div className="space-y-4">
-          <CompanyPicker id="vault-company-select" organizationId={organizationId} companies={companies} value={companyId} onChange={setCompanyId} />
-          <div className="space-y-2"><Label htmlFor="vault-file">File</Label><Input id="vault-file" type="file" accept={ACCEPT_ATTRIBUTE} onChange={onFileChange} className="rounded-xl" /></div>
-          {suggestion && !suggestionAccepted && (
-            <div className="rounded-2xl border border-primary/20 bg-primary/5 p-4">
-              <div className="flex items-start gap-3"><div className="mt-0.5 rounded-lg bg-primary/10 p-2 text-primary"><Sparkles className="size-4" /></div><div className="min-w-0 flex-1 space-y-2">
-                <p className="text-sm font-semibold">JASMIQ suggests</p>
-                <p className="text-sm text-foreground">{suggestion.type ? DOCUMENT_TYPE_LABELS[suggestion.type] : suggestion.name}</p>
-                <p className="text-xs text-muted-foreground">This suggestion uses the filename only. PDF verification remains the source of truth.</p>
-                <Button type="button" size="sm" className="rounded-lg" onClick={acceptSuggestion}>Accept suggestion</Button>
-              </div></div>
-            </div>
-          )}
-          {suggestionAccepted && suggestion && <div className="flex items-center gap-2 rounded-xl border border-success/20 bg-success/5 px-3 py-2 text-xs text-muted-foreground"><Info className="size-4 text-success" />Suggestion accepted. You can still edit it.</div>}
-          <div className="space-y-2"><Label htmlFor="vault-name">Document name</Label><Input id="vault-name" value={documentName} onChange={(event) => setDocumentName(event.target.value)} placeholder="Certificate of Incorporation" className="rounded-xl" /></div>
-          <div className="space-y-2"><Label htmlFor="vault-type">Document type</Label>
-            <select id="vault-type" value={documentType} onChange={(event) => setDocumentType(event.target.value)} className="flex h-10 w-full rounded-xl border border-input bg-background px-3 py-2 text-sm">
-              <option value="">Unspecified</option>
-              {FEDERAL_TENDER_DOCUMENT_TYPES.map((type) => <option key={type} value={type}>{DOCUMENT_TYPE_LABELS[type]}</option>)}
-            </select>
-          </div>
-        </div>
-        <DialogFooter><Button onClick={onSubmit} disabled={!file || !companyId || upload.isPending} className="rounded-xl w-full sm:w-auto">{upload.isPending && <Loader2 className="mr-2 size-4 animate-spin" />}Upload</Button></DialogFooter>
-      </DialogContent>
-    </Dialog>
-  );
+  const [open, setOpen] = useState(false); const [file, setFile] = useState<File | null>(null); const [documentName, setDocumentName] = useState(""); const [documentType, setDocumentType] = useState(""); const [category, setCategory] = useState("corporate"); const [companyId, setCompanyId] = useState<string | null>(null); const [suggestionAccepted, setSuggestionAccepted] = useState(false);
+  const upload = useUploadDocument(); const { session } = useSession(); const companiesQuery = useCompanies(session, organizationId); const companies = companiesQuery.data ?? []; const suggestion = useMemo(() => (file ? suggestFromFilename(file.name) : null), [file]);
+  const reset = () => { setFile(null); setDocumentName(""); setDocumentType(""); setCategory("corporate"); setCompanyId(null); setSuggestionAccepted(false); };
+  const acceptSuggestion = () => { if (!suggestion) return; setDocumentName(suggestion.name); setDocumentType(suggestion.type ?? "unspecified"); setCategory(suggestion.category); setSuggestionAccepted(true); };
+  const onFileChange = (event: ChangeEvent<HTMLInputElement>) => { const selected = event.target.files?.[0] ?? null; if (!selected) { setFile(null); return; } const error = validateFile(selected); if (error) { toast.error(error); event.target.value = ""; setFile(null); return; } setFile(selected); const nextSuggestion = suggestFromFilename(selected.name); setDocumentName(nextSuggestion.name); setDocumentType(nextSuggestion.type ?? ""); setCategory(nextSuggestion.category); setSuggestionAccepted(false); };
+  const onSubmit = async () => { if (!file) return; if (!companyId) { toast.error("Select the company this document belongs to."); return; } try { const documentId = await upload.mutateAsync({ file, documentName: documentName.trim() || file.name, documentType: normalizeDocumentType(documentType) ?? (documentType.trim() || "unspecified"), category, organizationId, companyId }); toast.success("Document uploaded. Verification is running in the background."); reset(); setOpen(false); void supabase.functions.invoke("verify-document", { body: { document_id: documentId } }).then(({ error }) => { if (error) toast.error(`Verification failed: ${error.message}`); }); } catch (error) { toast.error(error instanceof Error ? error.message : "Upload failed"); } };
+  return <Dialog open={open} onOpenChange={(next) => { setOpen(next); if (!next) reset(); }}><DialogTrigger asChild><Button className="rounded-xl shadow-elegant"><UploadCloud className="mr-2 size-4" />Upload document</Button></DialogTrigger><DialogContent className="glass-panel sm:max-w-lg"><DialogHeader><DialogTitle>Upload document</DialogTitle><DialogDescription>Upload the original document. JASMIQ keeps your display name and verifies the PDF separately.</DialogDescription></DialogHeader><div className="space-y-4"><CompanyPicker id="vault-company-select" organizationId={organizationId} companies={companies} value={companyId} onChange={setCompanyId} /><div className="space-y-2"><Label htmlFor="vault-file">File</Label><Input id="vault-file" type="file" accept={ACCEPT_ATTRIBUTE} onChange={onFileChange} className="rounded-xl" /></div>{suggestion && !suggestionAccepted && <div className="rounded-2xl border border-primary/20 bg-primary/5 p-4"><div className="flex items-start gap-3"><div className="mt-0.5 rounded-lg bg-primary/10 p-2 text-primary"><Sparkles className="size-4" /></div><div className="min-w-0 flex-1 space-y-2"><p className="text-sm font-semibold">JASMIQ suggests</p><p className="text-sm text-foreground">{suggestion.type ? DOCUMENT_TYPE_LABELS[suggestion.type] : suggestion.name}</p><p className="text-xs text-muted-foreground">This suggestion uses the filename only. PDF verification remains the source of truth.</p><Button type="button" size="sm" className="rounded-lg" onClick={acceptSuggestion}>Accept suggestion</Button></div></div></div>}{suggestionAccepted && <div className="flex items-center gap-2 rounded-xl border border-success/20 bg-success/5 px-3 py-2 text-xs text-muted-foreground"><Info className="size-4 text-success" />Suggestion accepted. You can still edit it.</div>}<div className="space-y-2"><Label htmlFor="vault-name">Document name</Label><Input id="vault-name" value={documentName} onChange={(event) => setDocumentName(event.target.value)} placeholder="Certificate of Incorporation" className="rounded-xl" /></div><div className="space-y-2"><Label htmlFor="vault-type">Document type</Label><select id="vault-type" value={documentType} onChange={(event) => setDocumentType(event.target.value)} className="flex h-10 w-full rounded-xl border border-input bg-background px-3 py-2 text-sm"><option value="">Unspecified</option>{FEDERAL_TENDER_DOCUMENT_TYPES.map((type) => <option key={type} value={type}>{DOCUMENT_TYPE_LABELS[type]}</option>)}</select></div></div><DialogFooter><Button onClick={onSubmit} disabled={!file || !companyId || upload.isPending} className="rounded-xl w-full sm:w-auto">{upload.isPending && <Loader2 className="mr-2 size-4 animate-spin" />}Upload</Button></DialogFooter></DialogContent></Dialog>;
 }
