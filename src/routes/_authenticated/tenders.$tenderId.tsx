@@ -14,6 +14,7 @@ import { useActiveOrganization } from "@/hooks/use-active-organization";
 import { createTenderSignedUrl, useAnalyzeTender, useTender, useTenderRequirements } from "@/hooks/use-tenders";
 import { useSession } from "@/hooks/use-vault";
 import { supabase } from "@/integrations/supabase/client";
+import { deriveRequirementGuidance } from "@/lib/requirement-diagnostics";
 import { deriveTenderReadiness, type TenderReadiness } from "@/lib/tender-readiness";
 import type { TenderRequirementItem } from "@/lib/tenders";
 import { parseAnalysisJson } from "@/lib/tender-analysis";
@@ -238,17 +239,37 @@ function CountSignal({ symbol, label, value, className }: { symbol: string; labe
 }
 
 function RequirementRow({ requirement }: { requirement: TenderRequirementItem }) {
-  return <article className="p-5 sm:p-6"><div className="flex flex-wrap items-center gap-2"><RequirementStatusBadge status={requirement.status} /><CategoryBadge category={requirement.category} />{requirement.matched_document_id ? <Badge variant="outline" className="rounded-full border-success/25 bg-success-soft text-success">Evidence linked</Badge> : <Badge variant="outline" className="rounded-full">No evidence linked</Badge>}</div><h3 className="mt-3 text-sm font-semibold">{requirement.requirement_name ?? "Unnamed requirement"}</h3><p className="mt-1.5 text-sm leading-6 text-muted-foreground">{requirement.requirement_text}</p>{requirement.explanation ? <p className="mt-3 border-l-2 border-border pl-3 text-xs leading-5 text-muted-foreground"><span className="font-medium text-foreground">Analysis explanation:</span> {requirement.explanation}</p> : null}{typeof requirement.confidence_score === "number" ? <p className="mt-2 text-xs text-muted-foreground">Stored confidence: {Math.round(requirement.confidence_score * 100)}%</p> : null}{requirement.matched_document_id ? <EvidenceReference documentId={requirement.matched_document_id} /> : null}</article>;
+  const guidance = deriveRequirementGuidance(requirement.status, requirement.explanation);
+
+  return <article className="p-5 sm:p-6">
+    <div className="flex flex-wrap items-center gap-2">
+      <RequirementStatusBadge status={requirement.status} />
+      <CategoryBadge category={requirement.category} />
+      {requirement.matched_document_id ? <Badge variant="outline" className="rounded-full border-success/25 bg-success-soft text-success">Evidence linked</Badge> : <Badge variant="outline" className="rounded-full">No evidence linked</Badge>}
+    </div>
+    <h3 className="mt-3 text-sm font-semibold">{requirement.requirement_name ?? "Unnamed requirement"}</h3>
+    <p className="mt-1.5 text-sm leading-6 text-muted-foreground">{requirement.requirement_text}</p>
+
+    <div className="mt-3 rounded-xl border border-border/60 bg-muted/20 p-3">
+      <p className="text-sm font-semibold text-foreground">{guidance.headline}</p>
+      {guidance.explanation ? <p className="mt-1 text-sm leading-6 text-muted-foreground">{guidance.explanation}</p> : null}
+      {guidance.action ? <p className="mt-2 text-sm font-medium text-primary">→ {guidance.action}</p> : null}
+    </div>
+
+    {requirement.matched_document_id ? <EvidenceReference documentId={requirement.matched_document_id} /> : null}
+  </article>;
 }
 
 function EvidenceReference({ documentId }: { documentId: string }) {
   const [state, setState] = useState<"idle" | "loading" | "missing">("idle");
+  const [documentName, setDocumentName] = useState<string | null>(null);
   const open = async () => {
     setState("loading");
     try {
       const { data, error } = await supabase.from("company_documents").select("id, document_name, original_filename, storage_path").eq("id", documentId).is("deleted_at", null).maybeSingle();
       if (error) throw error;
       if (!data?.storage_path) { setState("missing"); return; }
+      setDocumentName(data.document_name ?? data.original_filename ?? "Vault evidence");
       const { data: signed, error: signedError } = await supabase.storage.from("company-documents").createSignedUrl(data.storage_path, 60);
       if (signedError) throw signedError;
       window.open(signed.signedUrl, "_blank", "noopener,noreferrer");
@@ -256,7 +277,7 @@ function EvidenceReference({ documentId }: { documentId: string }) {
     } catch { setState("missing"); }
   };
   if (state === "missing") return <div className="mt-3 flex items-center gap-2 text-xs text-warning"><TriangleAlert className="size-4" />Evidence is no longer available to this user.</div>;
-  return <div className="mt-3 flex flex-wrap items-center gap-2"><Button variant="outline" size="sm" className="rounded-lg" onClick={open} disabled={state === "loading"}>{state === "loading" ? <Loader2 className="size-4 animate-spin" /> : <Eye className="size-4" />}<span className="ml-1.5">Open linked Vault evidence</span></Button><span className="text-[11px] text-muted-foreground">Existing backend link: {documentId.slice(0, 8)}…</span></div>;
+  return <div className="mt-3 flex flex-wrap items-center gap-2"><Button variant="outline" size="sm" className="rounded-lg" onClick={open} disabled={state === "loading"}>{state === "loading" ? <Loader2 className="size-4 animate-spin" /> : <Eye className="size-4" />}<span className="ml-1.5">{documentName ? `Open ${documentName}` : "Open linked Vault evidence"}</span></Button></div>;
 }
 
 function Metric({ label, value }: { label: string; value: string }) { return <div className="glass-panel rounded-2xl p-4"><p className="text-xs uppercase tracking-wide text-muted-foreground">{label}</p><p className="mt-1 text-2xl font-semibold tracking-tight capitalize">{value}</p></div>; }
