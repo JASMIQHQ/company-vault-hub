@@ -2,7 +2,7 @@ import { describe, expect, test } from "bun:test";
 import {
   deriveTenderReadiness,
   type TenderReadiness,
-} from "@/lib/tender-readiness";
+} from "./tender-readiness";
 
 interface TestCase {
   name: string;
