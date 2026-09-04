@@ -22,8 +22,8 @@ const SCHEMA_PROMPT = `You analyse Nigerian public procurement tender documents.
 Return ONLY JSON matching:
 {
   "procuring_entity": string|null,
-  "submission_deadline": string|null,   // ISO 8601 timestamp
-  "opening_date": string|null,          // ISO 8601 timestamp
+  "submission_deadline": string|null,
+  "opening_date": string|null,
   "reference_number": string|null,
   "procurement_method": string|null,
   "tender_type": string|null,
@@ -257,8 +257,6 @@ Deno.serve(async (req) => {
         raw_text: clipped.slice(0, 40000),
       })
       .eq("id", tender.id);
-
-    await admin.rpc("calculate_tender_compliance", { p_tender_id: tender.id });
 
     return json({ tender_id: tender.id, analysis_status: "analyzed", requirements: requirements.length });
   } catch (error) {
