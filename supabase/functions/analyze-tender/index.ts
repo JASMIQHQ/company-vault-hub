@@ -258,14 +258,6 @@ Deno.serve(async (req) => {
       })
       .eq("id", tender.id);
 
-    const { error: complianceError } = await admin.rpc("calculate_tender_compliance", {
-      p_tender_id: tender.id,
-    });
-    if (complianceError) {
-      console.error("calculate_tender_compliance failed", complianceError);
-      return await fail("Could not calculate tender compliance.", 500);
-    }
-
     return json({ tender_id: tender.id, analysis_status: "analyzed", requirements: requirements.length });
   } catch (error) {
     console.error("analyze-tender unexpected error", error);
