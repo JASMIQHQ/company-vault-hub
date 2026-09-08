@@ -6,14 +6,41 @@ export type AnalysisStatus = Database["public"]["Enums"]["document_analysis_stat
 export const BUCKET = "company-documents";
 export const MAX_FILE_SIZE = 25 * 1024 * 1024;
 
-export const ACCEPTED_MIME_TYPES = ["application/pdf", "image/png", "image/jpeg"] as const;
-export const ACCEPT_ATTRIBUTE = ".pdf,.png,.jpg,.jpeg";
+export const ACCEPTED_MIME_TYPES = [
+  "application/pdf",
+  "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+  "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+  "image/png",
+  "image/jpeg",
+] as const;
+
+export const ACCEPT_ATTRIBUTE = ".pdf,.docx,.xlsx,.png,.jpg,.jpeg";
+
+export const VAULT_CATEGORIES = [
+  "Company Profile",
+  "Certifications",
+  "Experience",
+  "Financial",
+  "Other",
+] as const;
+
+export const DOCUMENT_TYPES_BY_CATEGORY: Record<string, readonly string[]> = {
+  "Company Profile": ["Company Profile", "Company Registration", "Other Profile Evidence"],
+  Certifications: ["Tax Clearance", "CAC Certificate", "Professional Certification", "Other Certification"],
+  Experience: ["Contract Agreement", "Completion Certificate", "Purchase Order", "Other Experience Evidence"],
+  Financial: ["Bank Reference", "Audited Accounts", "Financial Statement", "Other Financial Evidence"],
+  Other: ["Other Document"],
+};
 
 export function validateFile(file: File): string | null {
   const name = file.name.toLowerCase();
-  const extOk = [".pdf", ".png", ".jpg", ".jpeg"].some((ext) => name.endsWith(ext));
+  const allowedExtensions = [".pdf", ".docx", ".xlsx", ".png", ".jpg", ".jpeg"];
+  const extOk = allowedExtensions.some((ext) => name.endsWith(ext));
   const mimeOk = (ACCEPTED_MIME_TYPES as readonly string[]).includes(file.type);
-  if (!extOk && !mimeOk) return "Only PDF, PNG, JPG and JPEG files are supported.";
+
+  if (!extOk && !mimeOk) {
+    return "Only PDF, DOCX, XLSX, PNG, JPG and JPEG files are supported.";
+  }
   if (file.size > MAX_FILE_SIZE) return "File is larger than the 25MB limit.";
   return null;
 }
@@ -41,4 +68,10 @@ export function formatDate(value: string | null): string {
     month: "short",
     day: "2-digit",
   });
+}
+
+export function formatFileSize(bytes: number | null): string {
+  if (!bytes || bytes < 1) return "—";
+  if (bytes < 1024 * 1024) return `${Math.round(bytes / 1024)} KB`;
+  return `${(bytes / (1024 * 1024)).toFixed(bytes >= 10 * 1024 * 1024 ? 0 : 1)} MB`;
 }

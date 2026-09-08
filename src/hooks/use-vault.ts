@@ -55,7 +55,6 @@ export function useDocuments(session: Session | null, organizationId: string | n
   });
 }
 
-/** Lightweight dashboard projection — avoids downloading full document rows for aggregate cards. */
 export function useDashboardDocuments(session: Session | null, organizationId: string | null | undefined) {
   return useQuery({
     queryKey: ["company-documents", "dashboard", organizationId],
@@ -141,43 +140,56 @@ export interface UploadInput {
   companyId: string;
 }
 
+export async function uploadDocument(input: UploadInput): Promise<string> {
+  const { file, documentName, documentType, category, organizationId, companyId } = input;
+  const hash = await sha256Hex(file);
+  const storagePath = buildStoragePath(organizationId, category, file.name);
+
+  const { error: uploadError } = await supabase.storage.from(BUCKET).upload(storagePath, file, {
+    contentType: file.type,
+    upsert: false,
+  });
+  if (uploadError) throw uploadError;
+
+  const { data: profileId } = await supabase.rpc("current_profile_id");
+  const { data, error } = await supabase.from("company_documents").insert({
+    organization_id: organizationId,
+    company_id: companyId,
+    uploaded_by: (profileId as string | null) ?? null,
+    category,
+    document_type: documentType,
+    document_name: documentName,
+    original_filename: file.name,
+    storage_path: storagePath,
+    mime_type: file.type,
+    file_size: file.size,
+    sha256_hash: hash,
+    analysis_status: "pending",
+    document_status: "active",
+    version: 1,
+  }).select("id").single();
+
+  if (error) {
+    await supabase.storage.from(BUCKET).remove([storagePath]);
+    throw error;
+  }
+  return data.id as string;
+}
+
 export function useUploadDocument() {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: async ({ file, documentName, documentType, category, organizationId, companyId }: UploadInput) => {
-      const hash = await sha256Hex(file);
-      const storagePath = buildStoragePath(organizationId, category, file.name);
-      const { error: uploadError } = await supabase.storage.from(BUCKET).upload(storagePath, file, { contentType: file.type, upsert: false });
-      if (uploadError) throw uploadError;
-      const { data: profileId } = await supabase.rpc("current_profile_id");
-      const { data, error } = await supabase.from("company_documents").insert({
-        organization_id: organizationId,
-        company_id: companyId,
-        uploaded_by: (profileId as string | null) ?? null,
-        category,
-        document_type: documentType,
-        document_name: documentName,
-        original_filename: file.name,
-        storage_path: storagePath,
-        mime_type: file.type,
-        file_size: file.size,
-        sha256_hash: hash,
-        analysis_status: "pending",
-        document_status: "active",
-        version: 1,
-      }).select("id").single();
-      if (error) {
-        await supabase.storage.from(BUCKET).remove([storagePath]);
-        throw error;
-      }
-      return data.id as string;
-    },
+    mutationFn: uploadDocument,
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ["company-documents"] }),
   });
 }
 
 export async function createSignedUrl(storagePath: string, download = false) {
-  const { data, error } = await supabase.storage.from(BUCKET).createSignedUrl(storagePath, 60, download ? { download: true } : undefined);
+  const { data, error } = await supabase.storage.from(BUCKET).createSignedUrl(
+    storagePath,
+    60,
+    download ? { download: true } : undefined,
+  );
   if (error) throw error;
   return data.signedUrl;
 }
