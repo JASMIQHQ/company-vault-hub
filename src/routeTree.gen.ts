@@ -106,9 +106,9 @@ export interface FileRoutesByTo {
   '/companies': typeof AuthenticatedCompaniesRoute
   '/dashboard': typeof AuthenticatedDashboardRoute
   '/settings': typeof AuthenticatedSettingsRoute
-  '/tenders': typeof AuthenticatedTendersIndexRoute
   '/vault': typeof AuthenticatedVaultRoute
   '/tenders/$tenderId': typeof AuthenticatedTendersTenderIdRoute
+  '/tenders': typeof AuthenticatedTendersIndexRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -148,9 +148,9 @@ export interface FileRouteTypes {
     | '/companies'
     | '/dashboard'
     | '/settings'
-    | '/tenders'
     | '/vault'
     | '/tenders/$tenderId'
+    | '/tenders'
   id:
     | '__root__'
     | '/'
@@ -289,7 +289,6 @@ const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedBankReferencesRoute: AuthenticatedBankReferencesRoute,
   AuthenticatedCompaniesRoute: AuthenticatedCompaniesRoute,
   AuthenticatedDashboardRoute: AuthenticatedDashboardRoute,
-  AuthenticatedSettingsRoute: AuthenticatedSettingsRoute,
   AuthenticatedTendersRoute: AuthenticatedTendersRouteWithChildren,
   AuthenticatedVaultRoute: AuthenticatedVaultRoute,
 }
