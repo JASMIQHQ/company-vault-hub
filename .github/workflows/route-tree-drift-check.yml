@@ -1,5 +1,7 @@
 name: Route tree drift check
 
+# Guard invariant: the committed generated tree must equal the tree produced by a fresh build.
+
 on:
   pull_request:
     paths:
