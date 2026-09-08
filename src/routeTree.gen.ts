@@ -94,9 +94,9 @@ export interface FileRoutesByFullPath {
   '/dashboard': typeof AuthenticatedDashboardRoute
   '/settings': typeof AuthenticatedSettingsRoute
   '/tenders': typeof AuthenticatedTendersRouteWithChildren
+  '/vault': typeof AuthenticatedVaultRoute
   '/tenders/$tenderId': typeof AuthenticatedTendersTenderIdRoute
   '/tenders/': typeof AuthenticatedTendersIndexRoute
-  '/vault': typeof AuthenticatedVaultRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -107,8 +107,8 @@ export interface FileRoutesByTo {
   '/dashboard': typeof AuthenticatedDashboardRoute
   '/settings': typeof AuthenticatedSettingsRoute
   '/tenders': typeof AuthenticatedTendersIndexRoute
-  '/tenders/$tenderId': typeof AuthenticatedTendersTenderIdRoute
   '/vault': typeof AuthenticatedVaultRoute
+  '/tenders/$tenderId': typeof AuthenticatedTendersTenderIdRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -121,9 +121,9 @@ export interface FileRoutesById {
   '/_authenticated/dashboard': typeof AuthenticatedDashboardRoute
   '/_authenticated/settings': typeof AuthenticatedSettingsRoute
   '/_authenticated/tenders': typeof AuthenticatedTendersRouteWithChildren
+  '/_authenticated/vault': typeof AuthenticatedVaultRoute
   '/_authenticated/tenders/$tenderId': typeof AuthenticatedTendersTenderIdRoute
   '/_authenticated/tenders/': typeof AuthenticatedTendersIndexRoute
-  '/_authenticated/vault': typeof AuthenticatedVaultRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -136,9 +136,9 @@ export interface FileRouteTypes {
     | '/dashboard'
     | '/settings'
     | '/tenders'
+    | '/vault'
     | '/tenders/$tenderId'
     | '/tenders/'
-    | '/vault'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -149,8 +149,8 @@ export interface FileRouteTypes {
     | '/dashboard'
     | '/settings'
     | '/tenders'
-    | '/tenders/$tenderId'
     | '/vault'
+    | '/tenders/$tenderId'
   id:
     | '__root__'
     | '/'
@@ -162,9 +162,9 @@ export interface FileRouteTypes {
     | '/_authenticated/dashboard'
     | '/_authenticated/settings'
     | '/_authenticated/tenders'
+    | '/_authenticated/vault'
     | '/_authenticated/tenders/$tenderId'
     | '/_authenticated/tenders/'
-    | '/_authenticated/vault'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
