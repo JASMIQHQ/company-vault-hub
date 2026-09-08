@@ -1,0 +1,58 @@
+name: Route tree drift check
+
+on:
+  pull_request:
+    paths:
+      - "src/routes/**"
+      - "src/routeTree.gen.ts"
+      - "src/router.tsx"
+      - "vite.config.ts"
+      - "package.json"
+      - "bun.lock"
+      - ".github/workflows/route-tree-drift-check.yml"
+  push:
+    branches:
+      - "main"
+    paths:
+      - "src/routes/**"
+      - "src/routeTree.gen.ts"
+      - "src/router.tsx"
+      - "vite.config.ts"
+      - "package.json"
+      - "bun.lock"
+      - ".github/workflows/route-tree-drift-check.yml"
+
+jobs:
+  route-tree-drift:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+
+      - name: Install dependencies
+        run: bun install --frozen-lockfile
+
+      - name: Build application
+        run: bun run build
+
+      - name: Fail if generated route tree changed during build
+        run: |
+          if ! git diff --quiet -- src/routeTree.gen.ts; then
+            echo "ERROR: src/routeTree.gen.ts is out of sync with the route sources/build configuration."
+            echo "The build regenerated or modified the route tree. Regenerate it intentionally and commit the result."
+            git diff -- src/routeTree.gen.ts
+            exit 1
+          fi
+
+      - name: Verify tender detail route is registered
+        run: |
+          if ! grep -q '\$tenderId' src/routeTree.gen.ts; then
+            echo "ERROR: src/routeTree.gen.ts does not register the /tenders/$tenderId route."
+            echo "The tender detail source route exists but is absent from the generated route tree."
+            exit 1
+          fi
