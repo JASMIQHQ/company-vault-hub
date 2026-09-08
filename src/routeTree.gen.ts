@@ -15,10 +15,11 @@ import { Route as AuthenticatedRouteRouteImport } from './routes/_authenticated/
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as AuthenticatedVaultRouteImport } from './routes/_authenticated/vault'
 import { Route as AuthenticatedTendersRouteImport } from './routes/_authenticated/tenders'
+import { Route as AuthenticatedSettingsRouteImport } from './routes/_authenticated/settings'
 import { Route as AuthenticatedDashboardRouteImport } from './routes/_authenticated/dashboard'
 import { Route as AuthenticatedCompaniesRouteImport } from './routes/_authenticated/companies'
 import { Route as AuthenticatedBankReferencesRouteImport } from './routes/_authenticated/bank-references'
-import { Route as AuthenticatedSettingsRouteImport } from './routes/_authenticated/settings'
+import { Route as AuthenticatedTendersTenderIdRouteImport } from './routes/_authenticated/tenders.$tenderId'
 
 const SitemapDotxmlRoute = SitemapDotxmlRouteImport.update({
   id: '/sitemap.xml',
@@ -49,6 +50,11 @@ const AuthenticatedTendersRoute = AuthenticatedTendersRouteImport.update({
   path: '/tenders',
   getParentRoute: () => AuthenticatedRouteRoute,
 } as any)
+const AuthenticatedSettingsRoute = AuthenticatedSettingsRouteImport.update({
+  id: '/settings',
+  path: '/settings',
+  getParentRoute: () => AuthenticatedRouteRoute,
+} as any)
 const AuthenticatedDashboardRoute = AuthenticatedDashboardRouteImport.update({
   id: '/dashboard',
   path: '/dashboard',
@@ -65,11 +71,12 @@ const AuthenticatedBankReferencesRoute =
     path: '/bank-references',
     getParentRoute: () => AuthenticatedRouteRoute,
   } as any)
-const AuthenticatedSettingsRoute = AuthenticatedSettingsRouteImport.update({
-  id: '/settings',
-  path: '/settings',
-  getParentRoute: () => AuthenticatedRouteRoute,
-} as any)
+const AuthenticatedTendersTenderIdRoute =
+  AuthenticatedTendersTenderIdRouteImport.update({
+    id: '/$tenderId',
+    path: '/$tenderId',
+    getParentRoute: () => AuthenticatedTendersRoute,
+  } as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
@@ -79,8 +86,9 @@ export interface FileRoutesByFullPath {
   '/companies': typeof AuthenticatedCompaniesRoute
   '/dashboard': typeof AuthenticatedDashboardRoute
   '/settings': typeof AuthenticatedSettingsRoute
-  '/tenders': typeof AuthenticatedTendersRoute
+  '/tenders': typeof AuthenticatedTendersRouteWithChildren
   '/vault': typeof AuthenticatedVaultRoute
+  '/tenders/$tenderId': typeof AuthenticatedTendersTenderIdRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -90,8 +98,9 @@ export interface FileRoutesByTo {
   '/companies': typeof AuthenticatedCompaniesRoute
   '/dashboard': typeof AuthenticatedDashboardRoute
   '/settings': typeof AuthenticatedSettingsRoute
-  '/tenders': typeof AuthenticatedTendersRoute
+  '/tenders': typeof AuthenticatedTendersRouteWithChildren
   '/vault': typeof AuthenticatedVaultRoute
+  '/tenders/$tenderId': typeof AuthenticatedTendersTenderIdRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -103,8 +112,9 @@ export interface FileRoutesById {
   '/_authenticated/companies': typeof AuthenticatedCompaniesRoute
   '/_authenticated/dashboard': typeof AuthenticatedDashboardRoute
   '/_authenticated/settings': typeof AuthenticatedSettingsRoute
-  '/_authenticated/tenders': typeof AuthenticatedTendersRoute
+  '/_authenticated/tenders': typeof AuthenticatedTendersRouteWithChildren
   '/_authenticated/vault': typeof AuthenticatedVaultRoute
+  '/_authenticated/tenders/$tenderId': typeof AuthenticatedTendersTenderIdRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -118,6 +128,7 @@ export interface FileRouteTypes {
     | '/settings'
     | '/tenders'
     | '/vault'
+    | '/tenders/$tenderId'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -129,6 +140,7 @@ export interface FileRouteTypes {
     | '/settings'
     | '/tenders'
     | '/vault'
+    | '/tenders/$tenderId'
   id:
     | '__root__'
     | '/'
@@ -141,6 +153,7 @@ export interface FileRouteTypes {
     | '/_authenticated/settings'
     | '/_authenticated/tenders'
     | '/_authenticated/vault'
+    | '/_authenticated/tenders/$tenderId'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -194,6 +207,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedTendersRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
+    '/_authenticated/settings': {
+      id: '/_authenticated/settings'
+      path: '/settings'
+      fullPath: '/settings'
+      preLoaderRoute: typeof AuthenticatedSettingsRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
     '/_authenticated/dashboard': {
       id: '/_authenticated/dashboard'
       path: '/dashboard'
@@ -215,22 +235,33 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedBankReferencesRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
-    '/_authenticated/settings': {
-      id: '/_authenticated/settings'
-      path: '/settings'
-      fullPath: '/settings'
-      preLoaderRoute: typeof AuthenticatedSettingsRouteImport
-      parentRoute: typeof AuthenticatedRouteRoute
+    '/_authenticated/tenders/$tenderId': {
+      id: '/_authenticated/tenders/$tenderId'
+      path: '/$tenderId'
+      fullPath: '/tenders/$tenderId'
+      preLoaderRoute: typeof AuthenticatedTendersTenderIdRouteImport
+      parentRoute: typeof AuthenticatedTendersRoute
     }
   }
 }
+
+interface AuthenticatedTendersRouteChildren {
+  AuthenticatedTendersTenderIdRoute: typeof AuthenticatedTendersTenderIdRoute
+}
+
+const AuthenticatedTendersRouteChildren: AuthenticatedTendersRouteChildren = {
+  AuthenticatedTendersTenderIdRoute: AuthenticatedTendersTenderIdRoute,
+}
+
+const AuthenticatedTendersRouteWithChildren =
+  AuthenticatedTendersRoute._addFileChildren(AuthenticatedTendersRouteChildren)
 
 interface AuthenticatedRouteRouteChildren {
   AuthenticatedBankReferencesRoute: typeof AuthenticatedBankReferencesRoute
   AuthenticatedCompaniesRoute: typeof AuthenticatedCompaniesRoute
   AuthenticatedDashboardRoute: typeof AuthenticatedDashboardRoute
   AuthenticatedSettingsRoute: typeof AuthenticatedSettingsRoute
-  AuthenticatedTendersRoute: typeof AuthenticatedTendersRoute
+  AuthenticatedTendersRoute: typeof AuthenticatedTendersRouteWithChildren
   AuthenticatedVaultRoute: typeof AuthenticatedVaultRoute
 }
 
@@ -239,7 +270,7 @@ const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedCompaniesRoute: AuthenticatedCompaniesRoute,
   AuthenticatedDashboardRoute: AuthenticatedDashboardRoute,
   AuthenticatedSettingsRoute: AuthenticatedSettingsRoute,
-  AuthenticatedTendersRoute: AuthenticatedTendersRoute,
+  AuthenticatedTendersRoute: AuthenticatedTendersRouteWithChildren,
   AuthenticatedVaultRoute: AuthenticatedVaultRoute,
 }
 
@@ -255,3 +286,13 @@ const rootRouteChildren: RootRouteChildren = {
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
   ._addFileTypes<FileRouteTypes>()
+
+import type { getRouter } from './router.tsx'
+import type { startInstance } from './start.ts'
+declare module '@tanstack/react-start' {
+  interface Register {
+    ssr: true
+    router: Awaited<ReturnType<typeof getRouter>>
+    config: Awaited<ReturnType<typeof startInstance.getOptions>>
+  }
+}
