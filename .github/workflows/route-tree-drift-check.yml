@@ -1,0 +1,60 @@
+name: Route tree drift check
+
+# Guard invariant: the committed generated tree must equal the tree produced by a fresh build.
+
+on:
+  pull_request:
+    paths:
+      - "src/routes/**"
+      - "src/routeTree.gen.ts"
+      - "src/router.tsx"
+      - "vite.config.ts"
+      - "package.json"
+      - "bun.lock"
+      - ".github/workflows/route-tree-drift-check.yml"
+  push:
+    branches:
+      - "main"
+    paths:
+      - "src/routes/**"
+      - "src/routeTree.gen.ts"
+      - "src/router.tsx"
+      - "vite.config.ts"
+      - "package.json"
+      - "bun.lock"
+      - ".github/workflows/route-tree-drift-check.yml"
+
+jobs:
+  route-tree-drift:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+
+      - name: Install dependencies
+        run: bun install --frozen-lockfile
+
+      - name: Build application
+        run: bun run build
+
+      - name: Verify tender detail route is registered
+        run: |
+          if ! grep -q '\$tenderId' src/routeTree.gen.ts; then
+            echo "ERROR: src/routeTree.gen.ts does not register the /tenders/$tenderId route."
+            echo "The tender detail source route exists but is absent from the generated route tree."
+            exit 1
+          fi
+
+      - name: Verify committed route tree matches build output
+        run: |
+          if ! git diff --quiet -- src/routeTree.gen.ts; then
+            echo "ERROR: committed src/routeTree.gen.ts is out of sync with what the build generated."
+            echo "Regenerate the route tree and commit the generated result."
+            git diff -- src/routeTree.gen.ts
+            exit 1
+          fi
