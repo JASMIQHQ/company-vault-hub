@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, Outlet, useMatchRoute } from "@tanstack/react-router";
 
 import { CompanySelect } from "@/components/company-select";
 import { TenderList } from "@/components/tenders/tender-list";
@@ -36,6 +36,7 @@ function TendersPage() {
   const { session, isLoading: sessionLoading } = useSession();
   const org = useActiveOrganization(session, sessionLoading);
   const activeOrg = org.activeOrgId;
+  const matchRoute = useMatchRoute();
 
   const tendersQuery = useTenders(session, activeOrg);
   const companiesQuery = useCompanies(session, activeOrg);
@@ -49,6 +50,13 @@ function TendersPage() {
 
   const bootstrapping = org.bootstrapping;
   const orgMissing = !bootstrapping && !org.error && Boolean(session) && !activeOrg;
+  const isTenderWorkspace = Boolean(matchRoute({ to: "/tenders/$tenderId" }));
+
+  // This route is the parent of both /tenders and /tenders/$tenderId.
+  // Render the child workspace instead of the list when the detail route is matched.
+  if (isTenderWorkspace) {
+    return <Outlet />;
+  }
 
   return (
     <div className="mx-auto max-w-6xl px-4 py-8 sm:px-6 sm:py-12">
