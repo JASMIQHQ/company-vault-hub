@@ -40,19 +40,19 @@ jobs:
       - name: Build application
         run: bun run build
 
-      - name: Fail if generated route tree changed during build
-        run: |
-          if ! git diff --quiet -- src/routeTree.gen.ts; then
-            echo "ERROR: src/routeTree.gen.ts is out of sync with the route sources/build configuration."
-            echo "The build regenerated or modified the route tree. Regenerate it intentionally and commit the result."
-            git diff -- src/routeTree.gen.ts
-            exit 1
-          fi
-
       - name: Verify tender detail route is registered
         run: |
           if ! grep -q '\$tenderId' src/routeTree.gen.ts; then
             echo "ERROR: src/routeTree.gen.ts does not register the /tenders/$tenderId route."
             echo "The tender detail source route exists but is absent from the generated route tree."
+            exit 1
+          fi
+
+      - name: Verify committed route tree matches build output
+        run: |
+          if ! git diff --quiet -- src/routeTree.gen.ts; then
+            echo "ERROR: committed src/routeTree.gen.ts is out of sync with what the build generated."
+            echo "Regenerate the route tree and commit the generated result."
+            git diff -- src/routeTree.gen.ts
             exit 1
           fi
