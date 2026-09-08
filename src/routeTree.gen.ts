@@ -19,6 +19,7 @@ import { Route as AuthenticatedSettingsRouteImport } from './routes/_authenticat
 import { Route as AuthenticatedDashboardRouteImport } from './routes/_authenticated/dashboard'
 import { Route as AuthenticatedCompaniesRouteImport } from './routes/_authenticated/companies'
 import { Route as AuthenticatedBankReferencesRouteImport } from './routes/_authenticated/bank-references'
+import { Route as AuthenticatedTendersIndexRouteImport } from './routes/_authenticated/tenders.index'
 import { Route as AuthenticatedTendersTenderIdRouteImport } from './routes/_authenticated/tenders.$tenderId'
 
 const SitemapDotxmlRoute = SitemapDotxmlRouteImport.update({
@@ -71,6 +72,12 @@ const AuthenticatedBankReferencesRoute =
     path: '/bank-references',
     getParentRoute: () => AuthenticatedRouteRoute,
   } as any)
+const AuthenticatedTendersIndexRoute =
+  AuthenticatedTendersIndexRouteImport.update({
+    id: '/',
+    path: '/',
+    getParentRoute: () => AuthenticatedTendersRoute,
+  } as any)
 const AuthenticatedTendersTenderIdRoute =
   AuthenticatedTendersTenderIdRouteImport.update({
     id: '/$tenderId',
@@ -89,6 +96,7 @@ export interface FileRoutesByFullPath {
   '/tenders': typeof AuthenticatedTendersRouteWithChildren
   '/vault': typeof AuthenticatedVaultRoute
   '/tenders/$tenderId': typeof AuthenticatedTendersTenderIdRoute
+  '/tenders/': typeof AuthenticatedTendersIndexRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -98,9 +106,9 @@ export interface FileRoutesByTo {
   '/companies': typeof AuthenticatedCompaniesRoute
   '/dashboard': typeof AuthenticatedDashboardRoute
   '/settings': typeof AuthenticatedSettingsRoute
-  '/tenders': typeof AuthenticatedTendersRouteWithChildren
   '/vault': typeof AuthenticatedVaultRoute
   '/tenders/$tenderId': typeof AuthenticatedTendersTenderIdRoute
+  '/tenders': typeof AuthenticatedTendersIndexRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -115,6 +123,7 @@ export interface FileRoutesById {
   '/_authenticated/tenders': typeof AuthenticatedTendersRouteWithChildren
   '/_authenticated/vault': typeof AuthenticatedVaultRoute
   '/_authenticated/tenders/$tenderId': typeof AuthenticatedTendersTenderIdRoute
+  '/_authenticated/tenders/': typeof AuthenticatedTendersIndexRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -129,6 +138,7 @@ export interface FileRouteTypes {
     | '/tenders'
     | '/vault'
     | '/tenders/$tenderId'
+    | '/tenders/'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -138,9 +148,9 @@ export interface FileRouteTypes {
     | '/companies'
     | '/dashboard'
     | '/settings'
-    | '/tenders'
     | '/vault'
     | '/tenders/$tenderId'
+    | '/tenders'
   id:
     | '__root__'
     | '/'
@@ -154,6 +164,7 @@ export interface FileRouteTypes {
     | '/_authenticated/tenders'
     | '/_authenticated/vault'
     | '/_authenticated/tenders/$tenderId'
+    | '/_authenticated/tenders/'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -235,6 +246,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedBankReferencesRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
+    '/_authenticated/tenders/': {
+      id: '/_authenticated/tenders/'
+      path: '/'
+      fullPath: '/tenders/'
+      preLoaderRoute: typeof AuthenticatedTendersIndexRouteImport
+      parentRoute: typeof AuthenticatedTendersRoute
+    }
     '/_authenticated/tenders/$tenderId': {
       id: '/_authenticated/tenders/$tenderId'
       path: '/$tenderId'
@@ -247,10 +265,12 @@ declare module '@tanstack/react-router' {
 
 interface AuthenticatedTendersRouteChildren {
   AuthenticatedTendersTenderIdRoute: typeof AuthenticatedTendersTenderIdRoute
+  AuthenticatedTendersIndexRoute: typeof AuthenticatedTendersIndexRoute
 }
 
 const AuthenticatedTendersRouteChildren: AuthenticatedTendersRouteChildren = {
   AuthenticatedTendersTenderIdRoute: AuthenticatedTendersTenderIdRoute,
+  AuthenticatedTendersIndexRoute: AuthenticatedTendersIndexRoute,
 }
 
 const AuthenticatedTendersRouteWithChildren =
