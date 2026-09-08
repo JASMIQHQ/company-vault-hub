@@ -289,6 +289,7 @@ const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedBankReferencesRoute: AuthenticatedBankReferencesRoute,
   AuthenticatedCompaniesRoute: AuthenticatedCompaniesRoute,
   AuthenticatedDashboardRoute: AuthenticatedDashboardRoute,
+  AuthenticatedSettingsRoute: AuthenticatedSettingsRoute,
   AuthenticatedTendersRoute: AuthenticatedTendersRouteWithChildren,
   AuthenticatedVaultRoute: AuthenticatedVaultRoute,
 }
