@@ -1,5 +1,5 @@
 import { useState, type ChangeEvent } from "react";
-import { Loader2, UploadCloud } from "lucide-react";
+import { CalendarDays, Loader2, UploadCloud } from "lucide-react";
 import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
@@ -25,6 +25,8 @@ export function UploadDialog({ organizationId }: { organizationId: string }) {
   const [documentName, setDocumentName] = useState("");
   const [documentType, setDocumentType] = useState("");
   const [companyId, setCompanyId] = useState<string | null>(null);
+  const [hasExpiry, setHasExpiry] = useState<"yes" | "no" | "">("");
+  const [expiryDate, setExpiryDate] = useState("");
   const upload = useUploadDocument();
   const { session } = useSession();
   const companiesQuery = useCompanies(session, organizationId);
@@ -35,6 +37,8 @@ export function UploadDialog({ organizationId }: { organizationId: string }) {
     setDocumentName("");
     setDocumentType("");
     setCompanyId(null);
+    setHasExpiry("");
+    setExpiryDate("");
   };
 
   const onFileChange = (event: ChangeEvent<HTMLInputElement>) => {
@@ -54,10 +58,23 @@ export function UploadDialog({ organizationId }: { organizationId: string }) {
     if (!documentName) setDocumentName(selected.name.replace(/\.[^.]+$/, ""));
   };
 
+  const onExpiryChange = (value: "yes" | "no") => {
+    setHasExpiry(value);
+    if (value === "no") setExpiryDate("");
+  };
+
   const onSubmit = async () => {
     if (!file) return;
     if (!companyId) {
       toast.error("Select the company this document belongs to.");
+      return;
+    }
+    if (!hasExpiry) {
+      toast.error("Tell JASMIQ whether this document expires.");
+      return;
+    }
+    if (hasExpiry === "yes" && !expiryDate) {
+      toast.error("Choose the document expiration date.");
       return;
     }
     try {
@@ -68,8 +85,9 @@ export function UploadDialog({ organizationId }: { organizationId: string }) {
         category: "corporate",
         organizationId,
         companyId,
+        expiryDate: hasExpiry === "yes" ? expiryDate : null,
       });
-      toast.success("Document uploaded");
+      toast.success(hasExpiry === "yes" ? "Document uploaded with expiry date" : "Document uploaded — no expiry recorded");
       reset();
       setOpen(false);
     } catch (error) {
@@ -94,7 +112,9 @@ export function UploadDialog({ organizationId }: { organizationId: string }) {
       <DialogContent className="glass-panel sm:max-w-lg">
         <DialogHeader>
           <DialogTitle>Upload document</DialogTitle>
-          <DialogDescription>PDF, PNG, JPG or JPEG — up to 25MB.</DialogDescription>
+          <DialogDescription>
+            Add the document and record its validity now. JASMIQ will use this metadata when checking tender compliance.
+          </DialogDescription>
         </DialogHeader>
 
         <div className="space-y-4">
@@ -135,12 +155,57 @@ export function UploadDialog({ organizationId }: { organizationId: string }) {
               className="rounded-xl"
             />
           </div>
+
+          <div className="rounded-2xl border border-border/60 bg-background/35 p-4 shadow-sm backdrop-blur-sm">
+            <div className="flex items-start gap-3">
+              <div className="mt-0.5 flex size-9 shrink-0 items-center justify-center rounded-xl border border-primary/20 bg-primary/10 text-primary">
+                <CalendarDays className="size-4" />
+              </div>
+              <div className="min-w-0 flex-1">
+                <Label htmlFor="vault-expiry" className="text-sm font-semibold">
+                  Does this document expire?
+                </Label>
+                <p className="mt-1 text-xs text-muted-foreground">
+                  Record the date from the document. This is the source of truth for expiry checks.
+                </p>
+                <select
+                  id="vault-expiry"
+                  value={hasExpiry}
+                  onChange={(event) => onExpiryChange(event.target.value as "yes" | "no")}
+                  className="mt-3 h-10 w-full rounded-xl border border-border/70 bg-background/70 px-3 text-sm outline-none transition focus:border-primary focus:ring-2 focus:ring-primary/20"
+                >
+                  <option value="">Select one</option>
+                  <option value="yes">Yes — this document expires</option>
+                  <option value="no">No — this document does not expire</option>
+                </select>
+
+                {hasExpiry === "yes" ? (
+                  <div className="mt-3 rounded-xl border border-primary/15 bg-primary/5 p-3">
+                    <Label htmlFor="vault-expiry-date" className="text-xs font-medium">
+                      Expiration date
+                    </Label>
+                    <Input
+                      id="vault-expiry-date"
+                      type="date"
+                      value={expiryDate}
+                      onChange={(event) => setExpiryDate(event.target.value)}
+                      className="mt-2 rounded-xl bg-background/80"
+                      aria-label="Document expiration date"
+                    />
+                    <p className="mt-2 text-[11px] text-muted-foreground">
+                      You can choose the date from the calendar or enter it directly.
+                    </p>
+                  </div>
+                ) : null}
+              </div>
+            </div>
+          </div>
         </div>
 
         <DialogFooter>
           <Button
             onClick={onSubmit}
-            disabled={!file || !companyId || upload.isPending}
+            disabled={!file || !companyId || !hasExpiry || (hasExpiry === "yes" && !expiryDate) || upload.isPending}
             className="rounded-xl w-full sm:w-auto"
           >
             {upload.isPending && <Loader2 className="mr-2 size-4 animate-spin" />}
