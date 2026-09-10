@@ -139,12 +139,13 @@ export interface UploadInput {
   category: string;
   organizationId: string;
   companyId: string;
+  expiryDate: string | null;
 }
 
 export function useUploadDocument() {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: async ({ file, documentName, documentType, category, organizationId, companyId }: UploadInput) => {
+    mutationFn: async ({ file, documentName, documentType, category, organizationId, companyId, expiryDate }: UploadInput) => {
       const hash = await sha256Hex(file);
       const storagePath = buildStoragePath(organizationId, category, file.name);
       const { error: uploadError } = await supabase.storage.from(BUCKET).upload(storagePath, file, { contentType: file.type, upsert: false });
@@ -162,6 +163,7 @@ export function useUploadDocument() {
         mime_type: file.type,
         file_size: file.size,
         sha256_hash: hash,
+        expiry_date: expiryDate,
         analysis_status: "pending",
         document_status: "active",
         version: 1,
