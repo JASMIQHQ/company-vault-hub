@@ -120,4 +120,3 @@ export function TenderComplianceCard() {
     </section>
   );
 }
-// PR21_UPDATE_CHECK
