@@ -1,10 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { ChevronDown, ChevronUp, Clock3, FileCheck2, FileWarning, X, XCircle } from "lucide-react";
-import { useRouterState } from "@tanstack/react-router";
 
-import { useActiveOrganization } from "@/hooks/use-active-organization";
-import { useTender, useTenderRequirements } from "@/hooks/use-tenders";
-import { useDocuments, useSession } from "@/hooks/use-vault";
 import { formatDate } from "@/lib/vault";
 
 const STATUS_META = {
@@ -16,24 +12,46 @@ const STATUS_META = {
 
 type Status = keyof typeof STATUS_META;
 
-export function TenderComplianceCard() {
-  const pathname = useRouterState({ select: (state) => state.location.pathname });
-  const tenderId = pathname.match(/^\/tenders\/([^/]+)$/)?.[1];
-  const { session, isLoading: sessionLoading } = useSession();
-  const org = useActiveOrganization(session, sessionLoading);
-  const tenderQuery = useTender(session, org.activeOrgId, tenderId);
-  const requirementsQuery = useTenderRequirements(session, tenderId, Boolean(tenderId));
-  const documentsQuery = useDocuments(session, org.activeOrgId);
+type TenderComplianceTender = {
+  id: string;
+  company_id: string | null;
+  compliance_percentage: number | null;
+  matching_status: string | null;
+  updated_at: string | null;
+};
+
+type TenderComplianceRequirement = {
+  id: string;
+  status: string;
+  requirement_name: string | null;
+  requirement_text: string;
+  category: string | null;
+  matched_document_id: string | null;
+  explanation: string | null;
+};
+
+type TenderComplianceDocument = {
+  id: string;
+  company_id: string | null;
+  document_name: string | null;
+  original_filename: string | null;
+  expiry_date: string | null;
+};
+
+interface TenderComplianceCardProps {
+  tender: TenderComplianceTender;
+  requirements: TenderComplianceRequirement[];
+  documents: TenderComplianceDocument[];
+}
+
+export function TenderComplianceCard({ tender, requirements, documents }: TenderComplianceCardProps) {
   const [expanded, setExpanded] = useState<Status | null>(null);
   const [open, setOpen] = useState(false);
   const [dontShowAgain, setDontShowAgain] = useState(false);
 
-  const tender = tenderQuery.data;
-  const requirements = requirementsQuery.data ?? [];
-  const documents = documentsQuery.data ?? [];
   const companyDocuments = useMemo(
-    () => documents.filter((document) => document.company_id === tender?.company_id),
-    [documents, tender?.company_id],
+    () => documents.filter((document) => document.company_id === tender.company_id),
+    [documents, tender.company_id],
   );
 
   const counts = useMemo(
@@ -48,31 +66,26 @@ export function TenderComplianceCard() {
     [requirements],
   );
 
-  const percentage = Number.isFinite(Number(tender?.compliance_percentage))
-    ? Math.round(Number(tender?.compliance_percentage))
-    : requirements.length > 0
-      ? Math.round((counts.matched / requirements.length) * 100)
-      : 0;
-
+  const percentage = Number.isFinite(Number(tender.compliance_percentage))
+    ? Math.round(Number(tender.compliance_percentage))
+    : 0;
   const evidenceLinked = counts.matched + counts.manual_review;
-  const analysisFingerprint = tender?.updated_at ?? tender?.analysis_status ?? "unknown";
-  const storageKey = tenderId ? `jasmiq:tender-compliance:${tenderId}:${analysisFingerprint}` : null;
+  const storageKey = `jasmiq:tender-compliance:${tender.id}:${tender.updated_at ?? tender.matching_status ?? "analysis"}`;
 
   useEffect(() => {
-    if (!tender || requirements.length === 0 || !storageKey) return;
-    const matchingStatus = tender.matching_status;
-    if (matchingStatus !== "MATCHED" && matchingStatus !== "MATCHING_REVIEW") return;
+    if (requirements.length === 0) return;
+    if (tender.matching_status !== "MATCHED" && tender.matching_status !== "MATCHING_REVIEW") return;
     if (sessionStorage.getItem(storageKey) === "seen") return;
     setOpen(true);
-  }, [requirements.length, storageKey, tender]);
+  }, [requirements.length, storageKey, tender.matching_status]);
 
   const dismiss = () => {
-    if (storageKey && dontShowAgain) sessionStorage.setItem(storageKey, "seen");
+    if (dontShowAgain) sessionStorage.setItem(storageKey, "seen");
     setOpen(false);
     setExpanded(null);
   };
 
-  if (!tender || requirements.length === 0 || !open) return null;
+  if (requirements.length === 0 || !open) return null;
 
   const toggle = (status: Status) => setExpanded((current) => (current === status ? null : status));
 
@@ -85,12 +98,7 @@ export function TenderComplianceCard() {
         aria-modal="true"
         aria-labelledby="tender-compliance-title"
       >
-        <button
-          type="button"
-          onClick={dismiss}
-          className="absolute right-4 top-4 rounded-full border border-border/60 bg-background/40 p-2 text-muted-foreground transition-colors hover:bg-muted/40 hover:text-foreground"
-          aria-label="Dismiss compliance summary"
-        >
+        <button type="button" onClick={dismiss} className="absolute right-4 top-4 rounded-full border border-border/60 bg-background/40 p-2 text-muted-foreground transition-colors hover:bg-muted/40 hover:text-foreground" aria-label="Dismiss compliance summary">
           <X className="size-4" />
         </button>
 
@@ -108,13 +116,7 @@ export function TenderComplianceCard() {
             const Icon = meta.icon;
             const active = expanded === status;
             return (
-              <button
-                key={status}
-                type="button"
-                onClick={() => toggle(status)}
-                className={`rounded-2xl border p-3 text-left transition-all ${active ? "border-primary/30 bg-primary/10 shadow-sm" : "border-border/60 bg-background/35 hover:bg-muted/30"}`}
-                aria-expanded={active}
-              >
+              <button key={status} type="button" onClick={() => toggle(status)} className={`rounded-2xl border p-3 text-left transition-all ${active ? "border-primary/30 bg-primary/10 shadow-sm" : "border-border/60 bg-background/35 hover:bg-muted/30"}`} aria-expanded={active}>
                 <span className={`flex items-center gap-1.5 text-xs font-medium ${meta.className}`}><Icon className="size-3.5" />{meta.label}</span>
                 <span className="mt-1 block text-xl font-semibold text-foreground">{counts[status]}</span>
               </button>
@@ -147,11 +149,7 @@ export function TenderComplianceCard() {
                     </div>
                     <div className="mt-2 rounded-lg border border-border/50 bg-muted/20 px-3 py-2 text-xs">
                       <span className="font-medium">Evidence:</span>{" "}
-                      {document ? (
-                        <>{document.document_name ?? document.original_filename ?? "Company Vault document"}{document.expiry_date ? ` · expires ${formatDate(document.expiry_date)}` : " · no expiry"}</>
-                      ) : (
-                        "No Company Vault document matched"
-                      )}
+                      {document ? <>{document.document_name ?? document.original_filename ?? "Company Vault document"}{document.expiry_date ? ` · expires ${formatDate(document.expiry_date)}` : " · no expiry"}</> : "No Company Vault document matched"}
                     </div>
                   </div>
                 );
@@ -167,12 +165,9 @@ export function TenderComplianceCard() {
             Don’t show again for this analysis
           </label>
           <div className="flex flex-col-reverse gap-2 sm:flex-row">
-            <button type="button" onClick={dismiss} className="rounded-xl border border-border/60 px-4 py-2 text-sm font-medium text-muted-foreground transition-colors hover:bg-muted/30 hover:text-foreground">
-              Dismiss
-            </button>
-            <button type="button" onClick={() => setExpanded(expanded ?? "missing")} className="inline-flex items-center justify-center gap-2 rounded-xl bg-primary px-4 py-2 text-sm font-medium text-primary-foreground transition-opacity hover:opacity-90">
-              {expanded ? <ChevronUp className="size-4" /> : <ChevronDown className="size-4" />}
-              View requirement breakdown
+            <button type="button" onClick={dismiss} className="rounded-xl border border-border/60 px-4 py-2 text-sm font-medium text-muted-foreground transition-colors hover:bg-muted/30 hover:text-foreground">Dismiss</button>
+            <button type="button" onClick={() => setExpanded(expanded ?? (counts.missing > 0 ? "missing" : counts.manual_review > 0 ? "manual_review" : "matched"))} className="inline-flex items-center justify-center gap-2 rounded-xl bg-primary px-4 py-2 text-sm font-medium text-primary-foreground transition-opacity hover:opacity-90">
+              {expanded ? <ChevronUp className="size-4" /> : <ChevronDown className="size-4" />}View requirement breakdown
             </button>
           </div>
         </div>
