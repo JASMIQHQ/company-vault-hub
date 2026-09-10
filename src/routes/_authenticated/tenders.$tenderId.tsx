@@ -9,6 +9,7 @@ import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
 import { CategoryBadge } from "@/components/tenders/category-badge";
 import { RequirementStatusBadge } from "@/components/tenders/requirement-status-badge";
+import { TenderComplianceCard } from "@/components/tenders/tender-compliance-card";
 import { StatusBadge } from "@/components/vault/status-badge";
 import { useActiveOrganization } from "@/hooks/use-active-organization";
 import { createTenderSignedUrl, useAnalyzeTender, useTender, useTenderRequirements } from "@/hooks/use-tenders";
@@ -191,6 +192,8 @@ function TenderWorkspacePage() {
       {matchingStatus === "MATCHING_FAILED" ? <div className="mt-3 rounded-xl border border-destructive/25 bg-destructive/5 p-3 text-sm text-destructive">Analysis succeeded, but evidence matching failed</div> : null}
       {status === "failed" && tender.analysis_error ? <div className="mt-3 rounded-xl border border-destructive/25 bg-destructive/5 p-3 text-sm text-destructive"><strong>Analysis error:</strong> {tender.analysis_error}</div> : null}
     </header>
+
+    <TenderComplianceCard />
 
     <section className="glass-panel mt-5 rounded-2xl p-4 sm:p-5">
       <div className="flex flex-wrap items-center gap-x-5 gap-y-2 text-sm">
