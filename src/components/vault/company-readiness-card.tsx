@@ -81,6 +81,7 @@ export function CompanyReadinessCard({ documents }: { documents: CompanyDocument
   const presentCore = readiness.present.length;
   const totalCore = readiness.total;
   const coreStatus = (type: string) => readiness.present.includes(type) ? "Present" : readiness.expired.includes(type) ? "Expired" : "Missing";
+  const readinessLabel = readiness.score === 100 ? "PROCUREMENT READY" : readiness.score >= 67 ? "PROCUREMENT ATTENTION" : "BASELINE INCOMPLETE";
 
   useEffect(() => {
     if (!showDetails) return;
@@ -107,16 +108,16 @@ export function CompanyReadinessCard({ documents }: { documents: CompanyDocument
 
           <div className="min-w-0 flex-1">
             <div className="flex flex-wrap items-baseline gap-x-2 gap-y-0.5">
-              <span className="text-[11px] font-semibold uppercase tracking-[0.16em] text-primary">Company Readiness</span>
+              <span className="text-[11px] font-semibold uppercase tracking-[0.16em] text-primary">{readinessLabel}</span>
               <span className="hidden text-[10px] text-muted-foreground sm:inline">Universal procurement baseline</span>
             </div>
-            <p className="mt-0.5 truncate text-xs text-muted-foreground">{presentCore} of {totalCore} core documents current</p>
+            <p className="mt-0.5 truncate text-xs text-muted-foreground">{presentCore} of {totalCore} core documents current · {readiness.score}% baseline coverage</p>
           </div>
 
           <div className="flex shrink-0 items-center gap-2">
             <div className="rounded-xl border border-primary/20 bg-primary/[0.07] px-2.5 py-1.5 text-center shadow-[inset_0_1px_0_rgba(255,255,255,0.12)] sm:px-3">
               <span className="block text-base font-bold leading-none tracking-tight sm:text-lg">{readiness.score}%</span>
-              <span className="mt-0.5 block text-[8px] font-semibold uppercase tracking-[0.12em] text-muted-foreground">ready</span>
+              <span className="mt-0.5 block text-[8px] font-semibold uppercase tracking-[0.12em] text-muted-foreground">coverage</span>
             </div>
             <button
               type="button"
@@ -139,33 +140,23 @@ export function CompanyReadinessCard({ documents }: { documents: CompanyDocument
 
       {showDetails ? (
         <div className="fixed inset-0 z-50 flex bg-black/45 backdrop-blur-[3px]" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget) setShowDetails(false); }}>
-          <aside
-            role="dialog"
-            aria-modal="true"
-            aria-label="Company Readiness details"
-            className="ml-auto flex h-full w-full max-w-2xl flex-col border-l border-white/10 bg-background/80 shadow-[-20px_0_60px_rgba(0,0,0,0.25)] backdrop-blur-2xl supports-[backdrop-filter]:bg-background/65"
-          >
+          <aside role="dialog" aria-modal="true" aria-label="Company Readiness details" className="ml-auto flex h-full w-full max-w-2xl flex-col border-l border-white/10 bg-background/80 shadow-[-20px_0_60px_rgba(0,0,0,0.25)] backdrop-blur-2xl supports-[backdrop-filter]:bg-background/65">
             <div className="relative overflow-hidden border-b border-white/10 px-5 pb-5 pt-6 sm:px-7">
               <div className="pointer-events-none absolute -right-20 -top-24 size-64 rounded-full bg-primary/[0.10] blur-3xl" />
               <div className="relative flex items-start justify-between gap-4">
                 <div>
                   <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-primary">JASMIQ Intelligence</p>
-                  <h2 className="mt-1 text-xl font-semibold tracking-tight">Company Readiness</h2>
+                  <h2 className="mt-1 text-xl font-semibold tracking-tight">{readinessLabel}</h2>
                   <p className="mt-1 max-w-lg text-xs leading-5 text-muted-foreground">Universal procurement baseline across the company's core compliance documents.</p>
                 </div>
-                <button
-                  type="button"
-                  onClick={() => setShowDetails(false)}
-                  aria-label="Close readiness details"
-                  className="inline-flex size-9 shrink-0 items-center justify-center rounded-xl border border-white/10 bg-white/[0.04] text-muted-foreground transition hover:border-primary/25 hover:bg-white/[0.08] hover:text-foreground"
-                >
+                <button type="button" onClick={() => setShowDetails(false)} aria-label="Close readiness details" className="inline-flex size-9 shrink-0 items-center justify-center rounded-xl border border-white/10 bg-white/[0.04] text-muted-foreground transition hover:border-primary/25 hover:bg-white/[0.08] hover:text-foreground">
                   <X className="size-4" />
                 </button>
               </div>
 
               <div className="relative mt-5 flex items-end justify-between gap-4 rounded-2xl border border-primary/15 bg-primary/[0.055] p-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.08)]">
                 <div>
-                  <p className="text-[10px] font-semibold uppercase tracking-[0.15em] text-muted-foreground">Current readiness</p>
+                  <p className="text-[10px] font-semibold uppercase tracking-[0.15em] text-muted-foreground">Baseline coverage</p>
                   <p className="mt-1 text-sm font-medium">{presentCore} of {totalCore} core documents current</p>
                 </div>
                 <span className="text-3xl font-bold tracking-tight text-primary">{readiness.score}%</span>
@@ -195,7 +186,6 @@ export function CompanyReadinessCard({ documents }: { documents: CompanyDocument
               </section>
 
               <div className="my-6 h-px bg-white/10" />
-
               <div className="space-y-6">
                 <StatusList title="Supporting Documents" items={COMPANY_READINESS_SUPPORTING} documents={documents} />
                 <StatusList title="Sector-Specific / Conditional" items={COMPANY_READINESS_CONDITIONAL} documents={documents} />
