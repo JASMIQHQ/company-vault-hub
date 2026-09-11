@@ -41,7 +41,9 @@ function CompanyGroup({
   onRetry: () => void;
   isFiltered: boolean;
 }) {
-  const [open, setOpen] = useState(true);
+  // Companies start collapsed so the Vault behaves like a clean company directory,
+  // not a long document wall.
+  const [open, setOpen] = useState(false);
 
   return (
     <div className="border-b border-border/50 last:border-b-0">
@@ -49,17 +51,22 @@ function CompanyGroup({
         type="button"
         onClick={() => setOpen((value) => !value)}
         aria-expanded={open}
-        className="flex w-full items-center gap-2.5 px-5 py-4 text-left transition-colors hover:bg-muted/30"
+        className="group flex w-full items-center gap-3 px-5 py-4 text-left transition-colors hover:bg-primary/[0.04] sm:px-6"
       >
-        {open ? <ChevronDown className="size-4 text-muted-foreground" /> : <ChevronRight className="size-4 text-muted-foreground" />}
-        <Building2 className="size-4 text-primary" />
-        <span className="text-sm font-semibold">{company.legal_name}</span>
-        <span className="text-xs text-muted-foreground">
-          ({count} {count === 1 ? "document" : "documents"})
+        <span className="flex size-8 shrink-0 items-center justify-center rounded-xl border border-primary/15 bg-primary/5 text-primary">
+          {open ? <ChevronDown className="size-4" /> : <ChevronRight className="size-4" />}
+        </span>
+        <span className="flex min-w-0 flex-1 items-center gap-2.5">
+          <Building2 className="size-4 shrink-0 text-primary/80" />
+          <span className="truncate text-sm font-semibold text-foreground">{company.legal_name}</span>
+        </span>
+        <span className="shrink-0 rounded-full border border-border/60 bg-background/40 px-2.5 py-1 text-[11px] font-medium text-muted-foreground">
+          {count} {count === 1 ? "document" : "documents"}
         </span>
       </button>
+
       {open ? (
-        <div className="px-4 pb-5 sm:px-5">
+        <div className="border-t border-border/30 bg-background/[0.12] px-4 pb-5 pt-4 sm:px-6">
           <CompanyReadinessCard documents={allCompanyDocuments} />
           {documents.length === 0 && !isLoading && !error ? (
             <p className="px-1 pb-1 text-sm text-muted-foreground">
@@ -80,7 +87,7 @@ function CompanyGroup({
   );
 }
 
-/** Company Vault presentation: documents grouped under their owning company. */
+/** Company Vault presentation: companies stay compact until the user opens one. */
 export function CompanyVaultGroups({
   organizationId,
   companies,
