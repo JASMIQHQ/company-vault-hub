@@ -12,6 +12,13 @@ export interface TenderLot {
   updated_at: string;
 }
 
+export interface DetectTenderBidStructureResult {
+  detected: boolean;
+  created: boolean;
+  scopes: TenderLot[];
+  message?: string;
+}
+
 type DynamicQuery = PromiseLike<{ data: unknown; error: Error | null }> & {
   select(columns?: string): DynamicQuery;
   eq(column: string, value: unknown): DynamicQuery;
@@ -33,4 +40,10 @@ export async function createTenderLot(input: Omit<TenderLot, "id" | "created_at"
   const { data, error } = await db.from("tender_lots").insert(input).select("*").single();
   if (error) throw error;
   return data as unknown as TenderLot;
+}
+
+export async function detectTenderBidStructure(tenderId: string): Promise<DetectTenderBidStructureResult> {
+  const { data, error } = await supabase.functions.invoke("detect-tender-bid-structure", { body: { tender_id: tenderId } });
+  if (error) throw error;
+  return data as DetectTenderBidStructureResult;
 }
