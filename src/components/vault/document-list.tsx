@@ -35,6 +35,7 @@ import {
 import { createSignedUrl, useRenameDocument, useSoftDeleteDocument } from "@/hooks/use-vault";
 import { canonicalCategory } from "@/lib/document-order";
 import { formatDate, type CompanyDocument } from "@/lib/vault";
+import { cn } from "@/lib/utils";
 
 function glassToast(title: string, detail?: string) {
   toast.custom(() => (
@@ -139,7 +140,7 @@ function RowActions({ document }: { document: CompanyDocument }) {
   const moveToBin = async () => {
     try {
       await softDelete.mutateAsync({ id: document.id });
-      glassToast("Evidence moved to Bin", "The document can be recovered from your Bin.");
+      glassToast("Evidence moved to Bin", "The document can be recovered from the Bin.");
       setConfirmDelete(false);
     } catch (error) {
       toast.error(error instanceof Error ? error.message : "Could not move the document");
