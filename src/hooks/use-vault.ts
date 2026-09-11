@@ -55,7 +55,6 @@ export function useDocuments(session: Session | null, organizationId: string | n
   });
 }
 
-/** Lightweight dashboard projection — avoids downloading full document rows for aggregate cards. */
 export function useDashboardDocuments(session: Session | null, organizationId: string | null | undefined) {
   return useQuery({
     queryKey: ["company-documents", "dashboard", organizationId],
@@ -106,6 +105,13 @@ export function useRenameDocument() {
     const name = documentName.trim();
     if (!name) throw new Error("Document name cannot be empty.");
     const { error } = await supabase.from("company_documents").update({ document_name: name }).eq("id", id);
+    if (error) throw error;
+  });
+}
+
+export function useUpdateDocumentValidity() {
+  return useDocumentMutation<{ id: string; expiryDate: string | null }>(async ({ id, expiryDate }) => {
+    const { error } = await supabase.from("company_documents").update({ expiry_date: expiryDate }).eq("id", id);
     if (error) throw error;
   });
 }
