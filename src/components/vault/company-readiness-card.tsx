@@ -1,5 +1,5 @@
-import { useState } from "react";
-import { AlertCircle, CheckCircle2, ChevronDown, ChevronRight, Clock3, FileWarning } from "lucide-react";
+import { useEffect, useMemo, useState } from "react";
+import { AlertCircle, CheckCircle2, Clock3, FileWarning, X } from "lucide-react";
 
 import { COMPANY_READINESS_CONDITIONAL, COMPANY_READINESS_CORE, COMPANY_READINESS_SUPPORTING } from "@/lib/company-readiness-baseline";
 import { deriveCompanyReadiness } from "@/lib/company-readiness";
@@ -35,18 +35,21 @@ function StatusIcon({ status }: { status: string }) {
 }
 
 function StatusList({ title, items, documents }: { title: string; items: typeof COMPANY_READINESS_SUPPORTING; documents: CompanyDocument[] }) {
+  const present = items.filter((item) => statusFor(documents, item.type) === "Present").length;
+  const expired = items.filter((item) => statusFor(documents, item.type) === "Expired").length;
+
   return (
     <div>
-      <div className="mb-2 flex items-center justify-between">
+      <div className="mb-2 flex items-center justify-between gap-3">
         <h3 className="text-[11px] font-semibold uppercase tracking-[0.14em] text-muted-foreground">{title}</h3>
-        <span className="text-[10px] text-muted-foreground">Visibility only</span>
+        <span className="shrink-0 text-[10px] text-muted-foreground">{present}/{items.length} present{expired ? ` · ${expired} expired` : ""}</span>
       </div>
       <div className="grid gap-1.5 sm:grid-cols-2">
         {items.map((item) => {
           const status = statusFor(documents, item.type);
           return (
-            <div key={item.type} className="flex items-center justify-between rounded-lg border border-border/50 bg-background/25 px-3 py-2 text-xs">
-              <span className="truncate pr-2">{item.label ?? item.type}</span>
+            <div key={item.type} className="flex min-w-0 items-center justify-between gap-3 rounded-xl border border-white/10 bg-white/[0.035] px-3 py-2.5 text-xs shadow-[inset_0_1px_0_rgba(255,255,255,0.04)]">
+              <span className="min-w-0 truncate pr-2">{item.label ?? item.type}</span>
               <span className="flex shrink-0 items-center gap-1 text-muted-foreground"><StatusIcon status={status} />{status}</span>
             </div>
           );
@@ -56,9 +59,7 @@ function StatusList({ title, items, documents }: { title: string; items: typeof 
   );
 }
 
-export function CompanyReadinessCard({ documents }: { documents: CompanyDocument[] }) {
-  const [showDetails, setShowDetails] = useState(false);
-
+export function calculateCompanyReadiness(documents: CompanyDocument[]) {
   const engineDocuments = documents
     .map((document) => ({
       id: document.id,
@@ -68,74 +69,146 @@ export function CompanyReadinessCard({ documents }: { documents: CompanyDocument
     }))
     .sort((a, b) => b.created_at.localeCompare(a.created_at));
 
-  const readiness = deriveCompanyReadiness({
+  return deriveCompanyReadiness({
     required: COMPANY_READINESS_CORE,
     documents: engineDocuments,
   });
+}
 
-  const coreStatus = (type: string) => readiness.present.includes(type) ? "Present" : readiness.expired.includes(type) ? "Expired" : "Missing";
+export function CompanyReadinessCard({ documents }: { documents: CompanyDocument[] }) {
+  const [showDetails, setShowDetails] = useState(false);
+  const readiness = useMemo(() => calculateCompanyReadiness(documents), [documents]);
   const presentCore = readiness.present.length;
   const totalCore = readiness.total;
+  const coreStatus = (type: string) => readiness.present.includes(type) ? "Present" : readiness.expired.includes(type) ? "Expired" : "Missing";
+
+  useEffect(() => {
+    if (!showDetails) return;
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") setShowDetails(false);
+    };
+    const previousOverflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    window.addEventListener("keydown", onKeyDown);
+    return () => {
+      document.body.style.overflow = previousOverflow;
+      window.removeEventListener("keydown", onKeyDown);
+    };
+  }, [showDetails]);
 
   return (
-    <section aria-label="Company Readiness" className="glass-panel mb-4 overflow-hidden">
-      <button
-        type="button"
-        onClick={() => setShowDetails((value) => !value)}
-        aria-expanded={showDetails}
-        className="flex w-full items-center gap-3 p-4 text-left transition-colors hover:bg-primary/[0.03] sm:p-5"
-      >
-        <span className="flex size-9 shrink-0 items-center justify-center rounded-xl border border-primary/20 bg-primary/10 text-primary">
-          {showDetails ? <ChevronDown className="size-4" /> : <ChevronRight className="size-4" />}
-        </span>
+    <>
+      <section aria-label="Company Readiness" className="glass-panel mb-4 overflow-hidden border-white/10 bg-white/[0.035] shadow-[0_12px_40px_rgba(0,0,0,0.08)]">
+        <div className="flex items-center gap-3 px-4 py-3.5 sm:px-5 sm:py-4">
+          <div className="relative flex size-9 shrink-0 items-center justify-center rounded-xl border border-primary/20 bg-primary/[0.08] text-primary shadow-[inset_0_1px_0_rgba(255,255,255,0.12)]">
+            <span className="absolute inset-1 rounded-lg border border-primary/10" />
+            <span className="relative size-2 rounded-full bg-primary shadow-[0_0_12px_currentColor]" />
+          </div>
 
-        <span className="min-w-0 flex-1">
-          <span className="block text-[11px] font-semibold uppercase tracking-[0.15em] text-primary">Company Readiness</span>
-          <span className="mt-0.5 block truncate text-sm font-semibold">Public-procurement baseline</span>
-        </span>
-
-        <span className="hidden text-right sm:block">
-          <span className="block text-[10px] uppercase tracking-[0.12em] text-muted-foreground">Core baseline</span>
-          <span className="text-xs text-muted-foreground">{presentCore} of {totalCore} current</span>
-        </span>
-
-        <span className="rounded-2xl border border-primary/20 bg-primary/5 px-3 py-2 text-center">
-          <span className="block text-xl font-bold leading-none tracking-tight">{readiness.score}%</span>
-          <span className="mt-1 block text-[9px] font-medium uppercase tracking-[0.08em] text-muted-foreground">ready</span>
-        </span>
-      </button>
-
-      {showDetails ? (
-        <div className="border-t border-border/40">
-          <div className="px-4 pb-4 pt-3 sm:px-5">
-            <p className="max-w-3xl text-xs leading-5 text-muted-foreground">
-              JASMIQ's six universal procurement documents. Tender-specific requirements are assessed separately.
-            </p>
-
-            <div className="mt-3 grid gap-1.5 sm:grid-cols-2 lg:grid-cols-3">
-              {COMPANY_READINESS_CORE.map((item) => {
-                const status = coreStatus(item.type);
-                return (
-                  <div key={item.type} className="flex items-center justify-between rounded-lg border border-border/50 bg-background/25 px-3 py-2 text-xs">
-                    <span className="truncate pr-2">{item.label}</span>
-                    <span className="flex shrink-0 items-center gap-1 text-muted-foreground"><StatusIcon status={status} />{status}</span>
-                  </div>
-                );
-              })}
+          <div className="min-w-0 flex-1">
+            <div className="flex flex-wrap items-baseline gap-x-2 gap-y-0.5">
+              <span className="text-[11px] font-semibold uppercase tracking-[0.16em] text-primary">Company Readiness</span>
+              <span className="hidden text-[10px] text-muted-foreground sm:inline">Universal procurement baseline</span>
             </div>
+            <p className="mt-0.5 truncate text-xs text-muted-foreground">{presentCore} of {totalCore} core documents current</p>
           </div>
 
-          <div className="grid gap-3 border-t border-border/40 px-4 py-4 sm:px-5">
-            <StatusList title="Supporting Documents" items={COMPANY_READINESS_SUPPORTING} documents={documents} />
-            <StatusList title="Sector-Specific / Conditional" items={COMPANY_READINESS_CONDITIONAL} documents={documents} />
-          </div>
-
-          <div className="flex items-start gap-2 border-t border-border/40 px-4 py-3 text-[11px] leading-4 text-muted-foreground sm:px-5">
-            <AlertCircle className="mt-0.5 size-3.5 shrink-0" aria-hidden="true" />
-            <span>Supporting and conditional documents are visible for planning but do not reduce the headline readiness percentage.</span>
+          <div className="flex shrink-0 items-center gap-2">
+            <div className="rounded-xl border border-primary/20 bg-primary/[0.07] px-2.5 py-1.5 text-center shadow-[inset_0_1px_0_rgba(255,255,255,0.12)] sm:px-3">
+              <span className="block text-base font-bold leading-none tracking-tight sm:text-lg">{readiness.score}%</span>
+              <span className="mt-0.5 block text-[8px] font-semibold uppercase tracking-[0.12em] text-muted-foreground">ready</span>
+            </div>
+            <button
+              type="button"
+              onClick={() => setShowDetails(true)}
+              className="hidden rounded-xl border border-white/10 bg-white/[0.04] px-3 py-2 text-[11px] font-semibold text-foreground/80 transition-all hover:border-primary/25 hover:bg-primary/[0.07] hover:text-foreground sm:inline-flex"
+            >
+              View details <span aria-hidden="true" className="ml-1 text-primary">→</span>
+            </button>
+            <button
+              type="button"
+              onClick={() => setShowDetails(true)}
+              aria-label="View company readiness details"
+              className="inline-flex size-9 items-center justify-center rounded-xl border border-white/10 bg-white/[0.04] text-muted-foreground transition-all hover:border-primary/25 hover:bg-primary/[0.07] hover:text-foreground sm:hidden"
+            >
+              <span aria-hidden="true">→</span>
+            </button>
           </div>
         </div>
+      </section>
+
+      {showDetails ? (
+        <div className="fixed inset-0 z-50 flex bg-black/45 backdrop-blur-[3px]" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget) setShowDetails(false); }}>
+          <aside
+            role="dialog"
+            aria-modal="true"
+            aria-label="Company Readiness details"
+            className="ml-auto flex h-full w-full max-w-2xl flex-col border-l border-white/10 bg-background/80 shadow-[-20px_0_60px_rgba(0,0,0,0.25)] backdrop-blur-2xl supports-[backdrop-filter]:bg-background/65"
+          >
+            <div className="relative overflow-hidden border-b border-white/10 px-5 pb-5 pt-6 sm:px-7">
+              <div className="pointer-events-none absolute -right-20 -top-24 size-64 rounded-full bg-primary/[0.10] blur-3xl" />
+              <div className="relative flex items-start justify-between gap-4">
+                <div>
+                  <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-primary">JASMIQ Intelligence</p>
+                  <h2 className="mt-1 text-xl font-semibold tracking-tight">Company Readiness</h2>
+                  <p className="mt-1 max-w-lg text-xs leading-5 text-muted-foreground">Universal procurement baseline across the company's core compliance documents.</p>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setShowDetails(false)}
+                  aria-label="Close readiness details"
+                  className="inline-flex size-9 shrink-0 items-center justify-center rounded-xl border border-white/10 bg-white/[0.04] text-muted-foreground transition hover:border-primary/25 hover:bg-white/[0.08] hover:text-foreground"
+                >
+                  <X className="size-4" />
+                </button>
+              </div>
+
+              <div className="relative mt-5 flex items-end justify-between gap-4 rounded-2xl border border-primary/15 bg-primary/[0.055] p-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.08)]">
+                <div>
+                  <p className="text-[10px] font-semibold uppercase tracking-[0.15em] text-muted-foreground">Current readiness</p>
+                  <p className="mt-1 text-sm font-medium">{presentCore} of {totalCore} core documents current</p>
+                </div>
+                <span className="text-3xl font-bold tracking-tight text-primary">{readiness.score}%</span>
+              </div>
+            </div>
+
+            <div className="min-h-0 flex-1 overflow-y-auto px-5 py-5 sm:px-7 sm:py-6">
+              <section>
+                <div className="mb-3 flex items-end justify-between gap-3">
+                  <div>
+                    <h3 className="text-sm font-semibold">Core documents</h3>
+                    <p className="mt-0.5 text-[11px] text-muted-foreground">These six documents determine the headline score.</p>
+                  </div>
+                  <span className="rounded-full border border-white/10 bg-white/[0.04] px-2.5 py-1 text-[10px] font-medium text-muted-foreground">{presentCore}/{totalCore}</span>
+                </div>
+                <div className="grid gap-2 sm:grid-cols-2">
+                  {COMPANY_READINESS_CORE.map((item) => {
+                    const status = coreStatus(item.type);
+                    return (
+                      <div key={item.type} className="flex min-w-0 items-center justify-between gap-3 rounded-2xl border border-white/10 bg-white/[0.035] px-3.5 py-3 shadow-[inset_0_1px_0_rgba(255,255,255,0.04)]">
+                        <span className="min-w-0 truncate pr-2 text-xs font-medium">{item.label}</span>
+                        <span className="flex shrink-0 items-center gap-1.5 text-[11px] text-muted-foreground"><StatusIcon status={status} />{status}</span>
+                      </div>
+                    );
+                  })}
+                </div>
+              </section>
+
+              <div className="my-6 h-px bg-white/10" />
+
+              <div className="space-y-6">
+                <StatusList title="Supporting Documents" items={COMPANY_READINESS_SUPPORTING} documents={documents} />
+                <StatusList title="Sector-Specific / Conditional" items={COMPANY_READINESS_CONDITIONAL} documents={documents} />
+              </div>
+
+              <div className="mt-6 flex items-start gap-2.5 rounded-2xl border border-primary/10 bg-primary/[0.035] p-3.5 text-[11px] leading-5 text-muted-foreground">
+                <AlertCircle className="mt-0.5 size-3.5 shrink-0 text-primary" aria-hidden="true" />
+                <span>Supporting and conditional documents are shown for planning. They do not reduce the headline readiness percentage; tender-specific requirements are assessed separately.</span>
+              </div>
+            </div>
+          </aside>
+        </div>
       ) : null}
-    </section>
+    </>
   );
 }
