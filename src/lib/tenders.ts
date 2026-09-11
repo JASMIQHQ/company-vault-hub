@@ -6,6 +6,8 @@ export const TENDER_ACCEPT_ATTRIBUTE = ".pdf";
 
 export interface TenderListItem {
   id: string;
+  organization_id: string;
+  company_id: string;
   title: string;
   created_at: string | null;
   storage_path: string | null;
