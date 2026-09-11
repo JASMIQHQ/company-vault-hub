@@ -6,6 +6,10 @@ on:
   pull_request:
     paths:
       - "src/routes/**"
+      - "src/components/tenders/**"
+      - "src/components/vault/**"
+      - "src/hooks/**"
+      - "src/lib/**"
       - "src/routeTree.gen.ts"
       - "src/router.tsx"
       - "vite.config.ts"
@@ -17,6 +21,10 @@ on:
       - "main"
     paths:
       - "src/routes/**"
+      - "src/components/tenders/**"
+      - "src/components/vault/**"
+      - "src/hooks/**"
+      - "src/lib/**"
       - "src/routeTree.gen.ts"
       - "src/router.tsx"
       - "vite.config.ts"
