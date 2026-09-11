@@ -1,4 +1,5 @@
-import { AlertCircle, CheckCircle2, Clock3, FileWarning } from "lucide-react";
+import { useState } from "react";
+import { AlertCircle, CheckCircle2, ChevronDown, ChevronRight, Clock3, FileWarning } from "lucide-react";
 
 import { COMPANY_READINESS_CONDITIONAL, COMPANY_READINESS_CORE, COMPANY_READINESS_SUPPORTING } from "@/lib/company-readiness-baseline";
 import { deriveCompanyReadiness } from "@/lib/company-readiness";
@@ -36,14 +37,17 @@ function StatusIcon({ status }: { status: string }) {
 function StatusList({ title, items, documents }: { title: string; items: typeof COMPANY_READINESS_SUPPORTING; documents: CompanyDocument[] }) {
   return (
     <div>
-      <h3 className="text-xs font-semibold uppercase tracking-[0.14em] text-muted-foreground">{title}</h3>
-      <div className="mt-2 grid gap-1.5 sm:grid-cols-2">
+      <div className="mb-2 flex items-center justify-between">
+        <h3 className="text-[11px] font-semibold uppercase tracking-[0.14em] text-muted-foreground">{title}</h3>
+        <span className="text-[10px] text-muted-foreground">Visibility only</span>
+      </div>
+      <div className="grid gap-1.5 sm:grid-cols-2">
         {items.map((item) => {
           const status = statusFor(documents, item.type);
           return (
-            <div key={item.type} className="flex items-center justify-between rounded-lg border border-border/50 bg-background/30 px-3 py-2 text-xs">
-              <span>{item.label ?? item.type}</span>
-              <span className="flex items-center gap-1 text-muted-foreground"><StatusIcon status={status} />{status}</span>
+            <div key={item.type} className="flex items-center justify-between rounded-lg border border-border/50 bg-background/25 px-3 py-2 text-xs">
+              <span className="truncate pr-2">{item.label ?? item.type}</span>
+              <span className="flex shrink-0 items-center gap-1 text-muted-foreground"><StatusIcon status={status} />{status}</span>
             </div>
           );
         })}
@@ -53,6 +57,8 @@ function StatusList({ title, items, documents }: { title: string; items: typeof 
 }
 
 export function CompanyReadinessCard({ documents }: { documents: CompanyDocument[] }) {
+  const [showDetails, setShowDetails] = useState(false);
+
   const engineDocuments = documents
     .map((document) => ({
       id: document.id,
@@ -68,45 +74,68 @@ export function CompanyReadinessCard({ documents }: { documents: CompanyDocument
   });
 
   const coreStatus = (type: string) => readiness.present.includes(type) ? "Present" : readiness.expired.includes(type) ? "Expired" : "Missing";
-  const scoreLabel = `${readiness.score}%`;
+  const presentCore = readiness.present.length;
+  const totalCore = readiness.total;
 
   return (
-    <section aria-label="Company Readiness" className="glass-panel mb-6 overflow-hidden">
-      <div className="border-b border-border/50 p-5 sm:p-6">
-        <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-          <div>
-            <p className="text-xs font-semibold uppercase tracking-[0.16em] text-primary">Company Readiness</p>
-            <h2 className="mt-1 text-lg font-semibold">Public-procurement baseline</h2>
-            <p className="mt-1 text-sm text-muted-foreground">Calculated against JASMIQ's six core procurement documents. Tender-specific requirements are assessed separately.</p>
+    <section aria-label="Company Readiness" className="glass-panel mb-4 overflow-hidden">
+      <button
+        type="button"
+        onClick={() => setShowDetails((value) => !value)}
+        aria-expanded={showDetails}
+        className="flex w-full items-center gap-3 p-4 text-left transition-colors hover:bg-primary/[0.03] sm:p-5"
+      >
+        <span className="flex size-9 shrink-0 items-center justify-center rounded-xl border border-primary/20 bg-primary/10 text-primary">
+          {showDetails ? <ChevronDown className="size-4" /> : <ChevronRight className="size-4" />}
+        </span>
+
+        <span className="min-w-0 flex-1">
+          <span className="block text-[11px] font-semibold uppercase tracking-[0.15em] text-primary">Company Readiness</span>
+          <span className="mt-0.5 block truncate text-sm font-semibold">Public-procurement baseline</span>
+        </span>
+
+        <span className="hidden text-right sm:block">
+          <span className="block text-[10px] uppercase tracking-[0.12em] text-muted-foreground">Core baseline</span>
+          <span className="text-xs text-muted-foreground">{presentCore} of {totalCore} current</span>
+        </span>
+
+        <span className="rounded-2xl border border-primary/20 bg-primary/5 px-3 py-2 text-center">
+          <span className="block text-xl font-bold leading-none tracking-tight">{readiness.score}%</span>
+          <span className="mt-1 block text-[9px] font-medium uppercase tracking-[0.08em] text-muted-foreground">ready</span>
+        </span>
+      </button>
+
+      {showDetails ? (
+        <div className="border-t border-border/40">
+          <div className="px-4 pb-4 pt-3 sm:px-5">
+            <p className="max-w-3xl text-xs leading-5 text-muted-foreground">
+              JASMIQ's six universal procurement documents. Tender-specific requirements are assessed separately.
+            </p>
+
+            <div className="mt-3 grid gap-1.5 sm:grid-cols-2 lg:grid-cols-3">
+              {COMPANY_READINESS_CORE.map((item) => {
+                const status = coreStatus(item.type);
+                return (
+                  <div key={item.type} className="flex items-center justify-between rounded-lg border border-border/50 bg-background/25 px-3 py-2 text-xs">
+                    <span className="truncate pr-2">{item.label}</span>
+                    <span className="flex shrink-0 items-center gap-1 text-muted-foreground"><StatusIcon status={status} />{status}</span>
+                  </div>
+                );
+              })}
+            </div>
           </div>
-          <div className="flex items-center gap-3 rounded-2xl border border-primary/20 bg-primary/5 px-4 py-3">
-            <div className="text-3xl font-bold tracking-tight">{scoreLabel}</div>
-            <div className="text-xs text-muted-foreground">{readiness.present.length} of {readiness.total} core documents current</div>
+
+          <div className="grid gap-3 border-t border-border/40 px-4 py-4 sm:px-5">
+            <StatusList title="Supporting Documents" items={COMPANY_READINESS_SUPPORTING} documents={documents} />
+            <StatusList title="Sector-Specific / Conditional" items={COMPANY_READINESS_CONDITIONAL} documents={documents} />
+          </div>
+
+          <div className="flex items-start gap-2 border-t border-border/40 px-4 py-3 text-[11px] leading-4 text-muted-foreground sm:px-5">
+            <AlertCircle className="mt-0.5 size-3.5 shrink-0" aria-hidden="true" />
+            <span>Supporting and conditional documents are visible for planning but do not reduce the headline readiness percentage.</span>
           </div>
         </div>
-
-        <div className="mt-5 grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
-          {COMPANY_READINESS_CORE.map((item) => {
-            const status = coreStatus(item.type);
-            return (
-              <div key={item.type} className="flex items-center justify-between rounded-xl border border-border/50 bg-background/30 px-3 py-2.5 text-sm">
-                <span>{item.label}</span>
-                <span className="flex items-center gap-1 text-xs text-muted-foreground"><StatusIcon status={status} />{status}</span>
-              </div>
-            );
-          })}
-        </div>
-      </div>
-
-      <div className="grid gap-5 p-5 sm:p-6">
-        <StatusList title="Supporting Documents" items={COMPANY_READINESS_SUPPORTING} documents={documents} />
-        <StatusList title="Sector-Specific / Conditional" items={COMPANY_READINESS_CONDITIONAL} documents={documents} />
-      </div>
-
-      <div className="flex items-start gap-2 border-t border-border/50 px-5 py-3 text-xs text-muted-foreground sm:px-6">
-        <AlertCircle className="mt-0.5 size-3.5 shrink-0" aria-hidden="true" />
-        Supporting and conditional documents are shown for visibility but do not reduce the headline readiness percentage.
-      </div>
+      ) : null}
     </section>
   );
 }
