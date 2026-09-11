@@ -193,7 +193,10 @@ function TenderWorkspacePage() {
       {status === "failed" && tender.analysis_error ? <div className="mt-3 rounded-xl border border-destructive/25 bg-destructive/5 p-3 text-sm text-destructive"><strong>Analysis error:</strong> {tender.analysis_error}</div> : null}
     </header>
 
-    <TenderComplianceCard />
+    <TenderComplianceCard
+      tender={tender}
+      requirements={requirements}
+    />
 
     <section className="glass-panel mt-5 rounded-2xl p-4 sm:p-5">
       <div className="flex flex-wrap items-center gap-x-5 gap-y-2 text-sm">
