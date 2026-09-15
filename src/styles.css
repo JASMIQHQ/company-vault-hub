@@ -164,7 +164,8 @@
 }
 
 @layer base {
-  * { border-color: var(--color-border); }
+  *, *::before, *::after { box-sizing: border-box; }
+  * { border-color: var(--color-border); min-width: 0; }
   html { background: var(--background); width: 100%; max-width: 100%; overflow-x: clip; }
   body {
     min-height: 100vh;
@@ -177,7 +178,10 @@
     background-size: 34px 34px, auto;
     color: var(--color-foreground);
   }
+  #root { width: 100%; max-width: 100%; min-width: 0; overflow-x: clip; }
   main { min-width: 0; max-width: 100%; overflow-x: clip; }
+  img, svg, video, canvas { max-width: 100%; }
+  h1, h2, h3, h4, h5, h6, p, span, a, button { overflow-wrap: anywhere; }
   body::before {
     content: "";
     position: fixed;
