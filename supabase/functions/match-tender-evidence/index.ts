@@ -1,178 +1,83 @@
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.58.0";
 
-const CORS = {
-  "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
-  "Access-Control-Allow-Methods": "POST, OPTIONS",
-};
-const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
-
 type Status = "matched" | "manual_review" | "missing" | "expired";
-interface Tender { id: string; company_id: string; organization_id: string; }
-interface Requirement { id: string; category: string | null; requirement_name: string | null; requirement_text: string | null; display_order: number | null; }
-interface Document { id: string; company_id: string; organization_id: string; document_name: string | null; original_filename: string | null; document_type: string | null; category: string | null; expiry_date: string | null; document_status: string | null; deleted_at: string | null; }
-interface Candidate { document: Document; score: number; basis: string[]; }
+type Doc = { id:string; document_name:string|null; original_filename:string|null; document_type:string|null; category:string|null; expiry_date:string|null; verified_doc_type:string|null; verified_year:number|null; verified_expiry_date:string|null; document_status:string|null; deleted_at:string|null; created_at:string|null };
+type Req = { id:string; requirement_name:string|null; requirement_text:string|null; category:string|null; display_order:number|null };
+type Alias = { alias:string; canonical_type:string };
 
-const json = (body: unknown, status = 200) => new Response(JSON.stringify(body), { status, headers: { ...CORS, "Content-Type": "application/json" } });
-const norm = (value: string) => value.toLowerCase().replace(/[^a-z0-9]+/g, " ").replace(/\s+/g, " ").trim();
-const today = () => new Date().toISOString().slice(0, 10);
+const ORIGINS=new Set(["https://company-vault-hub.netlify.app","https://company-vault-n6uvy4nux-emmanuel-bosah-s-projects.vercel.app","https://company-vault-lnehfxdkb-emmanuel-bosah-s-projects.vercel.app","http://localhost:5173","http://localhost:3000"]);
+const responseHeaders=(origin:string|null)=>({"Access-Control-Allow-Origin":origin&&ORIGINS.has(origin)?origin:"https://company-vault-hub.netlify.app","Access-Control-Allow-Headers":"authorization, x-client-info, apikey, content-type","Access-Control-Allow-Methods":"POST, OPTIONS","Vary":"Origin"});
+const json=(body:unknown,status=200,origin:string|null=null)=>new Response(JSON.stringify(body),{status,headers:{...responseHeaders(origin),"Content-Type":"application/json"}});
+const norm=(v:string)=>v.toLowerCase().replace(/[^a-z0-9]+/g," ").replace(/\s+/g," ").trim();
+const canonical=(v:string)=>norm(v).replace(/ /g,"_").toUpperCase();
+const CANONICAL_EQUIVALENTS:Record<string,string>={
+  CAC_CERT:"CAC_CERTIFICATE", CAC:"CAC_CERTIFICATE", VAT:"VAT_CERTIFICATE", VAT_CERT:"VAT_CERTIFICATE",
+  TCC:"TAX_CLEARANCE_CERTIFICATE", PENCOM:"PENCOM_CERTIFICATE", ITF:"ITF_CERTIFICATE", NSITF:"NSITF_CERTIFICATE",
+  BPP:"BPP_CERTIFICATE", NITDA:"NITDA_REGISTRATION", CPN:"CPN_CERTIFICATE"
+};
+const normalizeType=(v:string|null)=>{if(!v?.trim())return null;const c=canonical(v);return CANONICAL_EQUIVALENTS[c]??c};
+const yearFrom=(v:string)=>{const m=v.match(/\b(20\d{2})\b/);return m?Number(m[1]):null};
+const today=()=>new Date().toISOString().slice(0,10);
+const currentYear=()=>new Date().getUTCFullYear();
+const STATUTORY=new Set(["TAX_CLEARANCE_CERTIFICATE","PENCOM_CERTIFICATE","ITF_CERTIFICATE","NSITF_CERTIFICATE","BPP_CERTIFICATE"]);
 
-const aliases: Array<[RegExp, string[]]> = [
-  [/\b(cac|corporate affairs commission|certificate of incorporation)\b/i, ["cac", "corporate affairs commission", "certificate of incorporation"]],
-  [/\b(tcc|tax clearance|tax clearance certificate|firs)\b/i, ["tcc", "tax clearance", "tax clearance certificate", "firs"]],
-  [/\b(pencom|pension commission|pension compliance)\b/i, ["pencom", "pension commission", "pension compliance"]],
-  [/\b(itf|industrial training fund)\b/i, ["itf", "industrial training fund"]],
-  [/\b(nsitf|social insurance trust fund)\b/i, ["nsitf", "social insurance trust fund"]],
-  [/\b(bpp|bureau of public procurement)\b/i, ["bpp", "bureau of public procurement"]],
-  [/\b(ogisp|oil and gas industry permit)\b/i, ["ogisp", "oil and gas industry permit"]],
-  [/\b(cpn|computer professionals of nigeria)\b/i, ["cpn", "computer professionals of nigeria"]],
-  [/\b(nemsa|nigerian electricity management services agency)\b/i, ["nemsa", "nigerian electricity management services agency"]],
-  [/\b(audited accounts|audited financial statements|financial statements)\b/i, ["audited accounts", "audited financial statements", "financial statements"]],
+// Deterministic evidence equivalence: tender wording and Vault naming do not have to be identical.
+// These are narrow, auditable concepts—not semantic/AI matching.
+const SPECIAL:[RegExp,string][]=[
+  [/corporate affairs commission|\bcac\s+registration\b|\bcac\s+certificate\b/i,"CAC_CERTIFICATE"],
+  [/\bvat\b|value[d]?\s+added\s+tax/i,"VAT_CERTIFICATE"],
+  [/tax clearance certificate|\btcc\b/i,"TAX_CLEARANCE_CERTIFICATE"],
+  [/national pension commission|\bpencom\b/i,"PENCOM_CERTIFICATE"],
+  [/nigeria social insurance trust fund|\bnsitf\b/i,"NSITF_CERTIFICATE"],
+  [/industrial training fund|\bitf\b/i,"ITF_CERTIFICATE"],
+  [/bureau of public procurement|\bbpp\b/i,"BPP_CERTIFICATE"],
+  [/national information technology development agency|\bnitda\b.*(registration|contractor)|\bnitda\s+ict\b/i,"NITDA_REGISTRATION"],
+  [/audited (financial )?statements?|audited accounts?|account statements/i,"AUDITED_ACCOUNTS"],
+  [/bank reference/i,"BANK_REFERENCE"],
+  [/company profile/i,"COMPANY_PROFILE"],
+  [/sworn affidavit/i,"SWORN_AFFIDAVIT"],
+  [/ogisp/i,"OGISP_REGISTRATION"],
+  [/cpn|computer professionals/i,"CPN_CERTIFICATE"],
+  [/nemsa/i,"NEMSA_CERTIFICATE"],
+  [/iso\s*(27001|20000)|iso certification/i,"ISO_CERTIFICATION"],
+  [/naddc|vehicle.*(manufacturer|authori[sz]ed representative)|oem.*(authorization|authorisation)/i,"OEM_AUTHORIZATION"],
+  [/similar (projects?|experience)|relevant experience|past\/?present job experience/i,"EXPERIENCE"],
+  [/key personnel|professional registration|registration of .*technical personnel/i,"KEY_PERSONNEL"],
+  [/language and signature/i,"LANGUAGE_SIGNATURE"],
+  [/lot (bidding )?limit|maximum lot/i,"LOT_LIMIT"]
 ];
+const PROCEDURAL_PATTERNS=[/two.{0,10}(sealed )?envelopes?/i,/soft copy submission/i,/enveloping and marking/i,/english language/i,/signed by an? (official|authoriz)/i,/maximum.{0,15}lot/i];
+const isProceduralRequirement=(text:string)=>PROCEDURAL_PATTERNS.some(p=>p.test(text));
+const special=(text:string)=>SPECIAL.find(([re])=>re.test(text))?.[1]??null;
+const alias=(text:string,as:Alias[])=>{const n=norm(text);for(const a of as){const x=norm(a.alias);if(x&&(n===x||n.startsWith(x+" ")||n.endsWith(" "+x)||n.includes(" "+x+" ")))return normalizeType(a.canonical_type)}return null};
+const reqType=(r:Req,as:Alias[])=>{const text=[r.requirement_name,r.requirement_text].filter(Boolean).join(" ");return special(text)||alias(text,as)};
+const docType=(d:Doc,as:Alias[])=>normalizeType(d.verified_doc_type?.trim()??null)||alias([d.document_type,d.document_name,d.original_filename,d.category].filter(Boolean).join(" "),as)||special([d.document_type,d.document_name,d.original_filename,d.category].filter(Boolean).join(" "));
+const docYear=(d:Doc)=>d.verified_year??yearFrom(d.original_filename??"")??yearFrom(d.document_name??"")??yearFrom(d.document_type??"");
+const expiry=(d:Doc)=>d.verified_expiry_date??d.expiry_date;
+const active=(d:Doc)=>!d.deleted_at&&(!d.document_status||d.document_status==="active");
+const isExpired=(d:Doc)=>{const e=expiry(d);return !!e&&e<today()};
+const statValid=(d:Doc)=>!isExpired(d)&&(docYear(d)===currentYear()||!!expiry(d)&&new Date(`${expiry(d)}T00:00:00Z`).getUTCFullYear()===currentYear());
+const newest=(ds:Doc[])=>[...ds].sort((a,b)=>String(b.created_at??"").localeCompare(String(a.created_at??"")))[0]??null;
 
-function requirementAliases(requirement: Requirement): string[] {
-  const text = norm([requirement.requirement_name, requirement.requirement_text].filter(Boolean).join(" "));
-  for (const [pattern, values] of aliases) if (pattern.test(text)) return values;
-  return [];
-}
-
-function documentText(document: Document): string {
-  return norm([document.document_name, document.original_filename, document.document_type, document.category].filter(Boolean).join(" "));
-}
-
-function candidateScore(requirement: Requirement, document: Document, wanted: string[]): Candidate | null {
-  const text = documentText(document);
-  const type = norm(document.document_type ?? "");
-  const name = norm([document.document_name, document.original_filename].filter(Boolean).join(" "));
-  const category = norm(document.category ?? "");
-  const basis: string[] = [];
-  let score = 0;
-
-  if (wanted.length > 0) {
-    const exactType = wanted.some((alias) => type === norm(alias) || type.includes(norm(alias)));
-    const nameHit = wanted.some((alias) => name.includes(norm(alias)));
-    const categoryHit = wanted.some((alias) => category.includes(norm(alias)));
-    if (exactType) { score += 100; basis.push("document_type"); }
-    if (nameHit) { score += 50; basis.push("document_name"); }
-    if (categoryHit) { score += 10; basis.push("category"); }
-    if (score === 0) return null;
-  } else {
-    const requirementTokens = new Set(norm([requirement.requirement_name, requirement.requirement_text].filter(Boolean).join(" ")).split(" ").filter((token) => token.length >= 4));
-    const hits = [...requirementTokens].filter((token) => text.includes(token));
-    if (hits.length === 0) return null;
-    score = hits.length;
-    basis.push("document_name/category");
+Deno.serve(async(req)=>{const origin=req.headers.get("Origin");if(req.method==="OPTIONS")return new Response("ok",{headers:responseHeaders(origin)});try{
+ const url=Deno.env.get("SUPABASE_URL"),key=Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");if(!url||!key)throw new Error("Supabase configuration is missing.");const db=createClient(url,key,{auth:{persistSession:false,autoRefreshToken:false}});
+ const body=await req.json().catch(()=>({}));const tenderId=body?.tender_id;if(typeof tenderId!=="string")return json({error:"A valid tender_id is required."},400,origin);const token=(req.headers.get("Authorization")??"").replace(/^Bearer\s+/i,"");if(!token)return json({error:"Not authenticated."},401,origin);const {data:user,error:userError}=await db.auth.getUser(token);if(userError||!user.user)return json({error:"Not authenticated."},401,origin);
+ const {data:profile,error:profileError}=await db.from("profiles").select("id").eq("auth_user_id",user.user.id).maybeSingle();if(profileError)throw profileError;if(!profile)return json({error:"No profile found for this user."},403,origin);const {data:memberships,error:membershipError}=await db.from("organization_members").select("organization_id").eq("profile_id",profile.id);if(membershipError)throw membershipError;const orgIds=(memberships??[]).map(x=>x.organization_id);
+ const {data:t,error:tenderError}=await db.from("tenders").select("id,company_id,organization_id").eq("id",tenderId).maybeSingle();if(tenderError)throw tenderError;if(!t||!t.company_id||!orgIds.includes(t.organization_id))return json({error:"Tender is not accessible or has no company."},403,origin);
+ const [{data:as,error:ae},{data:rs,error:re},{data:ds,error:de}]=await Promise.all([db.from("document_type_aliases").select("alias,canonical_type").eq("active",true),db.from("tender_requirements").select("id,requirement_name,requirement_text,category,display_order").eq("tender_id",t.id).eq("organization_id",t.organization_id).order("display_order",{ascending:true}),db.from("company_documents").select("id,document_name,original_filename,document_type,category,expiry_date,verified_doc_type,verified_year,verified_expiry_date,document_status,deleted_at,created_at").eq("organization_id",t.organization_id).eq("company_id",t.company_id)]);if(ae)throw ae;if(re)throw re;if(de)throw de;
+ const activeDocs=(ds??[] as Doc[]).filter(active);const {error:clearError}=await db.from("compliance_matches").delete().eq("tender_id",t.id).eq("organization_id",t.organization_id);if(clearError)throw clearError;const out:any[]=[];
+ for(const r of (rs??[]) as Req[]){const requirementText=[r.requirement_name,r.requirement_text].filter(Boolean).join(". ");const rt=reqType(r,as??[]);let status:Status="missing",best:Doc|null=null,reason="No suitable deterministic metadata candidate.",confidence:number|null=null;
+  if(isProceduralRequirement(requirementText)){status="matched";reason="No document evidence required. This requirement is a procedural/submission instruction, not a compliance document requirement."}
+  else if(rt==="EXPERIENCE"){status="manual_review";reason="Experience requirement identified, but past-job evidence requires human verification of project similarity, dates, award/completion evidence, and tender-specific eligibility."}
+  else {const pool=rt?activeDocs.filter(d=>docType(d,as??[])===rt):[];
+   if(!rt){status="manual_review";reason="Requirement is not safely classifiable as a Vault evidence type."}
+   else if(rt==="AUDITED_ACCOUNTS"){const target=[currentYear()-1,currentYear()-2,currentYear()-3],years=new Set(pool.map(docYear).filter(Boolean) as number[]),missing=target.filter(y=>!years.has(y));best=newest(pool.filter(d=>docYear(d)===target[0]));if(!missing.length){status="matched";reason=`Audited accounts cover ${target.join(", ")}.`}else if(pool.length){status="manual_review";reason=`Audited accounts are incomplete; missing year(s): ${missing.join(", ")}.`}else{status="missing";reason="No audited financial statements were found with deterministic year metadata."}}
+   else if(STATUTORY.has(rt)){const valid=pool.filter(statValid);best=newest(valid.length?valid:pool);if(!pool.length){status="missing";reason="No matching statutory document was found."}else if(!valid.length){status="expired";reason="The matching statutory document set has no currently valid document."}else{status="matched";reason="Strong canonical document type and current-year validity metadata match."}}
+   else if(pool.length){best=newest(pool);const y=docYear(best),e=expiry(best);if((r.requirement_text??"").match(/20\d{2}/)&&!y){status="manual_review";reason="Candidate type matches but required year evidence is missing."}else if(e&&e<today()){status="expired";reason="The latest matching document is expired."}else{status="matched";reason="Canonical evidence concept match between tender wording and the active Company Vault document type/name."}}
+   else{status="missing";reason="No active Company Vault document matches the requirement evidence concept."}
   }
-
-  return { document, score, basis };
-}
-
-function classifyExpiry(expiry: string | null): "valid" | "expired" {
-  return expiry !== null && expiry < today() ? "expired" : "valid";
-}
-
-function explanation(status: Status, candidate: Candidate | null): string {
-  if (status === "missing") return "No suitable active Company Vault document matched this requirement for the tender company.";
-  if (!candidate) return "The requirement could not be matched to a Company Vault document.";
-  if (status === "expired") return `Matched ${candidate.document.document_name ?? candidate.document.original_filename ?? "document"}, but its expiry date ${candidate.document.expiry_date} is before today.`;
-  if (status === "manual_review") return `A Company Vault document matched, but the metadata match is ambiguous or weak and requires review.`;
-  const expiry = candidate.document.expiry_date ? `Expiry ${candidate.document.expiry_date}.` : "No expiry date recorded; treated as non-expiring.";
-  return `Matched ${candidate.document.document_name ?? candidate.document.original_filename ?? "document"} using ${candidate.basis.join(" + ")}. ${expiry}`;
-}
-
-Deno.serve(async (req) => {
-  if (req.method === "OPTIONS") return new Response("ok", { headers: CORS });
-  try {
-    const url = Deno.env.get("SUPABASE_URL");
-    const key = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
-    if (!url || !key) return json({ error: "Supabase configuration is missing." }, 500);
-    const admin = createClient(url, key, { auth: { persistSession: false, autoRefreshToken: false } });
-
-    const body = await req.json().catch(() => ({}));
-    const tenderId = body?.tender_id;
-    if (typeof tenderId !== "string" || !UUID.test(tenderId)) return json({ error: "A valid tender_id is required." }, 400);
-
-    const token = (req.headers.get("Authorization") ?? "").replace(/^Bearer\s+/i, "");
-    if (!token) return json({ error: "Not authenticated." }, 401);
-    const { data: userData, error: userError } = await admin.auth.getUser(token);
-    if (userError || !userData.user) return json({ error: "Not authenticated." }, 401);
-
-    const { data: profile, error: profileError } = await admin.from("profiles").select("id").eq("auth_user_id", userData.user.id).maybeSingle();
-    if (profileError) throw profileError;
-    if (!profile) return json({ error: "No profile found for this user." }, 403);
-    const { data: memberships, error: membershipError } = await admin.from("organization_members").select("organization_id").eq("profile_id", profile.id);
-    if (membershipError) throw membershipError;
-    const organizationIds = (memberships ?? []).map((row) => row.organization_id).filter(Boolean);
-
-    const { data: tender, error: tenderError } = await admin.from("tenders").select("id, company_id, organization_id").eq("id", tenderId).maybeSingle();
-    if (tenderError) throw tenderError;
-    const tenderRow = tender as Tender | null;
-    if (!tenderRow || !organizationIds.includes(tenderRow.organization_id) || !tenderRow.company_id) return json({ error: "Tender is not accessible or is not associated with a company." }, 403);
-
-    const { data: requirements, error: requirementsError } = await admin.from("tender_requirements").select("id, category, requirement_name, requirement_text, display_order").eq("tender_id", tenderRow.id).eq("organization_id", tenderRow.organization_id).order("display_order", { ascending: true, nullsFirst: false });
-    if (requirementsError) throw requirementsError;
-    const { data: documents, error: documentsError } = await admin.from("company_documents").select("id, company_id, organization_id, document_name, original_filename, document_type, category, expiry_date, document_status, deleted_at").eq("organization_id", tenderRow.organization_id).eq("company_id", tenderRow.company_id).is("deleted_at", null);
-    if (documentsError) throw documentsError;
-
-    const docs = (documents ?? []).filter((doc) => !doc.document_status || doc.document_status === "active") as Document[];
-    await admin.from("compliance_matches").delete().eq("tender_id", tenderRow.id).eq("organization_id", tenderRow.organization_id);
-
-    const results: Array<{ requirement_id: string; status: Status; matched_document_id: string | null; confidence: number; explanation: string; match_basis: string }> = [];
-    for (const requirement of (requirements ?? []) as Requirement[]) {
-      const wanted = requirementAliases(requirement);
-      const ranked = docs.map((doc) => candidateScore(requirement, doc, wanted)).filter((candidate): candidate is Candidate => candidate !== null).sort((a, b) => b.score - a.score);
-      const best = ranked[0] ?? null;
-      const tied = best ? ranked.filter((candidate) => candidate.score === best.score) : [];
-      let status: Status;
-      let confidence: number;
-      let matchBasis = "METADATA";
-
-      if (!best) {
-        status = "missing";
-        confidence = 0;
-      } else if (tied.length > 1 && best.score < 100) {
-        status = "manual_review";
-        confidence = 0.65;
-      } else if (classifyExpiry(best.document.expiry_date) === "expired") {
-        status = "expired";
-        confidence = Math.min(0.99, best.score >= 100 ? 0.99 : 0.9);
-      } else {
-        status = best.score >= 100 ? "matched" : "manual_review";
-        confidence = status === "matched" ? 0.99 : 0.65;
-      }
-
-      const row = {
-        organization_id: tenderRow.organization_id,
-        tender_id: tenderRow.id,
-        document_id: best?.document.id ?? null,
-        requirement: [requirement.requirement_name, requirement.requirement_text].filter(Boolean).join(". "),
-        requirement_type: requirement.category ?? "general",
-        status,
-        confidence,
-        notes: JSON.stringify({ match_basis: matchBasis, document_expiry_date: best?.document.expiry_date ?? null, candidate_count: ranked.length, candidate_basis: best?.basis ?? [] }),
-      };
-      const { error: matchError } = await admin.from("compliance_matches").insert(row);
-      if (matchError) throw matchError;
-      const { error: requirementError } = await admin.from("tender_requirements").update({ status, matched_document_id: best?.document.id ?? null, confidence_score: confidence, explanation: explanation(status, best), match_basis: matchBasis }).eq("id", requirement.id).eq("tender_id", tenderRow.id).eq("organization_id", tenderRow.organization_id);
-      if (requirementError) throw requirementError;
-      results.push({ requirement_id: requirement.id, status, matched_document_id: best?.document.id ?? null, confidence, explanation: explanation(status, best), match_basis: matchBasis });
-    }
-
-    const total = results.length;
-    const satisfied = results.filter((result) => result.status === "matched").length;
-    const needsReview = results.filter((result) => result.status === "manual_review").length;
-    const missing = results.filter((result) => result.status === "missing").length;
-    const expired = results.filter((result) => result.status === "expired").length;
-    const compliancePercentage = total === 0 ? 0 : Math.round((satisfied / total) * 100);
-    const finalMatchingStatus = needsReview > 0 ? "MATCHING_REVIEW" : "MATCHED";
-
-    const { error: tenderUpdateError } = await admin.from("tenders").update({ compliance_percentage: compliancePercentage, matching_status: finalMatchingStatus }).eq("id", tenderRow.id).eq("organization_id", tenderRow.organization_id).eq("company_id", tenderRow.company_id);
-    if (tenderUpdateError) throw tenderUpdateError;
-
-    return json({ tender_id: tenderRow.id, company_id: tenderRow.company_id, summary: { total, satisfied, needs_review: needsReview, missing, expired, compliance_percentage: compliancePercentage }, results });
-  } catch (error) {
-    console.error("match-tender-evidence failed", error);
-    return json({ error: error instanceof Error ? error.message : String(error) }, 500);
-  }
-});
+  // tender_requirements.confidence_score is a 0-100 percentage field; keep matcher confidence on that same scale.
+  if(status!=="matched"||best)confidence=status==="matched"?99:status==="missing"||status==="expired"?0:65;const explanation=best?`${reason} Candidate: ${best.document_name??best.original_filename??best.id}.`:reason;const matchBasis=isProceduralRequirement(requirementText)?"PROCEDURAL_DECLARATION":"METADATA_EQUIVALENCE";const {error:me}=await db.from("compliance_matches").insert({organization_id:t.organization_id,tender_id:t.id,document_id:best?.id??null,requirement:requirementText,requirement_type:rt??"unclassified",status,confidence,notes:JSON.stringify({match_basis:matchBasis,document_type:best?docType(best,as??[]):null,document_year:best?docYear(best):null,expiry_date:best?expiry(best):null})});if(me)throw me;const {error:ue}=await db.from("tender_requirements").update({status,category:isProceduralRequirement(requirementText)?"general":r.category,matched_document_id:best?.id??null,confidence_score:confidence,explanation,match_basis:matchBasis}).eq("id",r.id).eq("tender_id",t.id).eq("organization_id",t.organization_id);if(ue)throw ue;out.push({requirement_id:r.id,status,matched_document_id:best?.id??null,confidence,explanation});}
+ const matched=out.filter(x=>x.status==="matched").length,review=out.filter(x=>x.status==="manual_review").length,missing=out.filter(x=>x.status==="missing").length,expired=out.filter(x=>x.status==="expired").length,pct=out.length?Math.round(matched/out.length*100):0;const {error:te}=await db.from("tenders").update({compliance_percentage:pct,matching_status:(missing||expired||review)?"MATCHING_REVIEW":"MATCHED"}).eq("id",t.id).eq("organization_id",t.organization_id).eq("company_id",t.company_id);if(te)throw te;return json({tender_id:t.id,company_id:t.company_id,summary:{total:out.length,satisfied:matched,needs_review:review,missing,expired,compliance_percentage:pct},results:out},200,origin);
+ }catch(error){console.error("match-tender-evidence unexpected error",error);return json({error:error instanceof Error?error.message:"Unexpected matching error."},500,origin)}});
