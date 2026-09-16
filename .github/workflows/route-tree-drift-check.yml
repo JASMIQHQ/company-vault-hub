@@ -72,7 +72,8 @@ jobs:
           committed = subprocess.check_output(["git", "show", "HEAD:src/routeTree.gen.ts"], text=True)
 
           def normalize(value: str) -> str:
-              return re.sub(r"\nimport type \{ getRouter \} from './router\.tsx'.*\Z", "\n", value, flags=re.S)
+              value = re.sub(r"\nimport type \{ getRouter \} from './router\.tsx'.*\Z", "\n", value, flags=re.S)
+              return value.rstrip() + "\n"
 
           generated_normalized = normalize(generated)
           committed_normalized = normalize(committed)
