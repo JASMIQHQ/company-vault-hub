@@ -8,8 +8,10 @@ jobs:
   byte-stability:
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout
+      - name: Checkout exact PR head
         uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
 
       - name: Setup Bun
         uses: oven-sh/setup-bun@v2
