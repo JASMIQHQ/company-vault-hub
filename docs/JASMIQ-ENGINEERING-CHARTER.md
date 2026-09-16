@@ -18,6 +18,33 @@ Company → Company Vault → Tender → Bid Structure → Requirement Ledger �
 8. Existing Supabase project/schema is the default. New tables, columns, buckets, migrations, or RLS architecture require an explicit gate.
 9. Production is never considered updated until the exact deployed commit/deploy is verified.
 10. No mock procurement conclusions are allowed.
+11. Tender analysis may replace the canonical requirement ledger on re-analysis; therefore re-analysis must be treated as a full extraction event and independently integrity-checked.
+
+## G31 — Requirement Integrity incident and closure
+
+On 2026-09-15, the live requirement ledger changed from the previously audited NUPRC baseline of 10 requirements to 12 and the NITDA baseline of 17 to 19. The database does not retain the deleted pre-reanalysis rows, so it cannot provide a separate historical UPDATE event; the literal creation timestamp for the replacement canonical sets is **2026-09-15 15:32:19.676758+00 for NUPRC** and **2026-09-15 14:35:39.652671+00 for NITDA** (UTC). Inspection of the live `analyze-tender` v11 code and `mark_tender_analyzed` RPC confirms that analysis re-runs replace `tender_requirements` wholesale before inserting the newly extracted set; this is the code path responsible for the count change, not the evidence matcher. The four additional requirements are legitimate document-derived extractions: NUPRC adds **Enveloping and Marking** and **Soft Copy Submission**, both explicitly present in the tender's submission instructions; NITDA adds **Language and Signature** and **Maximum Lot Bidding Limit**, both explicitly present in section 5.0 General Information. The analyzer's system prompt already instructs it to list every eligibility/submission requirement in document order and to never invent values, so these four rows are accepted as the new canonical baseline rather than treated as a re-run artifact. Integrity verification on the live database returned **zero duplicate `requirement_name` rows per tender** and requirement/match parity of **NUPRC 12/12** and **NITDA 19/19**. No matcher-side requirement creation was found; the matcher remains downstream of the canonical ledger.
+
+### G31 evidence table
+
+| Tender | Previous audited baseline | Current canonical count | Replacement-set timestamp (UTC) | Exact newly observed requirements | Duplicate-name check | Match parity |
+|---|---:|---:|---|---|---|---|
+| NUPRC `f1086b0c-c629-4c57-9324-622ff427f26c` | 10 | 12 | 2026-09-15 15:32:19.676758+00 | Enveloping and Marking; Soft Copy Submission | 0 | 12 requirements / 12 matches |
+| NITDA `ebbcf931-3125-485c-bb76-3611cbcbae20` | 17 | 19 | 2026-09-15 14:35:39.652671+00 | Language and Signature; Maximum Lot Bidding Limit | 0 | 19 requirements / 19 matches |
+
+Verification query results:
+
+```text
+Duplicate requirement_name query:
+[]
+
+Requirement counts:
+NITDA  19
+NUPRC  12
+
+Compliance match counts:
+NITDA  19
+NUPRC  12
+```
 
 ## Current release gates
 
@@ -26,6 +53,7 @@ Company → Company Vault → Tender → Bid Structure → Requirement Ledger �
 - G28 Missing-document/action engine — foundation present; action workflows remain downstream.
 - G29 Tender Submission Readiness — foundation present; authoritative regression suite required.
 - G30 Submission/Bid Package foundation — foundation present; full package generation is future work.
+- G31 Requirement Integrity — **closed**. The live 12/19 requirement baseline is accepted and documented; no duplicate requirement names were found and compliance-match parity is 12/12 and 19/19.
 
 ## Release sequence
 
