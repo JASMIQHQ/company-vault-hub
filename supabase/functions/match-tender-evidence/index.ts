@@ -5,21 +5,61 @@ type Status = "matched" | "manual_review" | "missing" | "expired";
 type Doc = { id:string; document_name:string|null; original_filename:string|null; document_type:string|null; category:string|null; expiry_date:string|null; verified_doc_type:string|null; verified_year:number|null; verified_expiry_date:string|null; document_status:string|null; deleted_at:string|null; created_at:string|null };
 type Req = { id:string; requirement_name:string|null; requirement_text:string|null; category:string|null; display_order:number|null };
 type Alias = { alias:string; canonical_type:string };
+
 const ORIGINS=new Set(["https://company-vault-hub.netlify.app","https://company-vault-n6uvy4nux-emmanuel-bosah-s-projects.vercel.app","https://company-vault-lnehfxdkb-emmanuel-bosah-s-projects.vercel.app","http://localhost:5173","http://localhost:3000"]);
 const responseHeaders=(origin:string|null)=>({"Access-Control-Allow-Origin":origin&&ORIGINS.has(origin)?origin:"https://company-vault-hub.netlify.app","Access-Control-Allow-Headers":"authorization, x-client-info, apikey, content-type","Access-Control-Allow-Methods":"POST, OPTIONS","Vary":"Origin"});
 const json=(body:unknown,status=200,origin:string|null=null)=>new Response(JSON.stringify(body),{status,headers:{...responseHeaders(origin),"Content-Type":"application/json"}});
 const norm=(v:string)=>v.toLowerCase().replace(/[^a-z0-9]+/g," ").replace(/\s+/g," ").trim();
 const canonical=(v:string)=>norm(v).replace(/ /g,"_").toUpperCase();
-const yearFrom=(v:string)=>{const m=v.match(/\b(20\d{2})\b/);return m?Number(m[1]):null}; const today=()=>new Date().toISOString().slice(0,10); const currentYear=()=>new Date().getUTCFullYear();
+const CANONICAL_EQUIVALENTS:Record<string,string>={
+  CAC_CERT:"CAC_CERTIFICATE", CAC:"CAC_CERTIFICATE", VAT:"VAT_CERTIFICATE", VAT_CERT:"VAT_CERTIFICATE",
+  TCC:"TAX_CLEARANCE_CERTIFICATE", PENCOM:"PENCOM_CERTIFICATE", ITF:"ITF_CERTIFICATE", NSITF:"NSITF_CERTIFICATE",
+  BPP:"BPP_CERTIFICATE", NITDA:"NITDA_REGISTRATION", CPN:"CPN_CERTIFICATE"
+};
+const normalizeType=(v:string|null)=>{if(!v?.trim())return null;const c=canonical(v);return CANONICAL_EQUIVALENTS[c]??c};
+const yearFrom=(v:string)=>{const m=v.match(/\b(20\d{2})\b/);return m?Number(m[1]):null};
+const today=()=>new Date().toISOString().slice(0,10);
+const currentYear=()=>new Date().getUTCFullYear();
 const STATUTORY=new Set(["TAX_CLEARANCE_CERTIFICATE","PENCOM_CERTIFICATE","ITF_CERTIFICATE","NSITF_CERTIFICATE","BPP_CERTIFICATE"]);
-const SPECIAL:[RegExp,string][]=[[/audited (financial )?statements?|audited accounts/i,"AUDITED_ACCOUNTS"],[/bank reference/i,"BANK_REFERENCE"],[/company profile/i,"COMPANY_PROFILE"],[/sworn affidavit/i,"SWORN_AFFIDAVIT"],[/nitda.*(registration|contractor)/i,"NITDA_REGISTRATION"],[/ogisp/i,"OGISP_REGISTRATION"],[/cpn|computer professionals/i,"CPN_CERTIFICATE"],[/nemsa/i,"NEMSA_CERTIFICATE"],[/iso certification/i,"ISO_CERTIFICATION"],[/naddc approval/i,"NADDC_APPROVAL"],[/similar (projects?|experience)|relevant experience/i,"EXPERIENCE"],[/key personnel|professional registration/i,"KEY_PERSONNEL"],[/language and signature/i,"LANGUAGE_SIGNATURE"],[/lot (bidding )?limit/i,"LOT_LIMIT"]];
+
+// Deterministic evidence equivalence: tender wording and Vault naming do not have to be identical.
+// These are narrow, auditable concepts—not semantic/AI matching.
+const SPECIAL:[RegExp,string][]=[
+  [/corporate affairs commission|\bcac\s+registration\b|\bcac\s+certificate\b/i,"CAC_CERTIFICATE"],
+  [/\bvat\b|value[d]?\s+added\s+tax/i,"VAT_CERTIFICATE"],
+  [/tax clearance certificate|\btcc\b/i,"TAX_CLEARANCE_CERTIFICATE"],
+  [/national pension commission|\bpencom\b/i,"PENCOM_CERTIFICATE"],
+  [/nigeria social insurance trust fund|\bnsitf\b/i,"NSITF_CERTIFICATE"],
+  [/industrial training fund|\bitf\b/i,"ITF_CERTIFICATE"],
+  [/bureau of public procurement|\bbpp\b/i,"BPP_CERTIFICATE"],
+  [/national information technology development agency|\bnitda\b.*(registration|contractor)|\bnitda\s+ict\b/i,"NITDA_REGISTRATION"],
+  [/audited (financial )?statements?|audited accounts?|account statements/i,"AUDITED_ACCOUNTS"],
+  [/bank reference/i,"BANK_REFERENCE"],
+  [/company profile/i,"COMPANY_PROFILE"],
+  [/sworn affidavit/i,"SWORN_AFFIDAVIT"],
+  [/ogisp/i,"OGISP_REGISTRATION"],
+  [/cpn|computer professionals/i,"CPN_CERTIFICATE"],
+  [/nemsa/i,"NEMSA_CERTIFICATE"],
+  [/iso\s*(27001|20000)|iso certification/i,"ISO_CERTIFICATION"],
+  [/naddc|vehicle.*(manufacturer|authori[sz]ed representative)|oem.*(authorization|authorisation)/i,"OEM_AUTHORIZATION"],
+  [/similar (projects?|experience)|relevant experience|past\/?present job experience/i,"EXPERIENCE"],
+  [/key personnel|professional registration|registration of .*technical personnel/i,"KEY_PERSONNEL"],
+  [/language and signature/i,"LANGUAGE_SIGNATURE"],
+  [/lot (bidding )?limit|maximum lot/i,"LOT_LIMIT"]
+];
 const PROCEDURAL_PATTERNS=[/two.{0,10}(sealed )?envelopes?/i,/soft copy submission/i,/enveloping and marking/i,/english language/i,/signed by an? (official|authoriz)/i,/maximum.{0,15}lot/i];
 const isProceduralRequirement=(text:string)=>PROCEDURAL_PATTERNS.some(p=>p.test(text));
 const special=(text:string)=>SPECIAL.find(([re])=>re.test(text))?.[1]??null;
-const alias=(text:string,as:Alias[])=>{const n=norm(text);for(const a of as){const x=norm(a.alias);if(x&&(n===x||n.startsWith(x+" ")||n.endsWith(" "+x)||n.includes(" "+x+" ")))return canonical(a.canonical_type)}return null};
+const alias=(text:string,as:Alias[])=>{const n=norm(text);for(const a of as){const x=norm(a.alias);if(x&&(n===x||n.startsWith(x+" ")||n.endsWith(" "+x)||n.includes(" "+x+" ")))return normalizeType(a.canonical_type)}return null};
 const reqType=(r:Req,as:Alias[])=>{const text=[r.requirement_name,r.requirement_text].filter(Boolean).join(" ");return special(text)||alias(text,as)};
-const docType=(d:Doc,as:Alias[])=>d.verified_doc_type?.trim()?canonical(d.verified_doc_type):alias([d.document_type,d.document_name,d.original_filename,d.category].filter(Boolean).join(" "),as)||special([d.document_type,d.document_name,d.original_filename,d.category].filter(Boolean).join(" "));
-const docYear=(d:Doc)=>d.verified_year??yearFrom(d.original_filename??"")??yearFrom(d.document_name??"")??yearFrom(d.document_type??""); const expiry=(d:Doc)=>d.verified_expiry_date??d.expiry_date; const active=(d:Doc)=>!d.deleted_at&&(!d.document_status||d.document_status==="active"); const isExpired=(d:Doc)=>{const e=expiry(d);return !!e&&e<today()}; const statValid=(d:Doc)=>!isExpired(d)&&(docYear(d)===currentYear()||!!expiry(d)&&new Date(`${expiry(d)}T00:00:00Z`).getUTCFullYear()===currentYear()); const newest=(ds:Doc[])=>[...ds].sort((a,b)=>String(b.created_at??"").localeCompare(String(a.created_at??"")))[0]??null;
+const docType=(d:Doc,as:Alias[])=>normalizeType(d.verified_doc_type?.trim()??null)||alias([d.document_type,d.document_name,d.original_filename,d.category].filter(Boolean).join(" "),as)||special([d.document_type,d.document_name,d.original_filename,d.category].filter(Boolean).join(" "));
+const docYear=(d:Doc)=>d.verified_year??yearFrom(d.original_filename??"")??yearFrom(d.document_name??"")??yearFrom(d.document_type??"");
+const expiry=(d:Doc)=>d.verified_expiry_date??d.expiry_date;
+const active=(d:Doc)=>!d.deleted_at&&(!d.document_status||d.document_status==="active");
+const isExpired=(d:Doc)=>{const e=expiry(d);return !!e&&e<today()};
+const statValid=(d:Doc)=>!isExpired(d)&&(docYear(d)===currentYear()||!!expiry(d)&&new Date(`${expiry(d)}T00:00:00Z`).getUTCFullYear()===currentYear());
+const newest=(ds:Doc[])=>[...ds].sort((a,b)=>String(b.created_at??"").localeCompare(String(a.created_at??"")))[0]??null;
+
 Deno.serve(async(req)=>{const origin=req.headers.get("Origin");if(req.method==="OPTIONS")return new Response("ok",{headers:responseHeaders(origin)});try{
  const url=Deno.env.get("SUPABASE_URL"),key=Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");if(!url||!key)throw new Error("Supabase configuration is missing.");const db=createClient(url,key,{auth:{persistSession:false,autoRefreshToken:false}});
  const body=await req.json().catch(()=>({}));const tenderId=body?.tender_id;if(typeof tenderId!=="string")return json({error:"A valid tender_id is required."},400,origin);const token=(req.headers.get("Authorization")??"").replace(/^Bearer\s+/i,"");if(!token)return json({error:"Not authenticated."},401,origin);const {data:user,error:userError}=await db.auth.getUser(token);if(userError||!user.user)return json({error:"Not authenticated."},401,origin);
@@ -29,14 +69,15 @@ Deno.serve(async(req)=>{const origin=req.headers.get("Origin");if(req.method==="
  const activeDocs=(ds??[] as Doc[]).filter(active);const {error:clearError}=await db.from("compliance_matches").delete().eq("tender_id",t.id).eq("organization_id",t.organization_id);if(clearError)throw clearError;const out:any[]=[];
  for(const r of (rs??[]) as Req[]){const requirementText=[r.requirement_name,r.requirement_text].filter(Boolean).join(". ");const rt=reqType(r,as??[]);let status:Status="missing",best:Doc|null=null,reason="No suitable deterministic metadata candidate.",confidence:number|null=null;
   if(isProceduralRequirement(requirementText)){status="matched";reason="No document evidence required. This requirement is a procedural/submission instruction, not a compliance document requirement."}
+  else if(rt==="EXPERIENCE"){status="manual_review";reason="Experience requirement identified, but past-job evidence requires human verification of project similarity, dates, award/completion evidence, and tender-specific eligibility."}
   else {const pool=rt?activeDocs.filter(d=>docType(d,as??[])===rt):[];
    if(!rt){status="manual_review";reason="Requirement is not safely classifiable as a Vault evidence type."}
    else if(rt==="AUDITED_ACCOUNTS"){const target=[currentYear()-1,currentYear()-2,currentYear()-3],years=new Set(pool.map(docYear).filter(Boolean) as number[]),missing=target.filter(y=>!years.has(y));best=newest(pool.filter(d=>docYear(d)===target[0]));if(!missing.length){status="matched";reason=`Audited accounts cover ${target.join(", ")}.`}else if(pool.length){status="manual_review";reason=`Audited accounts are incomplete; missing year(s): ${missing.join(", ")}.`}else{status="missing";reason="No audited financial statements were found with deterministic year metadata."}}
    else if(STATUTORY.has(rt)){const valid=pool.filter(statValid);best=newest(valid.length?valid:pool);if(!pool.length){status="missing";reason="No matching statutory document was found."}else if(!valid.length){status="expired";reason="The matching statutory document set has no currently valid document."}else{status="matched";reason="Strong canonical document type and current-year validity metadata match."}}
-   else if(pool.length){best=newest(pool);const y=docYear(best),e=expiry(best);if((r.requirement_text??"").match(/20\d{2}/)&&!y){status="manual_review";reason="Candidate type matches but required year evidence is missing."}else if(e&&e<today()){status="expired";reason="The latest matching document is expired."}else{status="matched";reason="Canonical document type match using the latest active Vault version."}}
-   else{status="missing";reason="No active Company Vault document matches the requirement type."}
+   else if(pool.length){best=newest(pool);const y=docYear(best),e=expiry(best);if((r.requirement_text??"").match(/20\d{2}/)&&!y){status="manual_review";reason="Candidate type matches but required year evidence is missing."}else if(e&&e<today()){status="expired";reason="The latest matching document is expired."}else{status="matched";reason="Canonical evidence concept match between tender wording and the active Company Vault document type/name."}}
+   else{status="missing";reason="No active Company Vault document matches the requirement evidence concept."}
   }
   // tender_requirements.confidence_score is a 0-100 percentage field; keep matcher confidence on that same scale.
-  if(status!=="matched"||best)confidence=status==="matched"?99:status==="missing"||status==="expired"?0:65;const explanation=best?`${reason} Candidate: ${best.document_name??best.original_filename??best.id}.`:reason;const matchBasis=isProceduralRequirement(requirementText)?"PROCEDURAL_DECLARATION":"METADATA";const {error:me}=await db.from("compliance_matches").insert({organization_id:t.organization_id,tender_id:t.id,document_id:best?.id??null,requirement:requirementText,requirement_type:rt??"unclassified",status,confidence,notes:JSON.stringify({match_basis:matchBasis,document_type:best?docType(best,as??[]):null,document_year:best?docYear(best):null,expiry_date:best?expiry(best):null})});if(me)throw me;const {error:ue}=await db.from("tender_requirements").update({status,category:isProceduralRequirement(requirementText)?"general":r.category,matched_document_id:best?.id??null,confidence_score:confidence,explanation,match_basis:matchBasis}).eq("id",r.id).eq("tender_id",t.id).eq("organization_id",t.organization_id);if(ue)throw ue;out.push({requirement_id:r.id,status,matched_document_id:best?.id??null,confidence,explanation});}
+  if(status!=="matched"||best)confidence=status==="matched"?99:status==="missing"||status==="expired"?0:65;const explanation=best?`${reason} Candidate: ${best.document_name??best.original_filename??best.id}.`:reason;const matchBasis=isProceduralRequirement(requirementText)?"PROCEDURAL_DECLARATION":"METADATA_EQUIVALENCE";const {error:me}=await db.from("compliance_matches").insert({organization_id:t.organization_id,tender_id:t.id,document_id:best?.id??null,requirement:requirementText,requirement_type:rt??"unclassified",status,confidence,notes:JSON.stringify({match_basis:matchBasis,document_type:best?docType(best,as??[]):null,document_year:best?docYear(best):null,expiry_date:best?expiry(best):null})});if(me)throw me;const {error:ue}=await db.from("tender_requirements").update({status,category:isProceduralRequirement(requirementText)?"general":r.category,matched_document_id:best?.id??null,confidence_score:confidence,explanation,match_basis:matchBasis}).eq("id",r.id).eq("tender_id",t.id).eq("organization_id",t.organization_id);if(ue)throw ue;out.push({requirement_id:r.id,status,matched_document_id:best?.id??null,confidence,explanation});}
  const matched=out.filter(x=>x.status==="matched").length,review=out.filter(x=>x.status==="manual_review").length,missing=out.filter(x=>x.status==="missing").length,expired=out.filter(x=>x.status==="expired").length,pct=out.length?Math.round(matched/out.length*100):0;const {error:te}=await db.from("tenders").update({compliance_percentage:pct,matching_status:(missing||expired||review)?"MATCHING_REVIEW":"MATCHED"}).eq("id",t.id).eq("organization_id",t.organization_id).eq("company_id",t.company_id);if(te)throw te;return json({tender_id:t.id,company_id:t.company_id,summary:{total:out.length,satisfied:matched,needs_review:review,missing,expired,compliance_percentage:pct},results:out},200,origin);
  }catch(error){console.error("match-tender-evidence unexpected error",error);return json({error:error instanceof Error?error.message:"Unexpected matching error."},500,origin)}});
