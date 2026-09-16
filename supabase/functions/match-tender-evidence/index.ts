@@ -5,7 +5,7 @@ type Status = "matched" | "manual_review" | "missing" | "expired";
 type Doc = { id:string; document_name:string|null; original_filename:string|null; document_type:string|null; category:string|null; expiry_date:string|null; verified_doc_type:string|null; verified_year:number|null; verified_expiry_date:string|null; document_status:string|null; deleted_at:string|null; created_at:string|null };
 type Req = { id:string; requirement_name:string|null; requirement_text:string|null; category:string|null; display_order:number|null };
 type Alias = { alias:string; canonical_type:string };
-const ORIGINS=new Set(["https://company-vault-hub.netlify.app","https://company-vault-n6uvy4nux-emmanuel-bosah-s-projects.vercel.app","http://localhost:5173","http://localhost:3000"]);
+const ORIGINS=new Set(["https://company-vault-hub.netlify.app","https://company-vault-n6uvy4nux-emmanuel-bosah-s-projects.vercel.app","https://company-vault-lnehfxdkb-emmanuel-bosah-s-projects.vercel.app","http://localhost:5173","http://localhost:3000"]);
 const responseHeaders=(origin:string|null)=>({"Access-Control-Allow-Origin":origin&&ORIGINS.has(origin)?origin:"https://company-vault-hub.netlify.app","Access-Control-Allow-Headers":"authorization, x-client-info, apikey, content-type","Access-Control-Allow-Methods":"POST, OPTIONS","Vary":"Origin"});
 const json=(body:unknown,status=200,origin:string|null=null)=>new Response(JSON.stringify(body),{status,headers:{...responseHeaders(origin),"Content-Type":"application/json"}});
 const norm=(v:string)=>v.toLowerCase().replace(/[^a-z0-9]+/g," ").replace(/\s+/g," ").trim();
