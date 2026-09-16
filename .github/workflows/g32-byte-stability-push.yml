@@ -1,0 +1,30 @@
+name: G32 byte stability (scratch push)
+
+on:
+  push:
+    branches:
+      - scratch/g32-byte-stability
+
+jobs:
+  byte-stability:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout exact pushed commit
+        uses: actions/checkout@v4
+
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+
+      - name: Install dependencies
+        run: bun install --frozen-lockfile
+
+      - name: Build twice and compare generated route tree
+        run: |
+          bun run build
+          cp src/routeTree.gen.ts /tmp/build1.ts
+          rm -rf dist node_modules/.cache 2>/dev/null || true
+          bun run build
+          cp src/routeTree.gen.ts /tmp/build2.ts
+          diff /tmp/build1.ts /tmp/build2.ts && echo "IDENTICAL" || { echo "DIFFERS"; exit 1; }
