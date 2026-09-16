@@ -23,67 +23,19 @@ import { Route as AuthenticatedTendersIndexRouteImport } from './routes/_authent
 import { Route as AuthenticatedTendersTenderIdRouteImport } from './routes/_authenticated/tenders.$tenderId'
 
 const SitemapDotxmlRoute = SitemapDotxmlRouteImport.update({
-  id: '/sitemap.xml',
-  path: '/sitemap.xml',
-  getParentRoute: () => rootRouteImport,
+  id: '/sitemap.xml', path: '/sitemap.xml', getParentRoute: () => rootRouteImport,
 } as any)
-const AuthRoute = AuthRouteImport.update({
-  id: '/auth',
-  path: '/auth',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const AuthenticatedRouteRoute = AuthenticatedRouteRouteImport.update({
-  id: '/_authenticated',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const IndexRoute = IndexRouteImport.update({
-  id: '/',
-  path: '/',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const AuthenticatedVaultRoute = AuthenticatedVaultRouteImport.update({
-  id: '/vault',
-  path: '/vault',
-  getParentRoute: () => AuthenticatedRouteRoute,
-} as any)
-const AuthenticatedTendersRoute = AuthenticatedTendersRouteImport.update({
-  id: '/tenders',
-  path: '/tenders',
-  getParentRoute: () => AuthenticatedRouteRoute,
-} as any)
-const AuthenticatedSettingsRoute = AuthenticatedSettingsRouteImport.update({
-  id: '/settings',
-  path: '/settings',
-  getParentRoute: () => AuthenticatedRouteRoute,
-} as any)
-const AuthenticatedDashboardRoute = AuthenticatedDashboardRouteImport.update({
-  id: '/dashboard',
-  path: '/dashboard',
-  getParentRoute: () => AuthenticatedRouteRoute,
-} as any)
-const AuthenticatedCompaniesRoute = AuthenticatedCompaniesRouteImport.update({
-  id: '/companies',
-  path: '/companies',
-  getParentRoute: () => AuthenticatedRouteRoute,
-} as any)
-const AuthenticatedBankReferencesRoute =
-  AuthenticatedBankReferencesRouteImport.update({
-    id: '/bank-references',
-    path: '/bank-references',
-    getParentRoute: () => AuthenticatedRouteRoute,
-  } as any)
-const AuthenticatedTendersIndexRoute =
-  AuthenticatedTendersIndexRouteImport.update({
-    id: '/',
-    path: '/',
-    getParentRoute: () => AuthenticatedTendersRoute,
-  } as any)
-const AuthenticatedTendersTenderIdRoute =
-  AuthenticatedTendersTenderIdRouteImport.update({
-    id: '/$tenderId',
-    path: '/$tenderId',
-    getParentRoute: () => AuthenticatedTendersRoute,
-  } as any)
+const AuthRoute = AuthRouteImport.update({ id: '/auth', path: '/auth', getParentRoute: () => rootRouteImport } as any)
+const AuthenticatedRouteRoute = AuthenticatedRouteRouteImport.update({ id: '/_authenticated', getParentRoute: () => rootRouteImport } as any)
+const IndexRoute = IndexRouteImport.update({ id: '/', path: '/', getParentRoute: () => rootRouteImport } as any)
+const AuthenticatedVaultRoute = AuthenticatedVaultRouteImport.update({ id: '/vault', path: '/vault', getParentRoute: () => AuthenticatedRouteRoute } as any)
+const AuthenticatedTendersRoute = AuthenticatedTendersRouteImport.update({ id: '/tenders', path: '/tenders', getParentRoute: () => AuthenticatedRouteRoute } as any)
+const AuthenticatedSettingsRoute = AuthenticatedSettingsRouteImport.update({ id: '/settings', path: '/settings', getParentRoute: () => AuthenticatedRouteRoute } as any)
+const AuthenticatedDashboardRoute = AuthenticatedDashboardRouteImport.update({ id: '/dashboard', path: '/dashboard', getParentRoute: () => AuthenticatedRouteRoute } as any)
+const AuthenticatedCompaniesRoute = AuthenticatedCompaniesRouteImport.update({ id: '/companies', path: '/companies', getParentRoute: () => AuthenticatedRouteRoute } as any)
+const AuthenticatedBankReferencesRoute = AuthenticatedBankReferencesRouteImport.update({ id: '/bank-references', path: '/bank-references', getParentRoute: () => AuthenticatedRouteRoute } as any)
+const AuthenticatedTendersIndexRoute = AuthenticatedTendersIndexRouteImport.update({ id: '/', path: '/', getParentRoute: () => AuthenticatedTendersRoute } as any)
+const AuthenticatedTendersTenderIdRoute = AuthenticatedTendersTenderIdRouteImport.update({ id: '/$tenderId', path: '/$tenderId', getParentRoute: () => AuthenticatedTendersRoute } as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
@@ -127,44 +79,10 @@ export interface FileRoutesById {
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths:
-    | '/'
-    | '/auth'
-    | '/sitemap.xml'
-    | '/bank-references'
-    | '/companies'
-    | '/dashboard'
-    | '/settings'
-    | '/tenders'
-    | '/vault'
-    | '/tenders/$tenderId'
-    | '/tenders/'
+  fullPaths: '/' | '/auth' | '/sitemap.xml' | '/bank-references' | '/companies' | '/dashboard' | '/settings' | '/tenders' | '/vault' | '/tenders/$tenderId' | '/tenders/'
   fileRoutesByTo: FileRoutesByTo
-  to:
-    | '/'
-    | '/auth'
-    | '/sitemap.xml'
-    | '/bank-references'
-    | '/companies'
-    | '/dashboard'
-    | '/settings'
-    | '/vault'
-    | '/tenders/$tenderId'
-    | '/tenders'
-  id:
-    | '__root__'
-    | '/'
-    | '/_authenticated'
-    | '/auth'
-    | '/sitemap.xml'
-    | '/_authenticated/bank-references'
-    | '/_authenticated/companies'
-    | '/_authenticated/dashboard'
-    | '/_authenticated/settings'
-    | '/_authenticated/tenders'
-    | '/_authenticated/vault'
-    | '/_authenticated/tenders/$tenderId'
-    | '/_authenticated/tenders/'
+  to: '/' | '/auth' | '/sitemap.xml' | '/bank-references' | '/companies' | '/dashboard' | '/settings' | '/vault' | '/tenders/$tenderId' | '/tenders'
+  id: '__root__' | '/' | '/_authenticated' | '/auth' | '/sitemap.xml' | '/_authenticated/bank-references' | '/_authenticated/companies' | '/_authenticated/dashboard' | '/_authenticated/settings' | '/_authenticated/tenders' | '/_authenticated/vault' | '/_authenticated/tenders/$tenderId' | '/_authenticated/tenders/'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -176,143 +94,26 @@ export interface RootRouteChildren {
 
 declare module '@tanstack/react-router' {
   interface FileRoutesByPath {
-    '/sitemap.xml': {
-      id: '/sitemap.xml'
-      path: '/sitemap.xml'
-      fullPath: '/sitemap.xml'
-      preLoaderRoute: typeof SitemapDotxmlRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/auth': {
-      id: '/auth'
-      path: '/auth'
-      fullPath: '/auth'
-      preLoaderRoute: typeof AuthRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/_authenticated': {
-      id: '/_authenticated'
-      path: ''
-      fullPath: '/'
-      preLoaderRoute: typeof AuthenticatedRouteRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/': {
-      id: '/'
-      path: '/'
-      fullPath: '/'
-      preLoaderRoute: typeof IndexRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/_authenticated/vault': {
-      id: '/_authenticated/vault'
-      path: '/vault'
-      fullPath: '/vault'
-      preLoaderRoute: typeof AuthenticatedVaultRouteImport
-      parentRoute: typeof AuthenticatedRouteRoute
-    }
-    '/_authenticated/tenders': {
-      id: '/_authenticated/tenders'
-      path: '/tenders'
-      fullPath: '/tenders'
-      preLoaderRoute: typeof AuthenticatedTendersRouteImport
-      parentRoute: typeof AuthenticatedRouteRoute
-    }
-    '/_authenticated/settings': {
-      id: '/_authenticated/settings'
-      path: '/settings'
-      fullPath: '/settings'
-      preLoaderRoute: typeof AuthenticatedSettingsRouteImport
-      parentRoute: typeof AuthenticatedRouteRoute
-    }
-    '/_authenticated/dashboard': {
-      id: '/_authenticated/dashboard'
-      path: '/dashboard'
-      fullPath: '/dashboard'
-      preLoaderRoute: typeof AuthenticatedDashboardRouteImport
-      parentRoute: typeof AuthenticatedRouteRoute
-    }
-    '/_authenticated/companies': {
-      id: '/_authenticated/companies'
-      path: '/companies'
-      fullPath: '/companies'
-      preLoaderRoute: typeof AuthenticatedCompaniesRouteImport
-      parentRoute: typeof AuthenticatedRouteRoute
-    }
-    '/_authenticated/bank-references': {
-      id: '/_authenticated/bank-references'
-      path: '/bank-references'
-      fullPath: '/bank-references'
-      preLoaderRoute: typeof AuthenticatedBankReferencesRouteImport
-      parentRoute: typeof AuthenticatedRouteRoute
-    }
-    '/_authenticated/tenders/': {
-      id: '/_authenticated/tenders/'
-      path: '/'
-      fullPath: '/tenders/'
-      preLoaderRoute: typeof AuthenticatedTendersIndexRouteImport
-      parentRoute: typeof AuthenticatedTendersRoute
-    }
-    '/_authenticated/tenders/$tenderId': {
-      id: '/_authenticated/tenders/$tenderId'
-      path: '/$tenderId'
-      fullPath: '/tenders/$tenderId'
-      preLoaderRoute: typeof AuthenticatedTendersTenderIdRouteImport
-      parentRoute: typeof AuthenticatedTendersRoute
-    }
+    '/sitemap.xml': { id: '/sitemap.xml'; path: '/sitemap.xml'; fullPath: '/sitemap.xml'; preLoaderRoute: typeof SitemapDotxmlRouteImport; parentRoute: typeof rootRouteImport }
+    '/auth': { id: '/auth'; path: '/auth'; fullPath: '/auth'; preLoaderRoute: typeof AuthRouteImport; parentRoute: typeof rootRouteImport }
+    '/_authenticated': { id: '/_authenticated'; path: ''; fullPath: '/'; preLoaderRoute: typeof AuthenticatedRouteRouteImport; parentRoute: typeof rootRouteImport }
+    '/': { id: '/'; path: '/'; fullPath: '/'; preLoaderRoute: typeof IndexRouteImport; parentRoute: typeof rootRouteImport }
+    '/_authenticated/vault': { id: '/_authenticated/vault'; path: '/vault'; fullPath: '/vault'; preLoaderRoute: typeof AuthenticatedVaultRouteImport; parentRoute: typeof AuthenticatedRouteRoute }
+    '/_authenticated/tenders': { id: '/_authenticated/tenders'; path: '/tenders'; fullPath: '/tenders'; preLoaderRoute: typeof AuthenticatedTendersRouteImport; parentRoute: typeof AuthenticatedRouteRoute }
+    '/_authenticated/settings': { id: '/_authenticated/settings'; path: '/settings'; fullPath: '/settings'; preLoaderRoute: typeof AuthenticatedSettingsRouteImport; parentRoute: typeof AuthenticatedRouteRoute }
+    '/_authenticated/dashboard': { id: '/_authenticated/dashboard'; path: '/dashboard'; fullPath: '/dashboard'; preLoaderRoute: typeof AuthenticatedDashboardRouteImport; parentRoute: typeof AuthenticatedRouteRoute }
+    '/_authenticated/companies': { id: '/_authenticated/companies'; path: '/companies'; fullPath: '/companies'; preLoaderRoute: typeof AuthenticatedCompaniesRouteImport; parentRoute: typeof AuthenticatedRouteRoute }
+    '/_authenticated/bank-references': { id: '/_authenticated/bank-references'; path: '/bank-references'; fullPath: '/bank-references'; preLoaderRoute: typeof AuthenticatedBankReferencesRouteImport; parentRoute: typeof AuthenticatedRouteRoute }
+    '/_authenticated/tenders/': { id: '/_authenticated/tenders/'; path: '/'; fullPath: '/tenders/'; preLoaderRoute: typeof AuthenticatedTendersIndexRouteImport; parentRoute: typeof AuthenticatedTendersRoute }
+    '/_authenticated/tenders/$tenderId': { id: '/_authenticated/tenders/$tenderId'; path: '/$tenderId'; fullPath: '/tenders/$tenderId'; preLoaderRoute: typeof AuthenticatedTendersTenderIdRouteImport; parentRoute: typeof AuthenticatedTendersRoute }
   }
 }
 
-interface AuthenticatedTendersRouteChildren {
-  AuthenticatedTendersTenderIdRoute: typeof AuthenticatedTendersTenderIdRoute
-  AuthenticatedTendersIndexRoute: typeof AuthenticatedTendersIndexRoute
-}
-
-const AuthenticatedTendersRouteChildren: AuthenticatedTendersRouteChildren = {
-  AuthenticatedTendersTenderIdRoute: AuthenticatedTendersTenderIdRoute,
-  AuthenticatedTendersIndexRoute: AuthenticatedTendersIndexRoute,
-}
-
-const AuthenticatedTendersRouteWithChildren =
-  AuthenticatedTendersRoute._addFileChildren(AuthenticatedTendersRouteChildren)
-
-interface AuthenticatedRouteRouteChildren {
-  AuthenticatedBankReferencesRoute: typeof AuthenticatedBankReferencesRoute
-  AuthenticatedCompaniesRoute: typeof AuthenticatedCompaniesRoute
-  AuthenticatedDashboardRoute: typeof AuthenticatedDashboardRoute
-  AuthenticatedSettingsRoute: typeof AuthenticatedSettingsRoute
-  AuthenticatedTendersRoute: typeof AuthenticatedTendersRouteWithChildren
-  AuthenticatedVaultRoute: typeof AuthenticatedVaultRoute
-}
-
-const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
-  AuthenticatedBankReferencesRoute: AuthenticatedBankReferencesRoute,
-  AuthenticatedCompaniesRoute: AuthenticatedCompaniesRoute,
-  AuthenticatedDashboardRoute: AuthenticatedDashboardRoute,
-  AuthenticatedSettingsRoute: AuthenticatedSettingsRoute,
-  AuthenticatedTendersRoute: AuthenticatedTendersRouteWithChildren,
-  AuthenticatedVaultRoute: AuthenticatedVaultRoute,
-}
-
-const AuthenticatedRouteRouteWithChildren =
-  AuthenticatedRouteRoute._addFileChildren(AuthenticatedRouteRouteChildren)
-
-const rootRouteChildren: RootRouteChildren = {
-  IndexRoute: IndexRoute,
-  AuthenticatedRouteRoute: AuthenticatedRouteRouteWithChildren,
-  AuthRoute: AuthRoute,
-  SitemapDotxmlRoute: SitemapDotxmlRoute,
-}
-export const routeTree = rootRouteImport
-  ._addFileChildren(rootRouteChildren)
-  ._addFileTypes<FileRouteTypes>()
-
-import type { getRouter } from './router.tsx'
-import type { startInstance } from './start.ts'
-declare module '@tanstack/react-start' {
-  interface Register {
-    ssr: true
-    router: Awaited<ReturnType<typeof getRouter>>
-    config: Awaited<ReturnType<typeof startInstance.getOptions>>
-  }
-}
+interface AuthenticatedTendersRouteChildren { AuthenticatedTendersTenderIdRoute: typeof AuthenticatedTendersTenderIdRoute; AuthenticatedTendersIndexRoute: typeof AuthenticatedTendersIndexRoute }
+const AuthenticatedTendersRouteChildren: AuthenticatedTendersRouteChildren = { AuthenticatedTendersTenderIdRoute, AuthenticatedTendersIndexRoute }
+const AuthenticatedTendersRouteWithChildren = AuthenticatedTendersRoute._addFileChildren(AuthenticatedTendersRouteChildren)
+interface AuthenticatedRouteRouteChildren { AuthenticatedBankReferencesRoute: typeof AuthenticatedBankReferencesRoute; AuthenticatedCompaniesRoute: typeof AuthenticatedCompaniesRoute; AuthenticatedDashboardRoute: typeof AuthenticatedDashboardRoute; AuthenticatedSettingsRoute: typeof AuthenticatedSettingsRoute; AuthenticatedTendersRoute: typeof AuthenticatedTendersRouteWithChildren; AuthenticatedVaultRoute: typeof AuthenticatedVaultRoute }
+const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = { AuthenticatedBankReferencesRoute, AuthenticatedCompaniesRoute, AuthenticatedDashboardRoute, AuthenticatedSettingsRoute, AuthenticatedTendersRoute: AuthenticatedTendersRouteWithChildren, AuthenticatedVaultRoute }
+const AuthenticatedRouteRouteWithChildren = AuthenticatedRouteRoute._addFileChildren(AuthenticatedRouteRouteChildren)
+const rootRouteChildren: RootRouteChildren = { IndexRoute, AuthenticatedRouteRoute: AuthenticatedRouteRouteWithChildren, AuthRoute, SitemapDotxmlRoute }
+export const routeTree = rootRouteImport._addFileChildren(rootRouteChildren)._addFileTypes<FileRouteTypes>()
