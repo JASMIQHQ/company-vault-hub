@@ -17,6 +17,8 @@ For the same tender:
 
 Required evidence: browser click-through, persisted tender company_id, Edge Function execution log, and resulting compliance matches.
 
+**OPEN BLOCKER:** The live click-through proof for PR #32 is still outstanding. PR #32 must not merge until the exact acceptance flow above is evidenced.
+
 ## G34 — Database security surface
 
 Every SECURITY DEFINER function must have an explicit reason to remain privileged.
@@ -29,9 +31,13 @@ No function is revoked or converted blindly because that can break a valid appli
 
 Verify that an authenticated user cannot read another organisation's or another company's private document object. Test both direct object access and signed URL access.
 
-## G36 — Automated regression coverage
+## G36 — Automated regression coverage and matcher contract
 
 Automated tests must cover organisation isolation, company isolation, tender-company switching, expiry handling, year handling, missing evidence, manual review, and deterministic matcher output.
+
+**OPEN MATCHER-CONTRACT DEFECT:** A reproduced requirement-text drift can silently change matching between two re-analyze runs. Specifically, changing extracted requirement wording from **"Professional Body Registration of Personnel"** to **"Professional Key Personnel Registration"** caused an existing match to disappear on re-analysis. This is a known, reproduced data-drift/matcher-contract defect, not a pending test. It must be investigated, documented with a deterministic reproduction, and covered by regression evidence before the matching/verification gate is considered complete.
+
+Until the defect is resolved or explicitly accepted with evidence, no matcher, verification, or schema changes should be treated as implicitly safe merely because the surrounding guardrails pass.
 
 ## G37 — Release evidence
 
