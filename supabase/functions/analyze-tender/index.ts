@@ -1,4 +1,5 @@
 // analyze-tender: extracts metadata + requirements from an uploaded tender PDF.
+// Diagnostic patch: preserve matcher behavior while exposing the actual matcher failure body.
 // Contract: POST { tender_id: uuid } with the caller's Supabase JWT.
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.58.0";
 import { extractText, getDocumentProxy } from "https://esm.sh/unpdf@0.12.1";
@@ -50,6 +51,7 @@ Deno.serve(async (req) => {
 
   const url = Deno.env.get("SUPABASE_URL")!;
   const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+  const publishableKey = Deno.env.get("SUPABASE_PUBLISHABLE_KEY") ?? Deno.env.get("SUPABASE_ANON_KEY");
   const aiKey = Deno.env.get("LOVABLE_API_KEY");
   // New-format Supabase secret keys (sb_secret_...) are opaque strings, not JWTs.
   // PostgREST rejects them when sent as `Authorization: Bearer <key>`, which makes every
@@ -280,9 +282,34 @@ Deno.serve(async (req) => {
       })
       .eq("id", tender.id);
 
-    await admin.rpc("calculate_tender_compliance", { p_tender_id: tender.id });
-
-    return json({ tender_id: tender.id, analysis_status: "analyzed", requirements: requirements.length });
+    const { error: complianceError } = await admin.rpc("calculate_tender_compliance", { p_tender_id: tender.id });
+    if (complianceError) console.error("calculate_tender_compliance failed", complianceError);
+    const { error: matchingStateError } = await admin.from("tenders").update({ matching_status: "MATCHING" }).eq("id", tender.id);
+    if (matchingStateError) {
+      console.error("Could not set matching_status=MATCHING", matchingStateError);
+      return json({ tender_id: tender.id, analysis_status: "analyzed", matching_status: "MATCHING_FAILED", requirements: requirements.length, matching: { error_code: "MATCHING_STATE_PERSIST_FAILED", error: matchingStateError.message } }, 500);
+    }
+    await admin.from("tenders").update({ opening_date: date("opening_date"), reference_number: str("reference_number"), procurement_method: str("procurement_method"), tender_type: str("tender_type"), industry: str("industry"), lot_number: str("lot_number"), lot_description: str("lot_description"), requires_bid_security: bool("requires_bid_security"), requires_bank_reference: bool("requires_bank_reference"), requires_affidavit: bool("requires_affidavit"), raw_text: clipped.slice(0, 40000) }).eq("id", tender.id);
+    const { error: complianceError } = await admin.rpc("calculate_tender_compliance", { p_tender_id: tender.id });
+    if (complianceError) console.error("calculate_tender_compliance failed", complianceError);
+    const matcherResponse = await fetch(`${url}/functions/v1/match-tender-evidence`, { method: "POST", headers: { Authorization: `Bearer ${token}`, apikey: publishableKey, "Content-Type": "application/json" }, body: JSON.stringify({ tender_id: tender.id }) });
+    const matcherRaw = await matcherResponse.text();
+    let matcherBody: Record<string, unknown> = {};
+    try { matcherBody = matcherRaw ? JSON.parse(matcherRaw) : {}; } catch { matcherBody = { raw_body: matcherRaw }; }
+    if (!matcherResponse.ok) {
+      console.error("match-tender-evidence failed", matcherResponse.status, matcherBody);
+      await admin.from("tenders").update({ matching_status: "MATCHING_FAILED" }).eq("id", tender.id);
+      return json({ tender_id: tender.id, analysis_status: "analyzed", matching_status: "MATCHING_FAILED", requirements: requirements.length, matching: { error_code: "MATCHING_FAILED", http_status: matcherResponse.status, details: matcherBody, raw_body: typeof matcherBody.raw_body === "string" ? matcherBody.raw_body : undefined } }, 500);
+    }
+    const matcherResults = Array.isArray(matcherBody.results) ? matcherBody.results : [];
+    const requiresReview = matcherResults.some((result) => result !== null && typeof result === "object" && (result as Record<string, unknown>).status === "manual_review");
+    const finalMatchingStatus = requiresReview ? "MATCHING_REVIEW" : "MATCHED";
+    const { error: finalMatchingStateError } = await admin.from("tenders").update({ matching_status: finalMatchingStatus }).eq("id", tender.id);
+    if (finalMatchingStateError) {
+      console.error("Could not persist final matching_status", finalMatchingStateError);
+      return json({ tender_id: tender.id, analysis_status: "analyzed", matching_status: "MATCHING_FAILED", requirements: requirements.length, matching: { error_code: "MATCHING_STATE_PERSIST_FAILED", error: finalMatchingStateError.message } }, 500);
+    }
+    return json({ tender_id: tender.id, analysis_status: "analyzed", matching_status: finalMatchingStatus, requirements: requirements.length, matching: matcherBody });
   } catch (error) {
     console.error("analyze-tender unexpected error", error);
     return await fail("Unexpected error during tender analysis.", 500);
