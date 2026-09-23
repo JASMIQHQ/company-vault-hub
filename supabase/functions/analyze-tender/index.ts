@@ -6,8 +6,8 @@ import { extractText, getDocumentProxy } from "https://esm.sh/unpdf@0.12.1";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
-  "Access-Control-Allow-Methods": "POST, OPTIONS",
+  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type, x-retry-count, traceparent, tracestate, baggage",
+  "Access-Control-Allow-Methods": "GET, POST, PUT, PATCH, DELETE, OPTIONS",
 };
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
@@ -290,8 +290,6 @@ Deno.serve(async (req) => {
       return json({ tender_id: tender.id, analysis_status: "analyzed", matching_status: "MATCHING_FAILED", requirements: requirements.length, matching: { error_code: "MATCHING_STATE_PERSIST_FAILED", error: matchingStateError.message } }, 500);
     }
     await admin.from("tenders").update({ opening_date: date("opening_date"), reference_number: str("reference_number"), procurement_method: str("procurement_method"), tender_type: str("tender_type"), industry: str("industry"), lot_number: str("lot_number"), lot_description: str("lot_description"), requires_bid_security: bool("requires_bid_security"), requires_bank_reference: bool("requires_bank_reference"), requires_affidavit: bool("requires_affidavit"), raw_text: clipped.slice(0, 40000) }).eq("id", tender.id);
-    const { error: complianceError } = await admin.rpc("calculate_tender_compliance", { p_tender_id: tender.id });
-    if (complianceError) console.error("calculate_tender_compliance failed", complianceError);
     const matcherResponse = await fetch(`${url}/functions/v1/match-tender-evidence`, { method: "POST", headers: { Authorization: `Bearer ${token}`, apikey: publishableKey, "Content-Type": "application/json" }, body: JSON.stringify({ tender_id: tender.id }) });
     const matcherRaw = await matcherResponse.text();
     let matcherBody: Record<string, unknown> = {};
