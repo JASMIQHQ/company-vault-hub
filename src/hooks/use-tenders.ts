@@ -1,5 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import type { Session } from "@supabase/supabase-js";
+import { FunctionsFetchError, FunctionsHttpError, FunctionsRelayError, type Session } from "@supabase/supabase-js";
 import { supabase } from "@/integrations/supabase/client";
 import { TENDER_BUCKET, buildTenderStoragePath, type TenderListItem, type TenderRequirementItem } from "@/lib/tenders";
 import { sha256Hex } from "@/lib/vault";
@@ -26,23 +26,26 @@ export function useAnalyzeTender() {
         body: { tender_id: tenderId },
       });
 
-      if (error) {
-        const response = (error as { context?: Response }).context;
-        let message = error.message;
-
-        if (response) {
-          try {
-            const body = (await response.clone().json()) as { error?: unknown };
-            if (typeof body.error === "string" && body.error.trim()) {
-              message = body.error;
-            }
-          } catch {
-            // Keep the SDK error message when the Edge Function did not return JSON.
+      if (error instanceof FunctionsHttpError) {
+        try {
+          const body = (await error.context.clone().json()) as { error?: unknown };
+          if (typeof body.error === "string" && body.error.trim()) {
+            throw new Error(body.error);
+          }
+        } catch (parseError) {
+          if (parseError instanceof Error && parseError.message !== error.message) {
+            throw parseError;
           }
         }
 
-        throw new Error(message);
+        throw new Error(error.message);
       }
+
+      if (error instanceof FunctionsRelayError || error instanceof FunctionsFetchError) {
+        throw new Error(error.message);
+      }
+
+      throw new Error(error.message || "Tender reading failed.");
 
       return data;
     },
