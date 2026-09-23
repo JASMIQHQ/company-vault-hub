@@ -51,13 +51,23 @@ function AnalyzeButton({ tender, onAnalyze }: { tender: TenderListItem; onAnalyz
 
 function RequirementChecklist({ session, tender }: { session: Session | null; tender: TenderListItem }) {
   const requirements = useTenderRequirements(session, tender.id);
-  if (tender.analysis_status === "failed") return <div className="space-y-2"><p className="text-sm font-medium text-destructive">Analysis failed.</p>{tender.analysis_error ? <p className="text-sm text-muted-foreground">{tender.analysis_error}</p> : null}</div>;
   if (requirements.isPending) return <Skeleton className="h-16 w-full rounded-xl" />;
   if (requirements.error) return <p className="text-sm text-muted-foreground">{(requirements.error as Error).message}</p>;
-  if ((requirements.data ?? []).length === 0) return <p className="text-sm text-muted-foreground">No requirements extracted.</p>;
-  const rows = requirements.data!;
-  const counts = { matched: rows.filter((row) => Boolean(row.matched_document_id)).length, missing: rows.filter((row) => !row.matched_document_id).length, review: rows.filter((row) => row.status === "requires_review").length };
-  return <div className="space-y-3"><div className="flex flex-wrap gap-2 text-xs"><span className="rounded-full border border-success/25 bg-success-soft px-2.5 py-0.5 font-medium text-success">{counts.matched} Evidence linked</span><span className="rounded-full border border-border/60 bg-muted/40 px-2.5 py-0.5 font-medium text-muted-foreground">{counts.missing} No evidence linked</span>{counts.review ? <span className="rounded-full border border-warning/25 bg-warning-soft px-2.5 py-0.5 font-medium text-warning">{counts.review} Requires review</span> : null}</div><p className="text-xs text-muted-foreground">AI assists. This list reflects stored analysis only; it does not create recommendations.</p><ul className="space-y-3">{rows.map((requirement) => <li key={requirement.id} className="rounded-xl border border-border/60 bg-background/40 p-3"><div className="flex flex-wrap items-center gap-2"><RequirementStatusBadge status={requirement.status} /><CategoryBadge category={requirement.category} />{requirement.requirement_name ? <span className="text-sm font-medium">{requirement.requirement_name}</span> : null}</div><p className="mt-1.5 text-sm text-muted-foreground">{requirement.requirement_text}</p>{requirement.explanation ? <p className="mt-1 text-xs text-muted-foreground">{requirement.explanation}</p> : null}{typeof requirement.confidence_score === "number" ? <p className="mt-1 text-xs text-muted-foreground">Stored confidence: {Math.round(requirement.confidence_score * 100)}%</p> : null}</li>)}</ul></div>;
+  const rows = requirements.data ?? [];
+  if (rows.length === 0) {
+    return <div className="space-y-2">{tender.analysis_status === "failed" ? <><p className="text-sm font-medium text-destructive">Analysis failed.</p>{tender.analysis_error ? <p className="text-sm text-muted-foreground">{tender.analysis_error}</p> : null}</> : <p className="text-sm text-muted-foreground">No requirements extracted.</p>}</div>;
+  }
+  const counts = {
+    matched: rows.filter((row) => row.status === "matched").length,
+    missing: rows.filter((row) => row.status === "missing" || row.status === "expired").length,
+    review: rows.filter((row) => row.status === "manual_review").length,
+  };
+  return <div className="space-y-3">
+    {tender.analysis_status === "failed" ? <div className="rounded-xl border border-destructive/25 bg-destructive/5 p-3"><p className="text-sm font-medium text-destructive">Latest tender read failed.</p><p className="mt-1 text-sm text-muted-foreground">{tender.analysis_error ?? "Tender analysis failed."}</p><p className="mt-1 text-xs text-muted-foreground">Stored requirements remain visible below. A successful Re-analyze replaces the requirement ledger only after the AI read succeeds.</p></div> : null}
+    <div className="flex flex-wrap gap-2 text-xs"><span className="rounded-full border border-success/25 bg-success-soft px-2.5 py-0.5 font-medium text-success">{counts.matched} Satisfied</span><span className="rounded-full border border-border/60 bg-muted/40 px-2.5 py-0.5 font-medium text-muted-foreground">{counts.missing} Missing/Expired</span>{counts.review ? <span className="rounded-full border border-warning/25 bg-warning-soft px-2.5 py-0.5 font-medium text-warning">{counts.review} Requires review</span> : null}</div>
+    <p className="text-xs text-muted-foreground">AI assists with reading only. This list reflects the stored requirement ledger; Vault matching is deterministic.</p>
+    <ul className="space-y-3">{rows.map((requirement) => <li key={requirement.id} className="rounded-xl border border-border/60 bg-background/40 p-3"><div className="flex flex-wrap items-center gap-2"><RequirementStatusBadge status={requirement.status} /><CategoryBadge category={requirement.category} />{requirement.requirement_name ? <span className="text-sm font-medium">{requirement.requirement_name}</span> : null}</div><p className="mt-1.5 text-sm text-muted-foreground">{requirement.requirement_text}</p>{requirement.explanation ? <p className="mt-1 text-xs text-muted-foreground">{requirement.explanation}</p> : null}{typeof requirement.confidence_score === "number" ? <p className="mt-1 text-xs text-muted-foreground">Stored confidence: {Math.round(requirement.confidence_score * 100)}%</p> : null}</li>)}</ul>
+  </div>;
 }
 
 function TenderSpecificRequirements({ tender }: { tender: TenderListItem }) {
