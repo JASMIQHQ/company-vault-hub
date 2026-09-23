@@ -43,7 +43,9 @@ function TenderWorkspacePage() {
   const [search, setSearch] = useState("");
   const [selectedLotId, setSelectedLotId] = useState<string | null>(null);
   const [busyFile, setBusyFile] = useState<"preview" | "download" | null>(null);
-  const [analysisSubmitting, setAnalysisSubmitting] = useState(false);\n  const renderCountRef = useRef(0);\n  const renderCount = ++renderCountRef.current;
+  const [analysisSubmitting, setAnalysisSubmitting] = useState(false);
+  const renderCountRef = useRef(0);
+  const renderCount = ++renderCountRef.current;
 
   const requirements = requirementsQuery.data ?? [];
   const hasSavedRequirements = requirements.length > 0;
@@ -55,7 +57,18 @@ function TenderWorkspacePage() {
     readActionLabel = "Re-read tender";
   }
   const displayRequirements = isProcessing ? [] : requirements;
-  const requirementsLifecycle = {\n    status: requirementsQuery.status,\n    isPending: requirementsQuery.isPending,\n    isFetching: requirementsQuery.isFetching,\n    dataLength: requirementsQuery.data?.length ?? 0,\n    hasSavedRequirements: requirements.length > 0,\n    tenderStatus: status,\n    queryKey: requirementsQuery.queryKey,\n    renderCount,\n  };\n  console.log("[G37 requirements lifecycle]", requirementsLifecycle);\n  const filtered = useMemo(() => { const term = search.trim().toLowerCase(); if (!term) return requirements; return requirements.filter((item) => `${item.requirement_name ?? ""} ${item.requirement_text} ${item.category}`.toLowerCase().includes(term)); }, [requirements, search]);
+  const requirementsLifecycle = {
+    status: requirementsQuery.status,
+    isPending: requirementsQuery.isPending,
+    isFetching: requirementsQuery.isFetching,
+    dataLength: requirementsQuery.data?.length ?? 0,
+    hasSavedRequirements: requirements.length > 0,
+    tenderStatus: status,
+    queryKey: requirementsQuery.queryKey,
+    renderCount,
+  };
+  console.log("[G37 requirements lifecycle]", requirementsLifecycle);
+  const filtered = useMemo(() => { const term = search.trim().toLowerCase(); if (!term) return requirements; return requirements.filter((item) => `${item.requirement_name ?? ""} ${item.requirement_text} ${item.category}`.toLowerCase().includes(term)); }, [requirements, search]);
 
   if (sessionLoading || org.bootstrapping || tenderQuery.isPending) return <div className="mx-auto max-w-6xl space-y-5 px-4 py-8 sm:px-6 sm:py-12"><Skeleton className="h-8 w-2/3 rounded-xl" /><Skeleton className="h-28 w-full rounded-2xl" /><Skeleton className="h-72 w-full rounded-2xl" /></div>;
   if (tenderQuery.error) return <WorkspaceMessage title="Unable to load tender" message={(tenderQuery.error as Error).message} />;
