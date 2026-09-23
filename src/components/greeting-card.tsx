@@ -59,13 +59,16 @@ export function GreetingCard({ firstName, companyName }: GreetingCardProps) {
       >
         <X className="size-4" />
       </Button>
-      <p className="text-base font-semibold tracking-tight sm:text-lg">
-        {greetingFor(new Date().getHours())}
-        {firstName ? `, ${firstName}` : ""}
-      </p>
+      <div>
+        <p className="text-[0.68rem] font-semibold uppercase tracking-[0.18em] text-primary/80">JASMIQ Procurement AI</p>
+        <p className="mt-1 text-base font-semibold tracking-tight sm:text-lg">
+          {greetingFor(new Date().getHours())}
+          {firstName ? `, ${firstName}` : ""}
+        </p>
+      </div>
       {companyName ? (
-        <p className="mt-0.5 text-xs uppercase tracking-wide text-muted-foreground">
-          {companyName}
+        <p className="mt-1 text-xs font-medium uppercase tracking-wide text-muted-foreground">
+          Active workspace · {companyName}
         </p>
       ) : null}
       <p className="mt-3 text-sm text-foreground/80">{tip}</p>
