@@ -130,6 +130,28 @@ Deno.serve(async (req) => {
 
     tenderId = tender.id;
 
+    // G39-D1: atomically claim the tender for analysis before any destructive
+    // requirement replacement. A second caller must not pass this gate while
+    // the first analysis is still active. A stale processing row (>15 minutes)
+    // is recoverable so a crashed invocation cannot permanently lock the tender.
+    const staleBefore = new Date(Date.now() - 15 * 60 * 1000).toISOString();
+    const { data: analysisClaim, error: analysisClaimError } = await admin
+      .from("tenders")
+      .update({ analysis_status: "processing", analysis_error: null })
+      .eq("id", tender.id)
+      .or(`analysis_status.neq.processing,analysis_status.is.null,updated_at.lt.${staleBefore}`)
+      .select("id")
+      .maybeSingle();
+
+    if (analysisClaimError) {
+      console.error("analysis claim failed", analysisClaimError);
+      return json({ error: "Could not start tender analysis safely." }, 500);
+    }
+    if (!analysisClaim) {
+      console.warn("duplicate analysis invocation rejected", { tender_id: tender.id });
+      return json({ error: "Tender analysis is already in progress. Please wait for it to finish." }, 409);
+    }
+
     if (!aiKey) return await fail("AI provider is not configured.", 500);
 
     const { data: file } = await admin
