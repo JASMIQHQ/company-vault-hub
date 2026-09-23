@@ -76,10 +76,12 @@ function TenderWorkspacePage() {
     if (companyId === tender.company_id || updateCompany.isPending || matchEvidence.isPending) return;
     setCompanyChangePending(true);
     try {
-      await updateCompany.mutateAsync({ tenderId: tender.id, organizationId: tender.organization_id, companyId });
-      await matchEvidence.mutateAsync(tender.id);
+      const updatedTender = await updateCompany.mutateAsync({ tenderId: tender.id, organizationId: tender.organization_id, companyId });
+      if (updatedTender.company_id !== companyId) throw new Error("The selected Tender company did not persist.");
+      const matchResult = await matchEvidence.mutateAsync(tender.id) as { summary?: { total?: number; satisfied?: number; needs_review?: number; missing?: number; expired?: number; compliance_percentage?: number } };
       await Promise.all([tenderQuery.refetch(), requirementsQuery.refetch(), documentsQuery.refetch()]);
-      toast.success("Tender company updated and Vault evidence rematched");
+      const summary = matchResult?.summary;
+      toast.success(summary ? `Tender rematched: ${summary.satisfied ?? 0} satisfied, ${summary.needs_review ?? 0} review, ${summary.missing ?? 0} missing.` : "Tender company updated and Vault evidence rematched");
     } catch (error) {
       toast.error(error instanceof Error ? error.message : "Could not update tender company context");
       await tenderQuery.refetch();
@@ -104,7 +106,7 @@ function TenderWorkspacePage() {
     <section className="glass-panel mt-5 rounded-2xl p-4 sm:p-5">
       <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
         <div className="min-w-0"><p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">Tender company</p><p className="mt-1 text-sm text-muted-foreground">This is the legal company whose Vault documents the deterministic matcher uses for this tender. It is separate from your workspace.</p></div>
-        {companiesQuery.data?.length ? <div className="w-full sm:max-w-sm"><CompanyPicker id="workspace-tender-company" label="Preparing company" organizationId={tender.organization_id} companies={companiesQuery.data} value={tender.company_id} onChange={changeCompany} /></div> : null}
+        {companiesQuery.data?.length ? <div className="w-full sm:max-w-sm"><CompanyPicker id="workspace-tender-company" label="Tender company" organizationId={tender.organization_id} companies={companiesQuery.data} value={tender.company_id} onChange={changeCompany} /></div> : null}
       </div>
       {companyChangePending ? <p className="mt-3 text-xs text-muted-foreground">Updating company context and rematching against its active Vault documents…</p> : null}
     </section>
