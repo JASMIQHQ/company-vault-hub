@@ -1,3 +1,4 @@
+import type { ReactNode } from "react";
 import { Link } from "@tanstack/react-router";
 import { AlertTriangle, CalendarClock, CheckCircle2, ShieldCheck } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -11,7 +12,7 @@ import { formatDate } from "@/lib/vault";
 const URGENCY_DOT: Record<Urgency, string> = { high: "bg-destructive", medium: "bg-warning", low: "bg-info" };
 const URGENCY_LABEL: Record<Urgency, string> = { high: "High priority", medium: "Attention", low: "Planned" };
 
-function Metric({ label, value, hint, tone }: { label: string; value: React.ReactNode; hint?: string; tone?: "warning" | "danger" }) {
+function Metric({ label, value, hint, tone }: { label: string; value: ReactNode; hint?: string; tone?: "warning" | "danger" }) {
   return <div className="rounded-xl border border-border/60 bg-background/40 p-4"><p className="text-xs uppercase tracking-wide text-muted-foreground">{label}</p><p className={cn("mt-1 text-xl font-semibold tracking-tight", tone === "danger" && "text-destructive", tone === "warning" && "text-warning")}>{value}</p>{hint ? <p className="mt-0.5 text-xs text-muted-foreground">{hint}</p> : null}</div>;
 }
 
