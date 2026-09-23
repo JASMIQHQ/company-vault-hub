@@ -39,24 +39,23 @@ function TendersPage() {
         Upload tender and RFP documents and keep them securely stored.
       </p>
 
-      <div className="mt-6 flex flex-wrap items-end justify-between gap-3">
+      <div className="mt-6 rounded-2xl border border-border/60 bg-muted/10 p-4"><div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_auto] lg:items-end">
         {org.multiCompany ? (
           <CompanySelect
-            id="tender-company"
-            label="Which company is preparing this tender?"
+            id="tender-workspace"
+            label="Workspace"
             organizations={org.organizations}
             value={activeOrg}
             onChange={org.setActiveOrgId}
           />
         ) : (
-          <span />
-        )}
+          </div>
         {activeOrg ? (
           <div className="flex flex-wrap items-end gap-3">
             <div className="w-full max-w-xs">
               <CompanyPicker
                 id="tender-company-select"
-                label="Company"
+                label="Preparing company"
                 organizationId={activeOrg}
                 companies={companies}
                 value={tenderCompanyId}
@@ -68,14 +67,15 @@ function TendersPage() {
             ) : null}
           </div>
         ) : null}
+        </div>
       </div>
 
       <section className="glass-panel mt-6 overflow-hidden">
         {orgMissing ? (
           <div className="p-12 text-center">
-            <p className="text-sm font-medium">No organization found for your account</p>
+            <p className="text-sm font-medium">No workspace found for your account</p>
             <p className="mt-1 text-sm text-muted-foreground">
-              Ask an administrator to add you to an organization before uploading tenders.
+              Ask an administrator to add you to a workspace before uploading tenders.
             </p>
           </div>
         ) : (
