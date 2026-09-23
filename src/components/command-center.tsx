@@ -1,10 +1,8 @@
-import type { ReactNode } from "react";
 import { Link } from "@tanstack/react-router";
 import { AlertTriangle, CalendarClock, CheckCircle2, ShieldCheck } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { cn } from "@/lib/utils";
-import { AnimatedMetricPair, AnimatedMetricValue } from "@/components/animated-metric";
 import { buildDeadlines, buildMissions, buildReadiness, formatRemaining, type Mission, type RequirementStatusCount, type Urgency, type DashboardDocument } from "@/lib/command-center";
 import type { TenderListItem } from "@/lib/tenders";
 import { formatDate } from "@/lib/vault";
@@ -12,7 +10,7 @@ import { formatDate } from "@/lib/vault";
 const URGENCY_DOT: Record<Urgency, string> = { high: "bg-destructive", medium: "bg-warning", low: "bg-info" };
 const URGENCY_LABEL: Record<Urgency, string> = { high: "High priority", medium: "Attention", low: "Planned" };
 
-function Metric({ label, value, hint, tone }: { label: string; value: ReactNode; hint?: string; tone?: "warning" | "danger" }) {
+function Metric({ label, value, hint, tone }: { label: string; value: string; hint?: string; tone?: "warning" | "danger" }) {
   return <div className="rounded-xl border border-border/60 bg-background/40 p-4"><p className="text-xs uppercase tracking-wide text-muted-foreground">{label}</p><p className={cn("mt-1 text-xl font-semibold tracking-tight", tone === "danger" && "text-destructive", tone === "warning" && "text-warning")}>{value}</p>{hint ? <p className="mt-0.5 text-xs text-muted-foreground">{hint}</p> : null}</div>;
 }
 
@@ -42,10 +40,10 @@ export function CommandCenter({ companyName, documents, tenders, requirements, i
   return <section className="glass-panel mb-6 p-5 sm:p-6">
     <div className="flex flex-wrap items-center justify-between gap-2"><div><h2 className="text-sm font-semibold tracking-tight">Command Center</h2><p className="text-xs uppercase tracking-wide text-muted-foreground">{companyName ?? "Current company"}</p></div><span className="inline-flex items-center gap-1.5 text-xs text-muted-foreground"><ShieldCheck className="size-3.5" /> AI assists. You verify.</span></div>
     <div className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-      <Metric label="Active documents" value={<AnimatedMetricValue value={readiness.activeDocuments} />} hint={`${documents.length} total in vault`} />
-      <Metric label="Expiring / expired" value={<AnimatedMetricPair first={readiness.expiringDocuments} second={readiness.expiredDocuments} />} hint="Next 30 days" tone={readiness.expiredDocuments > 0 ? "danger" : readiness.expiringDocuments > 0 ? "warning" : undefined} />
-      <Metric label="Active tenders" value={<AnimatedMetricValue value={readiness.activeTenders} />} />
-      <Metric label="Tender readiness" value={readiness.tenderReadiness === null ? "Analysis pending" : <AnimatedMetricValue value={readiness.tenderReadiness} suffix="%" />} hint={readiness.tenderReadiness === null ? "JASMIQ Intelligence Engine not connected" : readiness.requirementsTotal > 0 ? `${readiness.requirementsVerified} of ${readiness.requirementsTotal} requirements matched` : "Requirements not yet analyzed"} />
+      <Metric label="Active documents" value={String(readiness.activeDocuments)} hint={`${documents.length} total in vault`} />
+      <Metric label="Expiring / expired" value={`${readiness.expiringDocuments} / ${readiness.expiredDocuments}`} hint="Next 30 days" tone={readiness.expiredDocuments > 0 ? "danger" : readiness.expiringDocuments > 0 ? "warning" : undefined} />
+      <Metric label="Active tenders" value={String(readiness.activeTenders)} />
+      <Metric label="Tender readiness" value={readiness.tenderReadiness === null ? "Readiness analysis pending connection of JASMIQ Intelligence Engine." : `${readiness.tenderReadiness}%`} hint={readiness.requirementsTotal > 0 ? `${readiness.requirementsVerified} of ${readiness.requirementsTotal} requirements matched` : "Requirements not yet analyzed"} />
     </div>
     <div className="mt-5 grid gap-5 lg:grid-cols-5">
       <div className="lg:col-span-3"><p className="text-sm font-semibold tracking-tight">Today's Mission</p>{missions.length === 0 ? <div className="mt-2 flex items-start gap-2.5 rounded-xl border border-border/60 bg-background/40 p-4"><CheckCircle2 className="mt-0.5 size-4 text-success" /><div><p className="text-sm font-medium">You're all caught up.</p><p className="text-sm text-muted-foreground">No urgent procurement actions require your attention.</p></div></div> : <ul className="mt-1">{missions.map((mission) => <MissionRow key={mission.id} mission={mission} />)}</ul>}</div>
