@@ -66,15 +66,18 @@ export interface ReadinessSummary {
 export function buildReadiness(documents: DashboardDocument[], tenders: TenderListItem[], requirements: RequirementStatusCount[]): ReadinessSummary {
   const expired = documents.filter((doc) => expiryState(doc) === "expired").length;
   const expiring = documents.filter((doc) => expiryState(doc) === "expiring").length;
-  const scored = tenders.filter((tender) => tender.analysis_status === "analyzed").map((tender) => tender.compliance_percentage).filter((value): value is number => typeof value === "number");
+  const activeTenders = tenders.filter((tender) => tender.analysis_status !== "failed");
+  const activeTenderIds = new Set(activeTenders.map((tender) => tender.id));
+  const activeRequirements = requirements.filter((row) => activeTenderIds.has(row.tender_id));
+  const scored = activeTenders.filter((tender) => tender.analysis_status === "analyzed").map((tender) => tender.compliance_percentage).filter((value): value is number => typeof value === "number");
   return {
     activeDocuments: documents.length - expired,
     expiringDocuments: expiring,
     expiredDocuments: expired,
     activeTenders: tenders.filter((tender) => tender.analysis_status !== "failed").length,
     tenderReadiness: scored.length ? Math.round(scored.reduce((sum, value) => sum + value, 0) / scored.length) : null,
-    requirementsVerified: requirements.filter((row) => row.status === "matched").length,
-    requirementsTotal: requirements.length,
+    requirementsVerified: activeRequirements.filter((row) => row.status === "matched").length,
+    requirementsTotal: activeRequirements.length,
   };
 }
 
@@ -94,9 +97,13 @@ export function buildMissions(documents: DashboardDocument[], tenders: TenderLis
     const label = tender.procuring_entity ?? tender.title;
     if (status === "failed") {
       missions.push({ id: `tender-failed-${tender.id}`, urgency: "high", title: "Retry tender analysis", detail: `${label} — analysis did not complete.`, deadline: tender.submission_deadline, action: { label: "Open Tender Command", to: "/tenders" } });
-    } else if (status !== "analyzed" && status !== "processing") {
+      continue;
+    }
+    if (status !== "analyzed" && status !== "processing") {
       missions.push({ id: `tender-analyze-${tender.id}`, urgency: "medium", title: "Analyze tender", detail: `${label} — requirements have not been extracted yet.`, deadline: tender.submission_deadline, action: { label: "Open Tender Command", to: "/tenders" } });
     }
+
+    if (status === "failed") continue;
 
     const rows = requirements.filter((row) => row.tender_id === tender.id);
     const missing = rows.filter((row) => row.status === "missing").length;
@@ -136,7 +143,7 @@ export interface DeadlineItem {
 }
 
 export function buildDeadlines(tenders: TenderListItem[]): DeadlineItem[] {
-  return tenders.filter((tender) => Boolean(tender.submission_deadline)).map((tender) => {
+  return tenders.filter((tender) => tender.analysis_status !== "failed" && Boolean(tender.submission_deadline)).map((tender) => {
     const days = daysUntil(tender.submission_deadline) ?? 0;
     return {
       id: tender.id,
