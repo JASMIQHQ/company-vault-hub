@@ -1,19 +1,7 @@
 import { useEffect, useState } from "react";
-import { ArrowUpRight, BrainCircuit, X } from "lucide-react";
+import { BrainCircuit, X } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
-
-const TIPS = [
-  "Keep certificates renewed ahead of deadlines — expired documents disqualify strong bids.",
-  "Name uploads clearly; reviewers should recognise a document without opening it.",
-  "Re-check the submission deadline against the procuring entity's addenda before you file.",
-];
-
-const NOTES = [
-  "Small, consistent preparation wins tenders.",
-  "Every organised document is one less risk on submission day.",
-  "Precision today is the shortest path to an award tomorrow.",
-];
 
 function greetingFor(hour: number) {
   if (hour < 12) return "Good morning";
@@ -38,10 +26,6 @@ export function GreetingCard({ firstName, companyName }: GreetingCardProps) {
   }, []);
 
   if (!visible) return null;
-
-  const dayIndex = new Date().getDate();
-  const tip = TIPS[dayIndex % TIPS.length];
-  const note = NOTES[dayIndex % NOTES.length];
 
   const dismiss = () => {
     window.localStorage.setItem(todayKey(), "1");
@@ -94,13 +78,6 @@ export function GreetingCard({ firstName, companyName }: GreetingCardProps) {
             </div>
           ) : null}
 
-          <div className="mt-6 flex items-start gap-3 border-l-2 border-primary/40 pl-4">
-            <ArrowUpRight className="mt-0.5 size-4 shrink-0 text-primary" />
-            <div>
-              <p className="text-sm font-medium">{tip}</p>
-              <p className="mt-1 text-xs text-muted-foreground">{note}</p>
-            </div>
-          </div>
         </div>
 
         <div className="jasmiq-intelligence-core hidden size-44 lg:block" aria-label="JASMIQ intelligence visualization">
