@@ -31,7 +31,7 @@ export function GreetingCard({ firstName, companyName, organizationsCount = 1, o
           </div>
 
           <p className="jasmiq-reveal mt-5 text-sm font-medium text-muted-foreground [animation-delay:90ms]">
-            {greetingFor(new Date().getHours())}{firstName ? \`, \${firstName}\` : ""}
+            {greetingFor(new Date().getHours())}{firstName ? `, ${firstName}` : ""}
           </p>
 
           <h1 className="jasmiq-reveal mt-1 max-w-3xl text-[2.35rem] font-semibold leading-[1.02] tracking-[-0.055em] sm:text-5xl lg:text-[4rem] [animation-delay:140ms]">
