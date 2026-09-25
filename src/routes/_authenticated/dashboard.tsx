@@ -68,7 +68,6 @@ function DashboardPage() {
         </div>
       ) : (
         <CommandCenter
-          companyName={org.activeOrgName}
           documents={documents}
           tenders={tendersQuery.data ?? []}
           requirements={requirementsQuery.data ?? []}
