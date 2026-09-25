@@ -183,3 +183,214 @@
     background: radial-gradient(520px 300px at 48% 18%, oklch(0.58 0.11 250 / 0.06), transparent 72%);
   }
 }
+
+
+@keyframes jasmiq-float {
+  0%, 100% { transform: translate3d(0, 0, 0) rotate(0deg); }
+  50% { transform: translate3d(0, -8px, 0) rotate(1deg); }
+}
+
+@keyframes jasmiq-orbit {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
+@keyframes jasmiq-orbit-reverse {
+  from { transform: rotate(360deg); }
+  to { transform: rotate(0deg); }
+}
+
+@keyframes jasmiq-scan {
+  0%, 100% { transform: translateY(-110%); opacity: 0; }
+  15%, 80% { opacity: .8; }
+  92% { transform: translateY(110%); opacity: 0; }
+}
+
+@keyframes jasmiq-pulse {
+  0%, 100% { transform: scale(.85); opacity: .15; }
+  50% { transform: scale(1.15); opacity: .42; }
+}
+
+@keyframes jasmiq-reveal {
+  from { opacity: 0; transform: translateY(12px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes jasmiq-shimmer {
+  from { transform: translateX(-120%); }
+  to { transform: translateX(120%); }
+}
+
+.jasmiq-hero {
+  min-height: 330px;
+  background:
+    radial-gradient(circle at 76% 42%, color-mix(in oklab, var(--primary) 18%, transparent), transparent 27%),
+    radial-gradient(circle at 92% 100%, color-mix(in oklab, var(--info) 12%, transparent), transparent 35%),
+    var(--glass);
+}
+
+.jasmiq-hero-grid {
+  position: absolute;
+  inset: 0;
+  opacity: .42;
+  background-image: linear-gradient(color-mix(in oklab, var(--primary) 12%, transparent) 1px, transparent 1px), linear-gradient(90deg, color-mix(in oklab, var(--primary) 12%, transparent) 1px, transparent 1px);
+  background-size: 28px 28px;
+  mask-image: linear-gradient(to right, transparent, black 25%, black 78%, transparent);
+}
+
+.jasmiq-hero-scan {
+  position: absolute;
+  inset: 0 12% 0 auto;
+  width: 1px;
+  background: linear-gradient(to bottom, transparent, color-mix(in oklab, var(--primary) 70%, transparent), transparent);
+  box-shadow: 0 0 24px color-mix(in oklab, var(--primary) 55%, transparent);
+  animation: jasmiq-scan 5.5s ease-in-out infinite;
+}
+
+.jasmiq-hero-pulse {
+  position: absolute;
+  right: 10%;
+  top: 28%;
+  width: 160px;
+  height: 160px;
+  border: 1px solid color-mix(in oklab, var(--primary) 30%, transparent);
+  border-radius: 999px;
+  box-shadow: 0 0 70px color-mix(in oklab, var(--primary) 15%, transparent);
+  animation: jasmiq-pulse 4.5s ease-in-out infinite;
+}
+
+.jasmiq-hero-orbit {
+  position: absolute;
+  right: 4%;
+  top: 5%;
+  width: 300px;
+  height: 300px;
+  border: 1px solid color-mix(in oklab, var(--primary) 15%, transparent);
+  border-radius: 50%;
+  animation: jasmiq-orbit 18s linear infinite;
+}
+.jasmiq-hero-orbit::after {
+  content: "";
+  position: absolute;
+  left: 12%;
+  top: -3px;
+  width: 7px;
+  height: 7px;
+  border-radius: 999px;
+  background: var(--primary);
+  box-shadow: 0 0 18px color-mix(in oklab, var(--primary) 80%, transparent);
+}
+.jasmiq-hero-orbit-two {
+  width: 220px;
+  height: 220px;
+  right: 9%;
+  top: 18%;
+  animation-duration: 12s;
+  animation-direction: reverse;
+  border-color: color-mix(in oklab, var(--info) 18%, transparent);
+}
+
+.jasmiq-gradient-text {
+  display: inline-block;
+  background: linear-gradient(110deg, var(--primary), color-mix(in oklab, var(--info) 80%, var(--primary)), var(--primary));
+  background-size: 200% auto;
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  animation: jasmiq-shimmer 5s linear infinite;
+}
+
+.jasmiq-intelligence-core {
+  position: relative;
+  animation: jasmiq-float 5s ease-in-out infinite;
+}
+.jasmiq-core-ring {
+  position: absolute;
+  inset: 10%;
+  border: 1px solid color-mix(in oklab, var(--primary) 30%, transparent);
+  border-radius: 50%;
+}
+.jasmiq-core-ring-a { animation: jasmiq-orbit 12s linear infinite; }
+.jasmiq-core-ring-b { inset: 18%; border-style: dashed; animation: jasmiq-orbit-reverse 8s linear infinite; }
+.jasmiq-core-ring-c { inset: 28%; border-color: color-mix(in oklab, var(--info) 40%, transparent); animation: jasmiq-pulse 3s ease-in-out infinite; }
+.jasmiq-core-center {
+  position: absolute;
+  inset: 36%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 2px;
+  border: 1px solid color-mix(in oklab, var(--primary) 35%, transparent);
+  border-radius: 50%;
+  background: color-mix(in oklab, var(--background) 55%, transparent);
+  box-shadow: 0 0 35px color-mix(in oklab, var(--primary) 22%, transparent), inset 0 0 20px color-mix(in oklab, var(--primary) 10%, transparent);
+  backdrop-filter: blur(12px);
+}
+.jasmiq-core-center span { font-size: 8px; font-weight: 700; letter-spacing: .2em; color: var(--primary); }
+.jasmiq-core-node {
+  position: absolute;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--primary);
+  box-shadow: 0 0 12px color-mix(in oklab, var(--primary) 70%, transparent);
+}
+.jasmiq-core-node-a { left: 7%; top: 44%; }
+.jasmiq-core-node-b { right: 7%; top: 27%; }
+.jasmiq-core-node-c { right: 17%; bottom: 9%; background: var(--info); }
+
+.jasmiq-command {
+  background:
+    radial-gradient(circle at 0% 0%, color-mix(in oklab, var(--primary) 8%, transparent), transparent 35%),
+    var(--glass);
+}
+.jasmiq-command-line {
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 0;
+  height: 1px;
+  overflow: hidden;
+  background: color-mix(in oklab, var(--primary) 10%, transparent);
+}
+.jasmiq-command-line::after {
+  content: "";
+  display: block;
+  width: 28%;
+  height: 100%;
+  background: linear-gradient(90deg, transparent, color-mix(in oklab, var(--primary) 80%, transparent), transparent);
+  box-shadow: 0 0 18px color-mix(in oklab, var(--primary) 50%, transparent);
+  animation: jasmiq-shimmer 4.5s ease-in-out infinite;
+}
+
+.jasmiq-metric {
+  animation: jasmiq-reveal .55s cubic-bezier(.2,.8,.2,1) both;
+}
+.jasmiq-metric-glow {
+  position: absolute;
+  inset: -50%;
+  background: radial-gradient(circle, color-mix(in oklab, var(--primary) 10%, transparent), transparent 45%);
+  opacity: 0;
+  transition: opacity .35s ease;
+}
+.jasmiq-metric:hover .jasmiq-metric-glow { opacity: 1; }
+
+.jasmiq-mission {
+  animation: jasmiq-reveal .5s cubic-bezier(.2,.8,.2,1) both;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .jasmiq-hero-orbit,
+  .jasmiq-hero-orbit-two,
+  .jasmiq-hero-pulse,
+  .jasmiq-hero-scan,
+  .jasmiq-gradient-text,
+  .jasmiq-intelligence-core,
+  .jasmiq-core-ring,
+  .jasmiq-command-line::after,
+  .jasmiq-metric,
+  .jasmiq-mission {
+    animation: none !important;
+  }
+}

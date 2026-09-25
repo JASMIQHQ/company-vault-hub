@@ -1,6 +1,6 @@
 import { Link, createFileRoute } from "@tanstack/react-router";
 import { ArrowLeft, Download, Eye, FileText, Loader2, RefreshCw, Search, ShieldCheck, TriangleAlert } from "lucide-react";
-import { useMemo, useRef, useState } from "react";
+import { useMemo, useState } from "react";
 import { toast } from "sonner";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -49,8 +49,6 @@ function TenderWorkspacePage() {
   const [selectedLotId, setSelectedLotId] = useState<string | null>(null);
   const [busyFile, setBusyFile] = useState<"preview" | "download" | null>(null);
   const [analysisSubmitting, setAnalysisSubmitting] = useState(false);
-  const renderCountRef = useRef(0);
-  const renderCount = ++renderCountRef.current;
   const [companyChangePending, setCompanyChangePending] = useState(false);
 
   const requirements = requirementsQuery.data ?? [];
@@ -63,17 +61,6 @@ function TenderWorkspacePage() {
     readActionLabel = "Re-read tender";
   }
   const displayRequirements = isProcessing ? [] : requirements;
-  const requirementsLifecycle = {
-    status: requirementsQuery.status,
-    isPending: requirementsQuery.isPending,
-    isFetching: requirementsQuery.isFetching,
-    dataLength: requirementsQuery.data?.length ?? 0,
-    hasSavedRequirements: requirements.length > 0,
-    tenderStatus: status,
-    queryKey: requirementsQuery.queryKey,
-    renderCount,
-  };
-  console.log("[G37 requirements lifecycle]", requirementsLifecycle);
   const filtered = useMemo(() => { const term = search.trim().toLowerCase(); if (!term) return requirements; return requirements.filter((item) => `${item.requirement_name ?? ""} ${item.requirement_text} ${item.category}`.toLowerCase().includes(term)); }, [requirements, search]);
 
   if (sessionLoading || org.bootstrapping || tenderQuery.isPending) return <div className="mx-auto max-w-6xl space-y-5 px-4 py-8 sm:px-6 sm:py-12"><Skeleton className="h-8 w-2/3 rounded-xl" /><Skeleton className="h-28 w-full rounded-2xl" /><Skeleton className="h-72 w-full rounded-2xl" /></div>;
@@ -89,10 +76,12 @@ function TenderWorkspacePage() {
     if (companyId === tender.company_id || updateCompany.isPending || matchEvidence.isPending) return;
     setCompanyChangePending(true);
     try {
-      await updateCompany.mutateAsync({ tenderId: tender.id, organizationId: tender.organization_id, companyId });
-      await matchEvidence.mutateAsync(tender.id);
+      const updatedTender = await updateCompany.mutateAsync({ tenderId: tender.id, organizationId: tender.organization_id, companyId });
+      if (updatedTender.company_id !== companyId) throw new Error("The selected Tender company did not persist.");
+      const matchResult = await matchEvidence.mutateAsync(tender.id) as { summary?: { total?: number; satisfied?: number; needs_review?: number; missing?: number; expired?: number; compliance_percentage?: number } };
       await Promise.all([tenderQuery.refetch(), requirementsQuery.refetch(), documentsQuery.refetch()]);
-      toast.success("Tender company updated and Vault evidence rematched");
+      const summary = matchResult?.summary;
+      toast.success(summary ? `Tender rematched: ${summary.satisfied ?? 0} satisfied, ${summary.needs_review ?? 0} review, ${summary.missing ?? 0} missing.` : "Tender company updated and Vault evidence rematched");
     } catch (error) {
       toast.error(error instanceof Error ? error.message : "Could not update tender company context");
       await tenderQuery.refetch();
@@ -105,8 +94,7 @@ function TenderWorkspacePage() {
   return <div className="mx-auto max-w-6xl px-4 py-8 sm:px-6 sm:py-12">
     <div className="mb-5"><Link to="/tenders" className="inline-flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground"><ArrowLeft className="size-4" />Back to Tender Command</Link></div>
     <header className="glass-panel overflow-hidden rounded-2xl p-5 sm:p-7">
-      <div className="flex flex-col gap-5 lg:flex-row lg:items-start lg:justify-between"><div className="min-w-0"><div className="flex flex-wrap items-center gap-2"><Badge variant="outline" className="rounded-full">Tender workspace</Badge><StatusBadge status={status} /></div><h1 className="mt-3 break-words text-2xl font-semibold tracking-tight sm:text-3xl">{tender.title}</h1><div className="mt-3 grid gap-3 text-sm text-muted-foreground sm:grid-cols-3"><Snapshot label="Procuring entity" value={tender.procuring_entity} /><Snapshot label="Submission deadline" value={tender.submission_deadline ? formatDate(tender.submission_deadline) : null} /><Snapshot label="Uploaded" value={formatDate(tender.created_at)} /></div></div><div className="flex shrink-0 flex-wrap gap-2"><Button variant="outline" className="rounded-xl" onClick={() => openTenderFile("preview")} disabled={!tender.storage_path || busyFile !== null}>{busyFile === "preview" ? <Loader2 className="size-4 animate-spin" /> : <Eye className="size-4" />}<span className="ml-2">Preview</span></Button><Button variant="outline" className="rounded-xl" onClick={() => openTenderFile("download")} disabled={!tender.storage_path || busyFile !== null}>{busyFile === "download" ? <Loader2 className="size-4 animate-spin" /> : <Download className="size-4" />}<span className="ml-2">Download</span></Button>{console.log("[G37 button render]", requirementsLifecycle, { readActionLabel, isProcessing })}
-          <Button className="rounded-xl" onClick={analyzeNow} disabled={isProcessing || companyChangePending}>{isProcessing ? <Loader2 className="size-4 animate-spin" /> : <RefreshCw className="size-4" />}<span className="ml-2">{readActionLabel}</span></Button></div></div>
+      <div className="flex flex-col gap-5 lg:flex-row lg:items-start lg:justify-between"><div className="min-w-0"><div className="flex flex-wrap items-center gap-2"><Badge variant="outline" className="rounded-full">Tender workspace</Badge><StatusBadge status={status} /></div><h1 className="mt-3 break-words text-2xl font-semibold tracking-tight sm:text-3xl">{tender.title}</h1><div className="mt-3 grid gap-3 text-sm text-muted-foreground sm:grid-cols-3"><Snapshot label="Procuring entity" value={tender.procuring_entity} /><Snapshot label="Submission deadline" value={tender.submission_deadline ? formatDate(tender.submission_deadline) : null} /><Snapshot label="Uploaded" value={formatDate(tender.created_at)} /></div></div><div className="flex shrink-0 flex-wrap gap-2"><Button variant="outline" className="rounded-xl" onClick={() => openTenderFile("preview")} disabled={!tender.storage_path || busyFile !== null}>{busyFile === "preview" ? <Loader2 className="size-4 animate-spin" /> : <Eye className="size-4" />}<span className="ml-2">Preview</span></Button><Button variant="outline" className="rounded-xl" onClick={() => openTenderFile("download")} disabled={!tender.storage_path || busyFile !== null}>{busyFile === "download" ? <Loader2 className="size-4 animate-spin" /> : <Download className="size-4" />}<span className="ml-2">Download</span></Button><Button className="rounded-xl" onClick={analyzeNow} disabled={isProcessing || companyChangePending}>{isProcessing ? <Loader2 className="size-4 animate-spin" /> : <RefreshCw className="size-4" />}<span className="ml-2">{readActionLabel}</span></Button></div></div>
       <div className="mt-5 grid gap-2 sm:grid-cols-3"><StateSignal label="Analysis" value={status === "requires_review" ? "Review Required" : status} className={signalClass("state", status)} /><StateSignal label="Matching" value={matchingStatus ?? "Not Started"} className={signalClass("state", matchingStatus ?? "")} /><StateSignal label="Stored readiness" value={readinessLabel(baseReadiness)} className={signalClass("readiness", baseReadiness)} /></div>
       <div className="mt-4 rounded-xl border border-border/60 bg-muted/20 p-3 text-sm text-muted-foreground">Company Readiness is universal. Tender Readiness is scoped to this tender/lot and is recalculated below from evidence validity.</div>
       {matchingStatus === "MATCHING_REVIEW" ? <div className="mt-3 rounded-xl border border-warning/25 bg-warning-soft/30 p-3 text-sm text-warning">Matching complete — some requirements need review.</div> : null}
@@ -117,8 +105,8 @@ function TenderWorkspacePage() {
 
     <section className="glass-panel mt-5 rounded-2xl p-4 sm:p-5">
       <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
-        <div className="min-w-0"><p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">Tender company context</p><p className="mt-1 text-sm text-muted-foreground">This company controls which Company Vault documents the deterministic matcher can use for this tender.</p></div>
-        {companiesQuery.data?.length ? <div className="w-full sm:max-w-sm"><CompanyPicker id="workspace-tender-company" label="Preparing company" organizationId={tender.organization_id} companies={companiesQuery.data} value={tender.company_id} onChange={changeCompany} /></div> : null}
+        <div className="min-w-0"><p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">Tender company</p><p className="mt-1 text-sm text-muted-foreground">This is the legal company whose Vault documents the deterministic matcher uses for this tender. It is separate from your workspace.</p></div>
+        {companiesQuery.data?.length ? <div className="w-full sm:max-w-sm"><CompanyPicker id="workspace-tender-company" label="Tender company" organizationId={tender.organization_id} companies={companiesQuery.data} value={tender.company_id} onChange={changeCompany} /></div> : null}
       </div>
       {companyChangePending ? <p className="mt-3 text-xs text-muted-foreground">Updating company context and rematching against its active Vault documents…</p> : null}
     </section>
