@@ -85,7 +85,7 @@ export function CommandCenter({ companyName, documents, tenders, requirements, i
           <Metric index={0} label="Active documents" value={String(readiness.activeDocuments)} hint={`${documents.length} total in vault`} />
           <Metric index={1} label="Expiring / expired" value={`${readiness.expiringDocuments} / ${readiness.expiredDocuments}`} hint="Next 30 days" tone={readiness.expiredDocuments > 0 ? "danger" : readiness.expiringDocuments > 0 ? "warning" : undefined} />
           <Metric index={2} label="Active tenders" value={String(readiness.activeTenders)} />
-          <Metric index={3} label="Tender readiness" value={readiness.tenderReadiness === null ? "—" : `${readiness.tenderReadiness}%`} hint={readiness.tenderReadiness === null ? "Readiness analysis pending" : readiness.requirementsTotal > 0 ? `${readiness.requirementsVerified} of ${readiness.requirementsTotal} requirements matched` : "Requirements not yet analyzed"} />
+          <Metric index={3} label="Active tender readiness" value={readiness.tenderReadiness === null ? "—" : `${readiness.tenderReadiness}%`} hint={readiness.tenderReadiness === null ? "Readiness analysis pending" : readiness.requirementsTotal > 0 ? `${readiness.requirementsVerified} of ${readiness.requirementsTotal} requirements matched across ${readiness.activeTenders} active tender${readiness.activeTenders === 1 ? "" : "s"}` : "Requirements not yet analyzed"} />
         </div>
 
         <div className="mt-6 grid gap-5 lg:grid-cols-5">
