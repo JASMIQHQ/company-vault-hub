@@ -32,19 +32,32 @@ function DashboardPage() {
   const bootstrapping = org.bootstrapping;
   const orgMissing = !bootstrapping && !org.error && Boolean(session) && !org.activeOrgId;
 
+  const focusWorkspace = () => {
+    document.getElementById("workspace-selector")?.scrollIntoView({ behavior: "smooth", block: "center" });
+  };
+
   return (
-    <div className="mx-auto max-w-6xl px-4 py-8 sm:px-6 sm:py-12">
-      <GreetingCard firstName={org.firstName} companyName={org.activeOrgName} />
+    <div className="mx-auto max-w-7xl px-4 py-5 sm:px-6 sm:py-8 lg:px-8">
+      <GreetingCard
+        firstName={org.firstName}
+        companyName={org.activeOrgName}
+        organizationsCount={org.organizations.length}
+        onCompanyChange={focusWorkspace}
+      />
 
       {org.multiCompany ? (
-        <div className="mb-6">
+        <div id="workspace-selector" className="jasmiq-workspace-bar mb-7">
           <CompanySelect
             id="dashboard-company"
-            label="Which company are you working in?"
+            label="Active workspace"
             organizations={org.organizations}
             value={org.activeOrgId}
             onChange={org.setActiveOrgId}
           />
+          <div className="hidden sm:block">
+            <p className="text-xs font-semibold text-foreground">Everything below is scoped to this company</p>
+            <p className="mt-1 text-xs text-muted-foreground">Vault evidence, tender analysis and readiness stay isolated by workspace.</p>
+          </div>
         </div>
       ) : null}
 
