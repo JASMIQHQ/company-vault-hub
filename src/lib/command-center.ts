@@ -66,15 +66,18 @@ export interface ReadinessSummary {
 export function buildReadiness(documents: DashboardDocument[], tenders: TenderListItem[], requirements: RequirementStatusCount[]): ReadinessSummary {
   const expired = documents.filter((doc) => expiryState(doc) === "expired").length;
   const expiring = documents.filter((doc) => expiryState(doc) === "expiring").length;
-  const scored = tenders.filter((tender) => tender.analysis_status === "analyzed").map((tender) => tender.compliance_percentage).filter((value): value is number => typeof value === "number");
+  const activeTenders = tenders.filter((tender) => tender.analysis_status !== "failed");
+  const activeTenderIds = new Set(activeTenders.map((tender) => tender.id));
+  const activeRequirements = requirements.filter((row) => activeTenderIds.has(row.tender_id));
+  const scored = activeTenders.filter((tender) => tender.analysis_status === "analyzed").map((tender) => tender.compliance_percentage).filter((value): value is number => typeof value === "number");
   return {
     activeDocuments: documents.length - expired,
     expiringDocuments: expiring,
     expiredDocuments: expired,
-    activeTenders: tenders.filter((tender) => tender.analysis_status !== "failed").length,
+    activeTenders: activeTenders.length,
     tenderReadiness: scored.length ? Math.round(scored.reduce((sum, value) => sum + value, 0) / scored.length) : null,
-    requirementsVerified: requirements.filter((row) => row.status === "matched").length,
-    requirementsTotal: requirements.length,
+    requirementsVerified: activeRequirements.filter((row) => row.status === "matched").length,
+    requirementsTotal: activeRequirements.length,
   };
 }
 
