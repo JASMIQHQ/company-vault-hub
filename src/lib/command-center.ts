@@ -63,10 +63,14 @@ export interface ReadinessSummary {
   requirementsTotal: number;
 }
 
+function getActiveTenders(tenders: TenderListItem[]): TenderListItem[] {
+  return tenders.filter((tender) => tender.analysis_status !== "failed");
+}
+
 export function buildReadiness(documents: DashboardDocument[], tenders: TenderListItem[], requirements: RequirementStatusCount[]): ReadinessSummary {
   const expired = documents.filter((doc) => expiryState(doc) === "expired").length;
   const expiring = documents.filter((doc) => expiryState(doc) === "expiring").length;
-  const activeTenders = tenders.filter((tender) => tender.analysis_status !== "failed");
+  const activeTenders = getActiveTenders(tenders);
   const activeTenderIds = new Set(activeTenders.map((tender) => tender.id));
   const activeRequirements = requirements.filter((row) => activeTenderIds.has(row.tender_id));
   const scored = activeTenders.filter((tender) => tender.analysis_status === "analyzed").map((tender) => tender.compliance_percentage).filter((value): value is number => typeof value === "number");
@@ -83,6 +87,7 @@ export function buildReadiness(documents: DashboardDocument[], tenders: TenderLi
 
 export function buildMissions(documents: DashboardDocument[], tenders: TenderListItem[], requirements: RequirementStatusCount[]): Mission[] {
   const missions: Mission[] = [];
+  const activeTenders = getActiveTenders(tenders);
   for (const doc of documents) {
     const state = expiryState(doc);
     if (state === "expired") {
@@ -92,7 +97,7 @@ export function buildMissions(documents: DashboardDocument[], tenders: TenderLis
     }
   }
 
-  for (const tender of tenders) {
+  for (const tender of activeTenders) {
     const status = tender.analysis_status ?? "pending";
     const label = tender.procuring_entity ?? tender.title;
     if (status === "failed") {
@@ -139,7 +144,8 @@ export interface DeadlineItem {
 }
 
 export function buildDeadlines(tenders: TenderListItem[]): DeadlineItem[] {
-  return tenders.filter((tender) => Boolean(tender.submission_deadline)).map((tender) => {
+  const activeTenders = getActiveTenders(tenders);
+  return activeTenders.filter((tender) => Boolean(tender.submission_deadline)).map((tender) => {
     const days = daysUntil(tender.submission_deadline) ?? 0;
     return {
       id: tender.id,
