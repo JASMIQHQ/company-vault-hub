@@ -251,3 +251,157 @@
   .jasmiq-hero::after { animation-duration: 12s; }
   .jasmiq-list-item { animation-duration: 350ms; }
 }
+
+
+/* Silk System v2 — premium motion + depth */
+@keyframes jasmiq-v2-rise {
+  from { opacity: 0; transform: translate3d(0, 18px, 0) scale(.985); filter: blur(5px); }
+  to { opacity: 1; transform: translate3d(0, 0, 0) scale(1); filter: blur(0); }
+}
+@keyframes jasmiq-v2-breathe {
+  0%, 100% { transform: translate3d(0, 0, 0) scale(1); }
+  50% { transform: translate3d(0, -7px, 0) scale(1.025); }
+}
+@keyframes jasmiq-v2-orbit {
+  from { transform: translate(-50%, -50%) rotate(0deg); }
+  to { transform: translate(-50%, -50%) rotate(360deg); }
+}
+@keyframes jasmiq-v2-orbit-reverse {
+  from { transform: translate(-50%, -50%) rotate(360deg); }
+  to { transform: translate(-50%, -50%) rotate(0deg); }
+}
+@keyframes jasmiq-v2-ping {
+  0%, 100% { opacity: .25; transform: scale(.8); }
+  50% { opacity: .85; transform: scale(1.8); }
+}
+@keyframes jasmiq-v2-sheen {
+  0% { transform: translateX(-130%) rotate(18deg); opacity: 0; }
+  15% { opacity: .8; }
+  45%, 100% { transform: translateX(150%) rotate(18deg); opacity: 0; }
+}
+.jasmiq-hero-v2 {
+  isolation: isolate;
+  background:
+    radial-gradient(620px 360px at 4% 4%, color-mix(in oklab, var(--primary) 16%, transparent), transparent 68%),
+    radial-gradient(520px 320px at 96% 92%, color-mix(in oklab, #22d3ee 12%, transparent), transparent 68%),
+    linear-gradient(135deg, color-mix(in oklab, white 72%, var(--background)), color-mix(in oklab, var(--primary) 5%, var(--background)));
+  backdrop-filter: blur(30px) saturate(155%);
+}
+.jasmiq-hero-v2::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background: linear-gradient(105deg, transparent 35%, color-mix(in oklab, white 34%, transparent) 48%, transparent 58%);
+  transform: translateX(-130%) skewX(-18deg);
+  animation: jasmiq-v2-sheen 8s cubic-bezier(.2,.75,.2,1) infinite;
+}
+.jasmiq-hero-v2-glow {
+  position: absolute;
+  border-radius: 999px;
+  pointer-events: none;
+  filter: blur(2px);
+  animation: jasmiq-v2-breathe 6s ease-in-out infinite;
+}
+.jasmiq-hero-v2-glow-a { width: 220px; height: 220px; right: 30%; top: -120px; background: color-mix(in oklab, var(--primary) 13%, transparent); }
+.jasmiq-hero-v2-glow-b { width: 180px; height: 180px; right: -70px; bottom: -80px; background: color-mix(in oklab, #22d3ee 12%, transparent); animation-delay: -2.5s; }
+.jasmiq-hero-v2-grid {
+  position: absolute;
+  inset: 0;
+  opacity: .34;
+  pointer-events: none;
+  background-image:
+    linear-gradient(color-mix(in oklab, var(--primary) 8%, transparent) 1px, transparent 1px),
+    linear-gradient(90deg, color-mix(in oklab, var(--primary) 8%, transparent) 1px, transparent 1px);
+  background-size: 34px 34px;
+  mask-image: radial-gradient(circle at 78% 45%, black 0, transparent 68%);
+}
+.jasmiq-reveal {
+  opacity: 0;
+  animation: jasmiq-v2-rise 720ms cubic-bezier(.16,1,.3,1) forwards;
+}
+.jasmiq-ping { animation: jasmiq-v2-ping 1.8s ease-in-out infinite; }
+.jasmiq-intelligence-core {
+  animation: jasmiq-v2-breathe 4.8s cubic-bezier(.22,.8,.2,1) infinite;
+}
+.jasmiq-hero-orbit-v2 {
+  animation: jasmiq-v2-orbit 18s linear infinite;
+  box-shadow: 0 0 80px -38px color-mix(in oklab, var(--primary) 55%, transparent);
+}
+.jasmiq-hero-orbit-v2::after {
+  content: "";
+  position: absolute;
+  left: 50%;
+  top: -4px;
+  width: 8px;
+  height: 8px;
+  border-radius: 999px;
+  background: var(--primary);
+  box-shadow: 0 0 20px color-mix(in oklab, var(--primary) 70%, transparent);
+}
+.jasmiq-hero-orbit-v2-b {
+  animation-name: jasmiq-v2-orbit-reverse;
+  animation-duration: 25s;
+}
+.jasmiq-float-card {
+  animation: jasmiq-v2-breathe 5.5s cubic-bezier(.22,.8,.2,1) infinite;
+}
+.jasmiq-float-card-b { animation-delay: -1.8s; }
+.jasmiq-workspace-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: .85rem 1rem;
+  border: 1px solid var(--glass-border);
+  border-radius: 1.25rem;
+  background: color-mix(in oklab, var(--glass) 82%, transparent);
+  box-shadow: var(--shadow-glass);
+  backdrop-filter: blur(22px) saturate(145%);
+}
+.jasmiq-glass-card {
+  position: relative;
+  isolation: isolate;
+  transition: transform 520ms cubic-bezier(.16,1,.3,1), box-shadow 520ms cubic-bezier(.16,1,.3,1), border-color 300ms ease;
+}
+.jasmiq-glass-card::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  z-index: -1;
+  background: radial-gradient(500px 180px at 0% 0%, color-mix(in oklab, white 16%, transparent), transparent 70%);
+  opacity: .8;
+}
+.jasmiq-glass-card:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 28px 70px -40px color-mix(in oklab, var(--primary) 45%, transparent), var(--shadow-glass);
+}
+.jasmiq-section-heading {
+  animation: jasmiq-v2-rise 700ms cubic-bezier(.16,1,.3,1) both;
+}
+.jasmiq-progress {
+  animation: jasmiq-progress-in 900ms cubic-bezier(.16,1,.3,1) both;
+}
+@keyframes jasmiq-progress-in {
+  from { width: 0 !important; opacity: .35; }
+  to { opacity: 1; }
+}
+@media (max-width: 640px) {
+  .jasmiq-hero-v2 { border-radius: 1.5rem; }
+  .jasmiq-hero-v2-grid { mask-image: radial-gradient(circle at 70% 40%, black 0, transparent 76%); }
+  .jasmiq-workspace-bar { align-items: stretch; }
+  .jasmiq-hero-orbit-v2 { transform-origin: center; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .jasmiq-hero-v2::before,
+  .jasmiq-hero-v2-glow,
+  .jasmiq-reveal,
+  .jasmiq-ping,
+  .jasmiq-intelligence-core,
+  .jasmiq-hero-orbit-v2,
+  .jasmiq-float-card,
+  .jasmiq-section-heading,
+  .jasmiq-progress { animation: none !important; opacity: 1; }
+  .jasmiq-glass-card { transition: none !important; }
+}
