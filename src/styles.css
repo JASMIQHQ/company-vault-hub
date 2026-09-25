@@ -183,3 +183,71 @@
     background: radial-gradient(520px 300px at 48% 18%, oklch(0.58 0.11 250 / 0.06), transparent 72%);
   }
 }
+
+@keyframes jasmiq-float {
+  0%, 100% { transform: translate3d(0, 0, 0) scale(1); }
+  50% { transform: translate3d(0, -8px, 0) scale(1.02); }
+}
+@keyframes jasmiq-orbit {
+  from { transform: rotate(0deg) translateX(92px) rotate(0deg); }
+  to { transform: rotate(360deg) translateX(92px) rotate(-360deg); }
+}
+@keyframes jasmiq-orbit-reverse {
+  from { transform: rotate(360deg) translateX(70px) rotate(-360deg); }
+  to { transform: rotate(0deg) translateX(70px) rotate(0deg); }
+}
+@keyframes jasmiq-sheen {
+  0% { transform: translateX(-120%) skewX(-18deg); }
+  55%, 100% { transform: translateX(140%) skewX(-18deg); }
+}
+@keyframes jasmiq-pulse {
+  0%, 100% { box-shadow: 0 0 0 0 color-mix(in oklab, var(--primary) 0%, transparent); }
+  50% { box-shadow: 0 0 0 10px color-mix(in oklab, var(--primary) 5%, transparent); }
+}
+.jasmiq-hero {
+  isolation: isolate;
+  background:
+    radial-gradient(650px 280px at 4% 0%, color-mix(in oklab, var(--primary) 15%, transparent), transparent 68%),
+    radial-gradient(500px 260px at 100% 100%, color-mix(in oklab, #22d3ee 11%, transparent), transparent 70%),
+    linear-gradient(135deg, color-mix(in oklab, var(--background) 88%, white), color-mix(in oklab, var(--primary) 3%, var(--background)));
+  backdrop-filter: blur(24px) saturate(150%);
+}
+.jasmiq-hero::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background: linear-gradient(105deg, transparent 35%, color-mix(in oklab, white 34%, transparent) 48%, transparent 58%);
+  transform: translateX(-120%) skewX(-18deg);
+  animation: jasmiq-sheen 8s ease-in-out infinite;
+}
+.jasmiq-hero-orb { position: absolute; border-radius: 999px; filter: blur(1px); pointer-events: none; animation: jasmiq-float 7s ease-in-out infinite; }
+.jasmiq-hero-orb-a { width: 180px; height: 180px; right: 16%; top: -80px; background: color-mix(in oklab, var(--primary) 13%, transparent); }
+.jasmiq-hero-orb-b { width: 120px; height: 120px; right: 2%; bottom: -55px; background: color-mix(in oklab, #22d3ee 10%, transparent); animation-delay: -2s; }
+.jasmiq-hero-grid { position: absolute; inset: 0; opacity: .35; background-image: linear-gradient(color-mix(in oklab, var(--primary) 7%, transparent) 1px, transparent 1px), linear-gradient(90deg, color-mix(in oklab, var(--primary) 7%, transparent) 1px, transparent 1px); background-size: 32px 32px; mask-image: radial-gradient(circle at 75% 45%, black, transparent 62%); }
+.jasmiq-core { animation: jasmiq-pulse 3.2s ease-in-out infinite, jasmiq-float 5s ease-in-out infinite; }
+.jasmiq-orbit { position: absolute; left: 50%; top: 50%; width: 9px; height: 9px; margin: -4.5px; border-radius: 999px; background: var(--primary); box-shadow: 0 0 18px color-mix(in oklab, var(--primary) 55%, transparent); }
+.jasmiq-orbit-one { animation: jasmiq-orbit 7s linear infinite; }
+.jasmiq-orbit-two { animation: jasmiq-orbit-reverse 9s linear infinite; opacity: .65; }
+.jasmiq-orbit-three { animation: jasmiq-orbit 12s linear infinite; opacity: .35; }
+.jasmiq-metric { position: relative; overflow: hidden; transition: transform 350ms cubic-bezier(.2,.8,.2,1), box-shadow 350ms ease, border-color 350ms ease; }
+.jasmiq-metric::after { content: ""; position: absolute; inset: 0; pointer-events: none; background: linear-gradient(110deg, transparent 35%, color-mix(in oklab, white 28%, transparent) 48%, transparent 60%); transform: translateX(-130%); transition: transform 700ms ease; }
+.jasmiq-metric:hover { transform: translateY(-3px); border-color: color-mix(in oklab, var(--primary) 20%, var(--border)); box-shadow: 0 18px 44px -28px color-mix(in oklab, var(--primary) 35%, transparent); }
+.jasmiq-metric:hover::after { transform: translateX(130%); }
+.jasmiq-list-item { animation: jasmiq-list-in 500ms both; }
+.jasmiq-list-item:nth-child(2) { animation-delay: 60ms; }
+.jasmiq-list-item:nth-child(3) { animation-delay: 120ms; }
+.jasmiq-list-item:nth-child(4) { animation-delay: 180ms; }
+.jasmiq-list-item:nth-child(5) { animation-delay: 240ms; }
+@keyframes jasmiq-list-in { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
+.jasmiq-progress { background: linear-gradient(90deg, var(--primary), color-mix(in oklab, #22d3ee 55%, var(--primary))); box-shadow: 0 0 18px color-mix(in oklab, var(--primary) 25%, transparent); transition: width 900ms cubic-bezier(.2,.8,.2,1); }
+.jasmiq-status-chip { display: inline-flex; align-items: center; gap: .4rem; border: 1px solid color-mix(in oklab, var(--primary) 14%, var(--border)); border-radius: 999px; padding: .38rem .65rem; font-size: 10px; font-weight: 600; letter-spacing: .08em; text-transform: uppercase; color: var(--muted-foreground); background: color-mix(in oklab, white 35%, transparent); backdrop-filter: blur(14px); }
+@media (prefers-reduced-motion: reduce) {
+  .jasmiq-hero::after, .jasmiq-hero-orb, .jasmiq-core, .jasmiq-orbit, .jasmiq-list-item { animation: none !important; }
+  .jasmiq-metric, .jasmiq-metric::after, .jasmiq-progress { transition: none !important; }
+}
+@media (max-width: 640px) {
+  .jasmiq-hero { border-radius: 1.5rem; }
+  .jasmiq-hero::after { animation-duration: 12s; }
+  .jasmiq-list-item { animation-duration: 350ms; }
+}
