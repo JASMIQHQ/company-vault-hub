@@ -13,6 +13,37 @@ export function useCompanies(session: Session | null, organizationId: string | n
     enabled: Boolean(session) && Boolean(organizationId),
     queryFn: async (): Promise<Company[]> => {
       const client = supabase as any;
+      const { data, error } = await client
+        .from("company_members")
+        .select("company_id, companies!inner(*)")
+        .eq("organization_id", organizationId!);
+      if (error) throw error;
+      return (data ?? [])
+        .map((row: any) => row.companies as Company)
+        .filter((company: Company) => Boolean(company?.is_active))
+        .sort((a: Company, b: Company) => a.legal_name.localeCompare(b.legal_name));
+    },
+  });
+}
+
+export interface CreateCompanyInput {
+  organizationId: string;
+  legalName: string;
+  registrationNumber?: string;
+  taxIdentificationNumber?: string;
+}
+
+export function useCreateCompany() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async ({
+      organizationId,
+      legalName,
+      registrationNumber,
+      taxIdentificationNumber,
+    }: CreateCompanyInput): Promise<Company> => {
+      const client = supabase as any;
       const { data, error } = await client.rpc("create_company_for_current_user", {
         p_organization_id: organizationId,
         p_legal_name: legalName,
@@ -20,7 +51,7 @@ export function useCompanies(session: Session | null, organizationId: string | n
         p_tax_identification_number: taxIdentificationNumber?.trim() || null,
       });
       if (error) throw error;
-      return data;
+      return data as Company;
     },
     onSuccess: (company) => {
       queryClient.invalidateQueries({ queryKey: ["companies", company.organization_id] });
