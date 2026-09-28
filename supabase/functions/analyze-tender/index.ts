@@ -121,13 +121,22 @@ Deno.serve(async (req) => {
     // --- tender ownership ---
     const { data: tender, error: tenderError } = await admin
       .from("tenders")
-      .select("id, organization_id")
+      .select("id, organization_id, company_id")
       .eq("id", id)
       .maybeSingle();
     if (tenderError) return json({ error: "Could not load the tender." }, 500);
     if (!tender) return json({ error: "Tender not found." }, 404);
-    if (!orgIds.includes(tender.organization_id)) {
-      return json({ error: "You are not allowed to analyze this tender." }, 403);
+    if (!orgIds.includes(tender.organization_id) || !tender.company_id) {
+      return json({ error: "Tender not found." }, 404);
+    }
+    const { data: companyMembership } = await admin
+      .from("company_members")
+      .select("company_id")
+      .eq("company_id", tender.company_id)
+      .eq("profile_id", profile.id)
+      .maybeSingle();
+    if (!companyMembership) {
+      return json({ error: "Tender not found." }, 404);
     }
 
     tenderId = tender.id;

@@ -1,0 +1,1 @@
+grant select on public.company_members to authenticated; revoke insert,update,delete on public.company_members from anon,authenticated;
