@@ -12,7 +12,8 @@ export function useCompanies(session: Session | null, organizationId: string | n
     queryKey: ["companies", organizationId],
     enabled: Boolean(session) && Boolean(organizationId),
     queryFn: async (): Promise<Company[]> => {
-      const { data, error } = await supabase.rpc("create_company_for_current_user", {
+      const client = supabase as any;
+      const { data, error } = await client.rpc("create_company_for_current_user", {
         p_organization_id: organizationId,
         p_legal_name: legalName,
         p_registration_number: registrationNumber?.trim() || null,
