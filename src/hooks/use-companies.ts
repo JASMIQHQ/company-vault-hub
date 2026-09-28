@@ -12,46 +12,12 @@ export function useCompanies(session: Session | null, organizationId: string | n
     queryKey: ["companies", organizationId],
     enabled: Boolean(session) && Boolean(organizationId),
     queryFn: async (): Promise<Company[]> => {
-      const { data, error } = await supabase
-        .from("company_members")
-        .select("company_id, companies!inner(*)")
-        .eq("organization_id", organizationId!);
-      if (error) throw error;
-      return (data ?? [])
-        .map((row: any) => row.companies as Company)
-        .filter((company) => company?.is_active)
-        .sort((a, b) => a.legal_name.localeCompare(b.legal_name));
-    },
-  });
-}
-
-export interface CreateCompanyInput {
-  organizationId: string;
-  legalName: string;
-  registrationNumber?: string;
-  taxIdentificationNumber?: string;
-}
-
-export function useCreateCompany() {
-  const queryClient = useQueryClient();
-
-  return useMutation({
-    mutationFn: async ({
-      organizationId,
-      legalName,
-      registrationNumber,
-      taxIdentificationNumber,
-    }: CreateCompanyInput): Promise<Company> => {
-      const { data, error } = await supabase
-        .from("companies")
-        .insert({
-          organization_id: organizationId,
-          legal_name: legalName,
-          registration_number: registrationNumber?.trim() || null,
-          tax_identification_number: taxIdentificationNumber?.trim() || null,
-        })
-        .select("*")
-        .single();
+      const { data, error } = await supabase.rpc("create_company_for_current_user", {
+        p_organization_id: organizationId,
+        p_legal_name: legalName,
+        p_registration_number: registrationNumber?.trim() || null,
+        p_tax_identification_number: taxIdentificationNumber?.trim() || null,
+      });
       if (error) throw error;
       return data;
     },
