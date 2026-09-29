@@ -38,7 +38,7 @@ function NavLinks({ onNavigate }: { onNavigate?: () => void }) {
   const pathname = useRouterState({ select: (state) => state.location.pathname });
 
   return (
-    <nav className="flex flex-col gap-1">
+    <nav className="flex min-w-0 flex-col gap-1">
       {NAV_ITEMS.map((item) => {
         const Icon = item.icon;
         const active = pathname === item.to;
@@ -48,14 +48,14 @@ function NavLinks({ onNavigate }: { onNavigate?: () => void }) {
             to={item.to!}
             onClick={onNavigate}
             className={cn(
-              "flex items-center gap-2 rounded-xl px-3 py-2 text-sm font-medium transition-colors",
+              "flex min-w-0 items-center gap-2 rounded-xl px-3 py-2 text-sm font-medium transition-colors",
               active
                 ? "bg-primary/10 text-primary"
                 : "text-muted-foreground hover:bg-muted/50 hover:text-foreground",
             )}
           >
-            <Icon className="size-4" />
-            {item.label}
+            <Icon className="size-4 shrink-0" />
+            <span className="min-w-0 truncate">{item.label}</span>
           </Link>
         );
       })}
@@ -65,13 +65,13 @@ function NavLinks({ onNavigate }: { onNavigate?: () => void }) {
 
 function Brand() {
   return (
-    <div className="flex items-center gap-2.5">
-      <div className="flex size-9 items-center justify-center rounded-xl bg-primary/10 text-primary">
+    <div className="flex min-w-0 items-center gap-2.5">
+      <div className="flex size-9 shrink-0 items-center justify-center rounded-xl bg-primary/10 text-primary">
         <ShieldCheck className="size-4.5" />
       </div>
-      <div className="leading-tight">
-        <p className="text-sm font-semibold tracking-tight">JASMIQ</p>
-        <p className="text-xs text-muted-foreground">Procurement AI</p>
+      <div className="min-w-0 leading-tight">
+        <p className="truncate text-sm font-semibold tracking-tight">JASMIQ</p>
+        <p className="truncate text-xs text-muted-foreground">Procurement AI</p>
       </div>
     </div>
   );
@@ -88,23 +88,23 @@ export function AppShell({ children }: { children: ReactNode }) {
   };
 
   return (
-    <div className="min-h-screen bg-app-gradient">
+    <div className="min-h-screen w-full min-w-0 max-w-[100vw] overflow-x-clip bg-app-gradient">
       <JasmiqIntelligence open={intelligenceOpen} onOpenChange={setIntelligenceOpen} />
 
-      <div className="flex min-h-screen w-full">
+      <div className="flex min-h-screen w-full min-w-0 max-w-[100vw]">
         <aside className="sticky top-0 hidden h-screen w-60 shrink-0 flex-col border-r border-border/50 bg-background/50 px-4 py-5 backdrop-blur-xl lg:flex">
           <Brand />
-          <div className="mt-6 flex-1">
+          <div className="mt-6 min-w-0 flex-1">
             <NavLinks />
           </div>
           <Button
             variant="outline"
             size="sm"
-            className="mb-2 justify-start gap-2 rounded-xl border-primary/20 bg-primary/[0.04] text-primary hover:bg-primary/10 hover:text-primary"
+            className="mb-2 min-w-0 justify-start gap-2 rounded-xl border-primary/20 bg-primary/[0.04] text-primary hover:bg-primary/10 hover:text-primary"
             onClick={() => setIntelligenceOpen(true)}
           >
-            <BrainCircuit className="size-4" />
-            JASMIQ Intelligence
+            <BrainCircuit className="size-4 shrink-0" />
+            <span className="truncate">JASMIQ Intelligence</span>
           </Button>
           <Button
             variant="ghost"
@@ -112,49 +112,49 @@ export function AppShell({ children }: { children: ReactNode }) {
             className="justify-start gap-2 rounded-xl"
             onClick={signOut}
           >
-            <LogOut className="size-4" />
+            <LogOut className="size-4 shrink-0" />
             Sign out
           </Button>
         </aside>
 
-        <div className="flex min-w-0 flex-1 flex-col">
-          <header className="sticky top-0 z-20 border-b border-border/50 bg-background/60 backdrop-blur-xl">
-            <div className="flex items-center justify-between gap-3 px-4 py-3 sm:px-6">
-              <div className="flex items-center gap-2">
+        <div className="flex min-w-0 flex-1 flex-col overflow-x-clip">
+          <header className="sticky top-0 z-20 w-full min-w-0 border-b border-border/50 bg-background/60 backdrop-blur-xl">
+            <div className="flex min-w-0 items-center justify-between gap-2 px-3 py-3 sm:px-6">
+              <div className="flex min-w-0 items-center gap-2">
                 <Sheet open={mobileOpen} onOpenChange={setMobileOpen}>
                   <SheetTrigger asChild>
                     <Button
                       variant="ghost"
                       size="icon"
-                      className="rounded-xl lg:hidden"
+                      className="shrink-0 rounded-xl lg:hidden"
                       aria-label="Open navigation"
                     >
                       <Menu className="size-4" />
                     </Button>
                   </SheetTrigger>
-                  <SheetContent side="left" className="w-64 p-5">
+                  <SheetContent side="left" className="w-[min(18rem,calc(100vw-1rem))] max-w-[calc(100vw-1rem)] p-5">
                     <Brand />
-                    <div className="mt-6">
+                    <div className="mt-6 min-w-0">
                       <NavLinks onNavigate={() => setMobileOpen(false)} />
                     </div>
                     <Button
                       variant="outline"
-                      className="mt-5 w-full justify-start gap-2 rounded-xl border-primary/20 text-primary hover:bg-primary/10 hover:text-primary"
+                      className="mt-5 w-full min-w-0 justify-start gap-2 rounded-xl border-primary/20 text-primary hover:bg-primary/10 hover:text-primary"
                       onClick={() => {
                         setMobileOpen(false);
                         setIntelligenceOpen(true);
                       }}
                     >
-                      <BrainCircuit className="size-4" />
-                      JASMIQ Intelligence
+                      <BrainCircuit className="size-4 shrink-0" />
+                      <span className="truncate">JASMIQ Intelligence</span>
                     </Button>
                   </SheetContent>
                 </Sheet>
-                <div className="lg:hidden">
+                <div className="min-w-0 lg:hidden">
                   <Brand />
                 </div>
               </div>
-              <div className="flex items-center gap-1">
+              <div className="flex shrink-0 items-center gap-0.5">
                 <Button
                   variant="ghost"
                   size="sm"
@@ -168,7 +168,7 @@ export function AppShell({ children }: { children: ReactNode }) {
                 <Button
                   variant="ghost"
                   size="icon"
-                  className="rounded-xl lg:hidden"
+                  className="shrink-0 rounded-xl lg:hidden"
                   onClick={signOut}
                   aria-label="Sign out"
                 >
@@ -178,7 +178,7 @@ export function AppShell({ children }: { children: ReactNode }) {
             </div>
           </header>
 
-          <main className="flex-1">{children}</main>
+          <main className="min-w-0 max-w-full flex-1 overflow-x-clip">{children}</main>
         </div>
       </div>
     </div>
