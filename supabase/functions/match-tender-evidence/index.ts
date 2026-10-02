@@ -13,10 +13,13 @@ interface Tender { id: string; company_id: string; organization_id: string; }
 interface Requirement { id: string; category: string | null; requirement_name: string | null; requirement_text: string | null; display_order: number | null; }
 interface Document { id: string; company_id: string; organization_id: string; document_name: string | null; original_filename: string | null; document_type: string | null; category: string | null; expiry_date: string | null; document_status: string | null; deleted_at: string | null; }
 interface Candidate { document: Document; score: number; basis: string[]; }
+interface VerifiedFact { id: string; document_id: string; doc_type: string | null; doc_year: number | null; expiry_date: string | null; confidence: string; verification_attempt_id: string | null; verified_at: string; }
+interface EvidenceDecision { status: Status | null; matchBasis: "METADATA" | "VERIFIED"; expiryDate: string | null; verified: boolean; reason?: string; }
 
 const json = (body: unknown, status = 200) => new Response(JSON.stringify(body), { status, headers: { ...CORS, "Content-Type": "application/json" } });
 const norm = (value: string) => value.toLowerCase().replace(/[^a-z0-9]+/g, " ").replace(/\s+/g, " ").trim();
 const today = () => new Date().toISOString().slice(0, 10);
+const QUALIFYING_VERIFIED_CONFIDENCE = new Set(["high"]);
 
 const aliases: Array<[RegExp, string[]]> = [
   [/\b(cac|corporate affairs commission|certificate of incorporation)\b/i, ["cac", "corporate affairs commission", "certificate of incorporation"]],
@@ -72,6 +75,89 @@ function classifyExpiry(expiry: string | null): "valid" | "expired" {
   return expiry !== null && expiry < today() ? "expired" : "valid";
 }
 
+function metadataYear(document: Document): number | null {
+  const text = [document.document_name, document.original_filename, document.document_type].filter(Boolean).join(" ");
+  const years = [...text.matchAll(/\\b(20\\d{2})\\b/g)].map((match) => Number(match[1])).filter((year) => Number.isInteger(year));
+  return years.length > 0 ? years[years.length - 1] : null;
+}
+
+function canonicalDocumentType(value: string | null): string | null {
+  const normalized = norm(value ?? "");
+  if (!normalized) return null;
+  if (["cac", "cac cert", "cac certificate", "cac_cert", "cac_certificate", "corporate affairs commission", "certificate of incorporation"].includes(normalized) || normalized.includes("corporate affairs commission")) return "cac";
+  if (["tcc", "tax clearance", "tax clearance certificate", "tax_clearance_certificate", "firs"].includes(normalized) || normalized.includes("tax clearance")) return "tcc";
+  if (["pencom", "pension commission", "pension compliance"].includes(normalized) || normalized.includes("pension")) return "pencom";
+  if (["itf", "industrial training fund"].includes(normalized)) return "itf";
+  if (["nsitf", "social insurance trust fund"].includes(normalized)) return "nsitf";
+  if (["bpp", "bureau of public procurement"].includes(normalized)) return "bpp";
+  if (["ogisp", "oil and gas industry permit"].includes(normalized)) return "ogisp";
+  if (["cpn", "computer professionals of nigeria"].includes(normalized)) return "cpn";
+  if (["nemsa", "nigerian electricity management services agency"].includes(normalized)) return "nemsa";
+  if (["audited accounts", "audited financial statements", "financial statements", "audited acct", "audited acct 2023", "audited acct 2024", "audited acct 2025"].includes(normalized)) return "audited_financial_statements";
+  return normalized;
+}
+
+function expectedCanonicalType(wanted: string[]): string | null {
+  for (const alias of wanted) {
+    const canonical = canonicalDocumentType(alias);
+    if (canonical) return canonical;
+  }
+  return null;
+}
+
+function latestVerifiedFacts(rows: VerifiedFact[]): Map<string, VerifiedFact> {
+  const latest = new Map<string, VerifiedFact>();
+  for (const row of rows) {
+    const existing = latest.get(row.document_id);
+    if (!existing || new Date(row.verified_at).getTime() > new Date(existing.verified_at).getTime() || (row.verified_at === existing.verified_at && row.id > existing.id)) {
+      latest.set(row.document_id, row);
+    }
+  }
+  return latest;
+}
+
+function applyVerifiedEvidence(requirement: Requirement, candidate: Candidate, wanted: string[], fact: VerifiedFact | undefined): EvidenceDecision {
+  if (!fact) return { status: null, matchBasis: "METADATA", expiryDate: candidate.document.expiry_date, verified: false };
+
+  const confidence = norm(fact.confidence);
+  if (!QUALIFYING_VERIFIED_CONFIDENCE.has(confidence)) {
+    console.warn("match-tender-evidence: unrecognized or non-qualifying verified confidence", { document_id: fact.document_id, confidence: fact.confidence });
+    return { status: null, matchBasis: "METADATA", expiryDate: candidate.document.expiry_date, verified: false, reason: "unsupported_confidence" };
+  }
+
+  const expectedType = expectedCanonicalType(wanted);
+  const verifiedType = canonicalDocumentType(fact.doc_type);
+  const metadataType = canonicalDocumentType(candidate.document.document_type);
+
+  if (verifiedType && expectedType && verifiedType !== expectedType) {
+    return { status: "manual_review", matchBasis: "VERIFIED", expiryDate: candidate.document.expiry_date, verified: true, reason: "verified_doc_type_conflict" };
+  }
+  if (verifiedType && metadataType && metadataType !== "unspecified" && verifiedType !== metadataType) {
+    return { status: "manual_review", matchBasis: "VERIFIED", expiryDate: candidate.document.expiry_date, verified: true, reason: "metadata_verified_doc_type_conflict" };
+  }
+
+  const verifiedYear = fact.doc_year;
+  const metadataDocYear = metadataYear(candidate.document);
+  if (verifiedYear !== null && metadataDocYear !== null && verifiedYear !== metadataDocYear) {
+    return { status: "manual_review", matchBasis: "VERIFIED", expiryDate: candidate.document.expiry_date, verified: true, reason: "metadata_verified_year_conflict" };
+  }
+
+  const verifiedExpiry = fact.expiry_date;
+  const metadataExpiry = candidate.document.expiry_date;
+  if (verifiedExpiry !== null && metadataExpiry !== null && verifiedExpiry !== metadataExpiry) {
+    return { status: "manual_review", matchBasis: "VERIFIED", expiryDate: metadataExpiry, verified: true, reason: "metadata_verified_expiry_conflict" };
+  }
+
+  const effectiveExpiry = verifiedExpiry ?? metadataExpiry;
+  return {
+    status: classifyExpiry(effectiveExpiry) === "expired" ? "expired" : "matched",
+    matchBasis: "VERIFIED",
+    expiryDate: effectiveExpiry,
+    verified: true,
+    reason: "verified_evidence_applied",
+  };
+}
+
 function explanation(status: Status, candidate: Candidate | null): string {
   if (status === "missing") return "No suitable active Company Vault document matched this requirement for the tender company.";
   if (!candidate) return "The requirement could not be matched to a Company Vault document.";
@@ -123,6 +209,12 @@ Deno.serve(async (req) => {
     if (documentsError) throw documentsError;
 
     const docs = (documents ?? []).filter((doc) => !doc.document_status || doc.document_status === "active") as Document[];
+    const documentIds = docs.map((doc) => doc.id);
+    const { data: verifiedFacts, error: verifiedFactsError } = documentIds.length > 0
+      ? await admin.from("document_verified_facts").select("id, document_id, doc_type, doc_year, expiry_date, confidence, verification_attempt_id, verified_at").in("document_id", documentIds).order("verified_at", { ascending: false }).order("id", { ascending: false })
+      : { data: [], error: null };
+    if (verifiedFactsError) throw verifiedFactsError;
+    const latestFacts = latestVerifiedFacts((verifiedFacts ?? []) as VerifiedFact[]);
     await admin.from("compliance_matches").delete().eq("tender_id", tenderRow.id).eq("organization_id", tenderRow.organization_id);
 
     const results: Array<{ requirement_id: string; status: Status; matched_document_id: string | null; confidence: number; explanation: string; match_basis: string }> = [];
@@ -133,20 +225,31 @@ Deno.serve(async (req) => {
       const tied = best ? ranked.filter((candidate) => candidate.score === best.score) : [];
       let status: Status;
       let confidence: number;
-      let matchBasis = "METADATA";
+      let matchBasis: "METADATA" | "VERIFIED" = "METADATA";
+      let effectiveExpiry = best?.document.expiry_date ?? null;
+      let evidenceReason: string | undefined;
 
       if (!best) {
         status = "missing";
         confidence = 0;
-      } else if (tied.length > 1 && best.score < 100) {
-        status = "manual_review";
-        confidence = 0.65;
-      } else if (classifyExpiry(best.document.expiry_date) === "expired") {
-        status = "expired";
-        confidence = Math.min(0.99, best.score >= 100 ? 0.99 : 0.9);
       } else {
-        status = best.score >= 100 ? "matched" : "manual_review";
-        confidence = status === "matched" ? 0.99 : 0.65;
+        const verifiedDecision = applyVerifiedEvidence(requirement, best, wanted, latestFacts.get(best.document.id));
+        if (verifiedDecision.status) {
+          status = verifiedDecision.status;
+          matchBasis = verifiedDecision.matchBasis;
+          effectiveExpiry = verifiedDecision.expiryDate;
+          evidenceReason = verifiedDecision.reason;
+          confidence = status === "matched" ? 0.99 : status === "expired" ? 0.99 : 0.65;
+        } else if (tied.length > 1 && best.score < 100) {
+          status = "manual_review";
+          confidence = 0.65;
+        } else if (classifyExpiry(effectiveExpiry) === "expired") {
+          status = "expired";
+          confidence = Math.min(0.99, best.score >= 100 ? 0.99 : 0.9);
+        } else {
+          status = best.score >= 100 ? "matched" : "manual_review";
+          confidence = status === "matched" ? 0.99 : 0.65;
+        }
       }
 
       const row = {
@@ -157,7 +260,7 @@ Deno.serve(async (req) => {
         requirement_type: requirement.category ?? "general",
         status,
         confidence,
-        notes: JSON.stringify({ match_basis: matchBasis, document_expiry_date: best?.document.expiry_date ?? null, candidate_count: ranked.length, candidate_basis: best?.basis ?? [] }),
+        notes: JSON.stringify({ match_basis: matchBasis, document_expiry_date: effectiveExpiry, candidate_count: ranked.length, candidate_basis: best?.basis ?? [], verified_fact_applied: matchBasis === "VERIFIED", evidence_reason: evidenceReason ?? null }),
       };
       const { error: matchError } = await admin.from("compliance_matches").insert(row);
       if (matchError) throw matchError;
