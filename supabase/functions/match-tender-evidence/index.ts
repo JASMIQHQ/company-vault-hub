@@ -158,12 +158,16 @@ function applyVerifiedEvidence(requirement: Requirement, candidate: Candidate, w
   };
 }
 
-function explanation(status: Status, candidate: Candidate | null): string {
+function explanation(status: Status, candidate: Candidate | null, matchBasis: "METADATA" | "VERIFIED" = "METADATA", evidenceReason?: string): string {
   if (status === "missing") return "No suitable active Company Vault document matched this requirement for the tender company.";
   if (!candidate) return "The requirement could not be matched to a Company Vault document.";
   if (status === "expired") return `Matched ${candidate.document.document_name ?? candidate.document.original_filename ?? "document"}, but its expiry date ${candidate.document.expiry_date} is before today.`;
-  if (status === "manual_review") return `A Company Vault document matched, but the metadata match is ambiguous or weak and requires review.`;
+  if (status === "manual_review") {
+    if (matchBasis === "VERIFIED" && evidenceReason) return `A Company Vault document matched, but verified evidence conflicts with metadata and requires review (${evidenceReason}).`;
+    return `A Company Vault document matched, but the metadata match is ambiguous or weak and requires review.`;
+  }
   const expiry = candidate.document.expiry_date ? `Expiry ${candidate.document.expiry_date}.` : "No expiry date recorded; treated as non-expiring.";
+  if (matchBasis === "VERIFIED") return `Matched ${candidate.document.document_name ?? candidate.document.original_filename ?? "document"} using qualifying verified document facts with metadata fallback where verified fields were absent. ${expiry}`;
   return `Matched ${candidate.document.document_name ?? candidate.document.original_filename ?? "document"} using ${candidate.basis.join(" + ")}. ${expiry}`;
 }
 
@@ -264,9 +268,9 @@ Deno.serve(async (req) => {
       };
       const { error: matchError } = await admin.from("compliance_matches").insert(row);
       if (matchError) throw matchError;
-      const { error: requirementError } = await admin.from("tender_requirements").update({ status, matched_document_id: best?.document.id ?? null, confidence_score: confidence, explanation: explanation(status, best), match_basis: matchBasis }).eq("id", requirement.id).eq("tender_id", tenderRow.id).eq("organization_id", tenderRow.organization_id);
+      const { error: requirementError } = await admin.from("tender_requirements").update({ status, matched_document_id: best?.document.id ?? null, confidence_score: confidence, explanation: explanation(status, best, matchBasis, evidenceReason), match_basis: matchBasis }).eq("id", requirement.id).eq("tender_id", tenderRow.id).eq("organization_id", tenderRow.organization_id);
       if (requirementError) throw requirementError;
-      results.push({ requirement_id: requirement.id, status, matched_document_id: best?.document.id ?? null, confidence, explanation: explanation(status, best), match_basis: matchBasis });
+      results.push({ requirement_id: requirement.id, status, matched_document_id: best?.document.id ?? null, confidence, explanation: explanation(status, best, matchBasis, evidenceReason), match_basis: matchBasis });
     }
 
     const total = results.length;
