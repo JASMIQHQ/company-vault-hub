@@ -119,7 +119,7 @@ function latestVerifiedFacts(rows: VerifiedFact[]): Map<string, VerifiedFact> {
 function applyVerifiedEvidence(requirement: Requirement, candidate: Candidate, wanted: string[], fact: VerifiedFact | undefined): EvidenceDecision {
   if (!fact) return { status: null, matchBasis: "METADATA", expiryDate: candidate.document.expiry_date, verified: false };
 
-  const confidence = norm(fact.confidence);
+  const confidence = norm(String(fact.confidence ?? ""));
   if (!QUALIFYING_VERIFIED_CONFIDENCE.has(confidence)) {
     console.warn("match-tender-evidence: unrecognized or non-qualifying verified confidence", { document_id: fact.document_id, confidence: fact.confidence });
     return { status: null, matchBasis: "METADATA", expiryDate: candidate.document.expiry_date, verified: false, reason: "unsupported_confidence" };
