@@ -260,7 +260,8 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedTendersTenderIdRouteImport
       parentRoute: typeof AuthenticatedTendersRoute
     }
-  }}
+  }
+}
 
 interface AuthenticatedTendersRouteChildren {
   AuthenticatedTendersTenderIdRoute: typeof AuthenticatedTendersTenderIdRoute
