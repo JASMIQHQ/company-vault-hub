@@ -158,10 +158,10 @@ function applyVerifiedEvidence(requirement: Requirement, candidate: Candidate, w
   };
 }
 
-function explanation(status: Status, candidate: Candidate | null, matchBasis: "METADATA" | "VERIFIED" = "METADATA", evidenceReason?: string): string {
+function explanation(status: Status, candidate: Candidate | null, matchBasis: "METADATA" | "VERIFIED" = "METADATA", evidenceReason?: string, effectiveExpiry?: string | null): string {
   if (status === "missing") return "No suitable active Company Vault document matched this requirement for the tender company.";
   if (!candidate) return "The requirement could not be matched to a Company Vault document.";
-  if (status === "expired") return `Matched ${candidate.document.document_name ?? candidate.document.original_filename ?? "document"}, but its effective expiry date ${candidate.document.expiry_date} is before today.`;
+  if (status === "expired") return `Matched ${candidate.document.document_name ?? candidate.document.original_filename ?? "document"}, but its effective expiry date ${effectiveExpiry ?? candidate.document.expiry_date} is before today.`;
   if (status === "manual_review") {
     if (matchBasis === "VERIFIED" && evidenceReason) return `A Company Vault document matched, but verified evidence conflicts with metadata and requires review (${evidenceReason}).`;
     return `A Company Vault document matched, but the metadata match is ambiguous or weak and requires review.`;
