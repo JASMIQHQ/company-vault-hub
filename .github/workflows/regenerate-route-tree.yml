@@ -1,6 +1,9 @@
 name: Regenerate Route Tree
 
 on:
+  push:
+    branches:
+      - feat/verified-facts-matcher
   workflow_dispatch:
 
 jobs:
