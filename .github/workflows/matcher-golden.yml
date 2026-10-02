@@ -1,0 +1,24 @@
+name: Matcher Golden Regression
+
+on:
+  pull_request:
+    paths:
+      - "supabase/functions/match-tender-evidence/**"
+  push:
+    branches:
+      - main
+    paths:
+      - "supabase/functions/match-tender-evidence/**"
+
+jobs:
+  matcher-golden:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: denoland/setup-deno@v2
+        with:
+          deno-version: v2.x
+      - name: Type-check production matcher
+        run: deno check supabase/functions/match-tender-evidence/index.ts
+      - name: Run matcher golden tests
+        run: deno test supabase/functions/match-tender-evidence/matcher-core.test.ts
