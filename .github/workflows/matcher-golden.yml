@@ -10,30 +10,13 @@ on:
     paths:
       - "supabase/functions/match-tender-evidence/**"
 
-permissions:
-  contents: write
-
 jobs:
   matcher-golden:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+      - uses: denoland/setup-deno@v2
         with:
-          ref: ${{ github.event.pull_request.head.ref || github.ref_name }}
-          fetch-depth: 0
-      - uses: oven-sh/setup-bun@v2
-      - run: bun install --frozen-lockfile
-      - name: Format matcher files
-        if: github.event_name == 'pull_request'
-        run: bunx prettier --write supabase/functions/match-tender-evidence/index.ts supabase/functions/match-tender-evidence/matcher-core.ts supabase/functions/match-tender-evidence/matcher-core.test.ts
-      - name: Commit matcher formatting
-        if: github.event_name == 'pull_request'
-        run: |
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add supabase/functions/match-tender-evidence/index.ts supabase/functions/match-tender-evidence/matcher-core.ts supabase/functions/match-tender-evidence/matcher-core.test.ts
-          git diff --cached --quiet && exit 0
-          git commit -m "style(matcher): format verified evidence files"
-          git push origin HEAD:${{ github.event.pull_request.head.ref }}
+          deno-version: v2.x
       - name: Run matcher golden tests
         run: deno test supabase/functions/match-tender-evidence/matcher-core.test.ts
