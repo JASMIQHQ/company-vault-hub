@@ -77,7 +77,7 @@ function classifyExpiry(expiry: string | null): "valid" | "expired" {
 
 function metadataYear(document: Document): number | null {
   const text = [document.document_name, document.original_filename, document.document_type].filter(Boolean).join(" ");
-  const years = [...text.matchAll(/\\b(20\\d{2})\\b/g)].map((match) => Number(match[1])).filter((year) => Number.isInteger(year));
+  const years = [...text.matchAll(/\b(20\d{2})\b/g)].map((match) => Number(match[1])).filter((year) => Number.isInteger(year));
   return years.length > 0 ? years[years.length - 1] : null;
 }
 
