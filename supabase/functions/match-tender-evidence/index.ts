@@ -268,9 +268,9 @@ Deno.serve(async (req) => {
       };
       const { error: matchError } = await admin.from("compliance_matches").insert(row);
       if (matchError) throw matchError;
-      const { error: requirementError } = await admin.from("tender_requirements").update({ status, matched_document_id: best?.document.id ?? null, confidence_score: confidence, explanation: explanation(status, best, matchBasis, evidenceReason), match_basis: matchBasis }).eq("id", requirement.id).eq("tender_id", tenderRow.id).eq("organization_id", tenderRow.organization_id);
+      const { error: requirementError } = await admin.from("tender_requirements").update({ status, matched_document_id: best?.document.id ?? null, confidence_score: confidence, explanation: explanation(status, best, matchBasis, evidenceReason, effectiveExpiry), match_basis: matchBasis }).eq("id", requirement.id).eq("tender_id", tenderRow.id).eq("organization_id", tenderRow.organization_id);
       if (requirementError) throw requirementError;
-      results.push({ requirement_id: requirement.id, status, matched_document_id: best?.document.id ?? null, confidence, explanation: explanation(status, best, matchBasis, evidenceReason), match_basis: matchBasis });
+      results.push({ requirement_id: requirement.id, status, matched_document_id: best?.document.id ?? null, confidence, explanation: explanation(status, best, matchBasis, evidenceReason, effectiveExpiry), match_basis: matchBasis });
     }
 
     const total = results.length;
