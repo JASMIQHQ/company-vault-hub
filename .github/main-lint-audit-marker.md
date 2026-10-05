@@ -1,0 +1,1 @@
+Temporary audit marker. This file is intentionally inert and exists only to trigger the repository's existing Quality Gate against the main baseline. Do not merge this branch.
