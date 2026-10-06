@@ -6,6 +6,7 @@ on:
       - fix/dependency-isolation-clean
     paths:
       - package.json
+      - .github/workflows/dependency-isolation-lock-refresh.yml
 
 permissions:
   contents: write
