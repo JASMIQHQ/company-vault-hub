@@ -8,6 +8,10 @@ on:
 permissions:
   contents: write
 
+concurrency:
+  group: dependency-isolation-lock-refresh
+  cancel-in-progress: false
+
 jobs:
   regenerate-lockfile:
     if: ${{ !contains(github.event.head_commit.message, 'chore(deps): regenerate lockfile') }}
