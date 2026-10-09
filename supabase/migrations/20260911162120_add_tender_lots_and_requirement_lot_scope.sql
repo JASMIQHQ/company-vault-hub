@@ -44,3 +44,23 @@ with check (
       and c.is_active = true
   )
 );
+
+create or replace function public.touch_tender_lots_updated_at()
+returns trigger
+language plpgsql
+as $$
+begin
+  new.updated_at = now();
+  return new;
+end;
+$$;
+
+drop trigger if exists tender_lots_touch_updated_at on public.tender_lots;
+create trigger tender_lots_touch_updated_at
+before update on public.tender_lots
+for each row execute function public.touch_tender_lots_updated_at();
+
+alter table public.tender_requirements
+  add constraint tender_requirements_lot_org_consistency
+  check (lot_id is null or organization_id is not null);
+

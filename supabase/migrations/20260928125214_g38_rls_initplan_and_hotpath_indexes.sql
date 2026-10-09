@@ -1,3 +1,4 @@
+
 drop policy if exists "Users can insert own profile" on public.profiles;
 create policy "Users can insert own profile" on public.profiles for insert to authenticated with check ((select auth.uid())=auth_user_id);
 drop policy if exists "Users can update own profile" on public.profiles;
@@ -6,6 +7,7 @@ drop policy if exists "Users can view own profile" on public.profiles;
 create policy "Users can view own profile" on public.profiles for select to authenticated using ((select auth.uid())=auth_user_id);
 drop policy if exists users_can_read_own_memberships on public.organization_members;
 create policy users_can_read_own_memberships on public.organization_members for select to authenticated using (exists(select 1 from public.profiles p where p.id=organization_members.profile_id and p.auth_user_id=(select auth.uid())));
+
 create index if not exists idx_company_documents_company_id on public.company_documents(company_id);
 create index if not exists idx_tenders_company_id on public.tenders(company_id);
 create index if not exists idx_tender_requirements_tender_id on public.tender_requirements(tender_id);
@@ -14,3 +16,4 @@ create index if not exists idx_compliance_matches_tender_id on public.compliance
 create index if not exists idx_compliance_matches_document_id on public.compliance_matches(document_id);
 create index if not exists idx_bank_reference_requests_tender_id_company_id on public.bank_reference_requests(tender_id,company_id);
 create index if not exists idx_affidavit_requests_tender_id on public.affidavit_requests(tender_id);
+
