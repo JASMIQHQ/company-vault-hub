@@ -1,0 +1,70 @@
+name: TanStack Start Security Floor
+
+on:
+  push:
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  tanstack-start-security-floor:
+    name: Enforce patched TanStack Start version
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Reject vulnerable or drifting TanStack Start versions
+        shell: bash
+        run: |
+          node <<'NODE'
+          const fs = require("node:fs");
+
+          const minimum = [1, 168, 60];
+          const compare = (left, right) => {
+            for (let i = 0; i < 3; i += 1) {
+              if (left[i] !== right[i]) return left[i] - right[i];
+            }
+            return 0;
+          };
+          const parseVersion = (value) => {
+            const match = /^(\^)?(\d+)\.(\d+)\.(\d+)$/.exec(value ?? "");
+            return match ? { caret: Boolean(match[1]), parts: match.slice(2).map(Number) } : null;
+          };
+
+          const manifest = JSON.parse(fs.readFileSync("package.json", "utf8"));
+          const declaredText = manifest.dependencies?.["@tanstack/react-start"];
+          const declared = parseVersion(declaredText);
+          if (!declared) {
+            console.error(
+              "FAIL: package.json must use an exact version or caret range for @tanstack/react-start; found " + JSON.stringify(declaredText)
+            );
+            process.exit(1);
+          }
+
+          const lock = fs.readFileSync("bun.lock", "utf8");
+          const resolvedMatch = lock.match(
+            /"@tanstack\/react-start":\s*\["@tanstack\/react-start@(\d+\.\d+\.\d+)/
+          );
+          const resolvedText = resolvedMatch?.[1];
+          const resolved = parseVersion(resolvedText);
+          if (!resolved) {
+            console.error("FAIL: could not identify the resolved @tanstack/react-start version in bun.lock");
+            process.exit(1);
+          }
+
+          if (compare(declared.parts, minimum) < 0) {
+            console.error("FAIL: package.json allows vulnerable @tanstack/react-start versions from " + declaredText + "; minimum allowed is 1.168.60");
+            process.exit(1);
+          }
+          if (compare(resolved.parts, minimum) < 0) {
+            console.error("FAIL: bun.lock resolves vulnerable @tanstack/react-start " + resolvedText + "; minimum allowed is 1.168.60");
+            process.exit(1);
+          }
+          if (compare(resolved.parts, declared.parts) < 0 || (!declared.caret && compare(declared.parts, resolved.parts) !== 0)) {
+            console.error("FAIL: package.json declares " + declaredText + ", but bun.lock resolves " + resolvedText);
+            process.exit(1);
+          }
+
+          console.log("PASS: @tanstack/react-start declares a safe floor and resolves at " + resolvedText + " (minimum 1.168.60)");
+          NODE
