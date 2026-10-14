@@ -28,7 +28,7 @@ jobs:
             return 0;
           };
           const parseVersion = (value) => {
-            const match = /^(\\d+)\\.(\\d+)\\.(\\d+)$/.exec(value ?? "");
+            const match = /^(\d+)\.(\d+)\.(\d+)$/.exec(value ?? "");
             return match ? match.slice(1).map(Number) : null;
           };
 
@@ -37,14 +37,14 @@ jobs:
           const declared = parseVersion(declaredText);
           if (!declared) {
             console.error(
-              `FAIL: package.json must pin @tanstack/react-start to an exact version; found ${JSON.stringify(declaredText)}`
+              "FAIL: package.json must pin @tanstack/react-start to an exact version; found " + JSON.stringify(declaredText)
             );
             process.exit(1);
           }
 
           const lock = fs.readFileSync("bun.lock", "utf8");
           const resolvedMatch = lock.match(
-            /"@tanstack\\/react-start":\\s*\\["@tanstack\\/react-start@(\\d+\\.\\d+\\.\\d+)/
+            /"@tanstack\/react-start":\s*\["@tanstack\/react-start@(\d+\.\d+\.\d+)/
           );
           const resolvedText = resolvedMatch?.[1];
           const resolved = parseVersion(resolvedText);
@@ -54,17 +54,17 @@ jobs:
           }
 
           if (compare(declared, minimum) < 0) {
-            console.error(`FAIL: package.json declares vulnerable @tanstack/react-start ${declaredText}; minimum allowed is 1.168.60`);
+            console.error("FAIL: package.json declares vulnerable @tanstack/react-start " + declaredText + "; minimum allowed is 1.168.60");
             process.exit(1);
           }
           if (compare(resolved, minimum) < 0) {
-            console.error(`FAIL: bun.lock resolves vulnerable @tanstack/react-start ${resolvedText}; minimum allowed is 1.168.60`);
+            console.error("FAIL: bun.lock resolves vulnerable @tanstack/react-start " + resolvedText + "; minimum allowed is 1.168.60");
             process.exit(1);
           }
           if (compare(declared, resolved) !== 0) {
-            console.error(`FAIL: package.json pins ${declaredText}, but bun.lock resolves ${resolvedText}`);
+            console.error("FAIL: package.json pins " + declaredText + ", but bun.lock resolves " + resolvedText);
             process.exit(1);
           }
 
-          console.log(`PASS: @tanstack/react-start is pinned and resolved at ${resolvedText} (minimum 1.168.60)`);
+          console.log("PASS: @tanstack/react-start is pinned and resolved at " + resolvedText + " (minimum 1.168.60)");
           NODE
