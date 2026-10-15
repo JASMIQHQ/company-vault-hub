@@ -1,7 +1,10 @@
 export type VerificationOutcome = "verified" | "mismatch" | "failed";
 
 export interface VerificationPersistenceAdapter {
-  recordAttempt(outcome: VerificationOutcome, extra: Record<string, unknown>): Promise<string>;
+  recordAttempt(
+    outcome: VerificationOutcome,
+    extra: Record<string, unknown>,
+  ): Promise<string>;
   updateCurrentStatus(patch: Record<string, unknown>): Promise<void>;
   insertVerifiedFacts(facts: Record<string, unknown>): Promise<void>;
 }
