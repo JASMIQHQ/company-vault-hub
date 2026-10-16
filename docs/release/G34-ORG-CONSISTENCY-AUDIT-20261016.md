@@ -24,10 +24,10 @@ Migration: supabase/migrations/20261016160000_g34_enforce_company_organization_c
 
 ## Automated guard and CI evidence (refreshed 2026-10-16)
 
-Latest PR head: 82cf63f83ec0f3dd1b104fbe2dc3724fcea0b9e6.
+Evidence refresh commit: 8620fc14ad8f5b4b3240df08c2a6e9553979279e (documentation-only update). CI status was rechecked on that commit.
 
-- Static migration safety assertions: PASS on latest head.
-- Independent build job: PASS on latest head.
+- Static migration safety assertions: PASS on evidence refresh commit 8620fc14ad8f5b4b3240df08c2a6e9553979279e.
+- Independent build job: PASS on evidence refresh commit 8620fc14ad8f5b4b3240df08c2a6e9553979279e.
 - Vercel preview comments check: PASS; no unresolved preview feedback.
 - Repository Quality Gate: FAIL at the full-repository lint step with 3,894 findings (3,876 errors and 18 warnings). The migration guard script itself had no lint findings in the earlier detailed lint output. The quality job's build stage is skipped after lint fails, but the separate build job passes.
 - Independent PR review: none recorded at the time of this refresh.
