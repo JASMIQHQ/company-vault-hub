@@ -72,3 +72,8 @@ BEGIN
  RETURN compliance;
 END;
 $$;
+
+REVOKE EXECUTE ON FUNCTION public.register_document_upload(uuid, text, text, text, text, text, text, bigint, text) FROM PUBLIC, anon;
+GRANT EXECUTE ON FUNCTION public.register_document_upload(uuid, text, text, text, text, text, text, bigint, text) TO authenticated, service_role;
+REVOKE EXECUTE ON FUNCTION public.calculate_tender_compliance(uuid) FROM PUBLIC, anon;
+GRANT EXECUTE ON FUNCTION public.calculate_tender_compliance(uuid) TO authenticated, service_role;
