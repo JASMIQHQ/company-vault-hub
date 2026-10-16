@@ -22,6 +22,12 @@ jobs:
           LINT_BASE_SHA: ${{ github.event.pull_request.base.sha || github.event.before }}
           LINT_HEAD_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
         run: node .github/scripts/lint-parity.mjs
+      # Temporary acceptance audit for PR #57's exact historical commits.
+      - name: One-time PR #57 exact-commit parity audit
+        env:
+          LINT_BASE_SHA: 3ed0ea815b486a03cdef700c9767f04eacb54754
+          LINT_HEAD_SHA: e44257b7ed8dd7a7c30edaa692e6115af56a301c
+        run: node .github/scripts/lint-parity.mjs
       - name: Upload lint comparison evidence
         if: always()
         uses: actions/upload-artifact@v4
