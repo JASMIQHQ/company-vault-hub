@@ -173,14 +173,13 @@ Deno.test(
 );
 
 Deno.test("invalid fact/outcome combinations fail before writing anything", async () => {
-    const store = makeStore();
-    await assertRejects(() =>
-      persistVerificationOutcome("verified", {}, {}, undefined, store.adapter),
-    );
-    await assertRejects(() =>
-      persistVerificationOutcome("failed", {}, {}, originalFacts, store.adapter),
-    );
-    assertEquals(store.attempts.length, 0);
-    assertEquals(store.facts.length, 0);
-  },
-);
+  const store = makeStore();
+  await assertRejects(() =>
+    persistVerificationOutcome("verified", {}, {}, undefined, store.adapter),
+  );
+  await assertRejects(() =>
+    persistVerificationOutcome("failed", {}, {}, originalFacts, store.adapter),
+  );
+  assertEquals(store.attempts.length, 0);
+  assertEquals(store.facts.length, 0);
+});
