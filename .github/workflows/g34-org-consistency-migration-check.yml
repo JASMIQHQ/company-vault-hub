@@ -1,0 +1,32 @@
+name: G34 organisation consistency migration guard
+
+on:
+  pull_request:
+    paths:
+      - "supabase/migrations/20261016160000_g34_enforce_company_organization_consistency.sql"
+      - ".github/scripts/g34-org-consistency-migration-check.mjs"
+      - ".github/workflows/g34-org-consistency-migration-check.yml"
+  push:
+    branches:
+      - main
+    paths:
+      - "supabase/migrations/20261016160000_g34_enforce_company_organization_consistency.sql"
+      - ".github/scripts/g34-org-consistency-migration-check.mjs"
+      - ".github/workflows/g34-org-consistency-migration-check.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  static-migration-guard:
+    name: Static migration safety assertions
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - name: Validate G34 migration invariants
+        run: node .github/scripts/g34-org-consistency-migration-check.mjs
