@@ -32,10 +32,7 @@ Deno.serve(async req=>{
   if(!url||!serviceKey||!key)return json({error:"Verification service configuration is missing.",provider:p},500);
   const admin=createClient(url,serviceKey,{auth:{persistSession:false,autoRefreshToken:false}});
   let userId:string|null=null,doc:any=null;
-  const recordAttempt = async (
-    outcome: "verified" | "mismatch" | "failed",
-    extra: any = {},
-  ) => {
+  const recordAttempt = async (outcome: "verified" | "mismatch" | "failed", extra: any = {}) => {
     if (!doc) {
       throw new Error("Document context is required to record a verification attempt.");
     }
@@ -80,9 +77,7 @@ Deno.serve(async req=>{
         if (error) throw error;
       },
       insertVerifiedFacts: async (row) => {
-        const { error } = await admin
-          .from("document_verified_facts")
-          .insert(row);
+        const { error } = await admin.from("document_verified_facts").insert(row);
         if (error) throw error;
       },
     });
@@ -198,7 +193,33 @@ Deno.serve(async req=>{
         502,
       );
     }
-    const year=typeof parsed.year==="number"&&Number.isInteger(parsed.year)&&parsed.year>=1900&&parsed.year<=2100?parsed.year:null; const expiry=typeof parsed.expiry_date==="string"&&/^\d{4}-\d{2}-\d{2}$/.test(parsed.expiry_date)?parsed.expiry_date:null; const confidence=parsed.confidence==="high"?"high":"low"; const detected=parsed.doc_type as VerifiedDocType; const declared=normalizeDocumentType(doc.document_type); const mismatch=Boolean(declared&&declared!=="OTHER"&&detected!=="OTHER"&&declared!==detected); const status=detected==="OTHER"?"mismatch":mismatch&&confidence==="high"?"mismatch":"verified";
+    const year =
+      typeof parsed.year === "number" &&
+      Number.isInteger(parsed.year) &&
+      parsed.year >= 1900 &&
+      parsed.year <= 2100
+        ? parsed.year
+        : null;
+    const expiry =
+      typeof parsed.expiry_date === "string" &&
+      /^\d{4}-\d{2}-\d{2}$/.test(parsed.expiry_date)
+        ? parsed.expiry_date
+        : null;
+    const confidence = parsed.confidence === "high" ? "high" : "low";
+    const detected = parsed.doc_type as VerifiedDocType;
+    const declared = normalizeDocumentType(doc.document_type);
+    const mismatch = Boolean(
+      declared &&
+        declared !== "OTHER" &&
+        detected !== "OTHER" &&
+        declared !== detected,
+    );
+    const status =
+      detected === "OTHER"
+        ? "mismatch"
+        : mismatch && confidence === "high"
+          ? "mismatch"
+          : "verified";
     const now=new Date().toISOString();
     const statusPatch =
       status === "verified"
