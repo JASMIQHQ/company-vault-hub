@@ -1,5 +1,8 @@
 import { assertEquals, assertRejects } from "jsr:@std/assert";
-import { persistVerificationOutcome, type VerificationOutcome } from "./verification-integrity.ts";
+import {
+  persistVerificationOutcome,
+  type VerificationOutcome,
+} from "./verification-integrity.ts";
 
 const originalFacts = {
   document_id: "e2c59dd9-1f20-4a45-99e7-b99035ca07e0",
@@ -13,14 +16,14 @@ const originalFacts = {
   verified_at: "2026-09-01T10:00:00.000Z",
 };
 
-function makeStore() {
+function makeStore(initialCurrentStatus: Record<string, unknown> = {}) {
   const attempts: Array<{
     id: string;
     outcome: VerificationOutcome;
     extra: Record<string, unknown>;
   }> = [];
   const facts: Array<Record<string, unknown>> = [];
-  let currentStatus: Record<string, unknown> = {};
+  let currentStatus: Record<string, unknown> = structuredClone(initialCurrentStatus);
   let nextId = 1;
   const adapter = {
     async recordAttempt(outcome: VerificationOutcome, extra: Record<string, unknown>) {
@@ -48,13 +51,19 @@ function makeStore() {
 Deno.test(
   "Gemini 503 appends a failed attempt and preserves the last successful NSITF facts",
   async () => {
-    const store = makeStore();
+    const store = makeStore({
+      verified_doc_type: originalFacts.doc_type,
+      verified_year: originalFacts.doc_year,
+      verified_expiry_date: originalFacts.expiry_date,
+      verified_at: originalFacts.verified_at,
+      verification_status: "verified",
+    });
     store.facts.push(structuredClone(originalFacts));
 
     await persistVerificationOutcome(
       "failed",
       { error_stage: "AI_UPSTREAM_HTTP", diagnostics: { http_status: 503 } },
-      { verification_status: "failed", verified_at: "2026-09-02T10:00:00.000Z" },
+      { verification_status: "failed" },
       undefined,
       store.adapter,
     );
@@ -65,17 +74,27 @@ Deno.test(
     assertEquals(store.attempts[0].extra.error_stage, "AI_UPSTREAM_HTTP");
     assertEquals((store.attempts[0].extra.diagnostics as { http_status: number }).http_status, 503);
     assertEquals(store.currentStatus.verification_status, "failed");
+    assertEquals(store.currentStatus.verified_doc_type, originalFacts.doc_type);
+    assertEquals(store.currentStatus.verified_year, originalFacts.doc_year);
+    assertEquals(store.currentStatus.verified_expiry_date, originalFacts.expiry_date);
+    assertEquals(store.currentStatus.verified_at, originalFacts.verified_at);
   },
 );
 
-Deno.test("a mismatch is auditable and cannot overwrite successful facts", async () => {
-  const store = makeStore();
+Deno.test("a mismatch is auditable and preserves the last successful verification", async () => {
+  const store = makeStore({
+    verified_doc_type: originalFacts.doc_type,
+    verified_year: originalFacts.doc_year,
+    verified_expiry_date: originalFacts.expiry_date,
+    verified_at: originalFacts.verified_at,
+    verification_status: "verified",
+  });
   store.facts.push(structuredClone(originalFacts));
 
   await persistVerificationOutcome(
     "mismatch",
     { doc_type: "OTHER", confidence: "low" },
-    { verification_status: "mismatch", verified_doc_type: "OTHER" },
+    { verification_status: "mismatch" },
     undefined,
     store.adapter,
   );
@@ -83,6 +102,10 @@ Deno.test("a mismatch is auditable and cannot overwrite successful facts", async
   assertEquals(store.facts, [originalFacts]);
   assertEquals(store.attempts.map((attempt) => attempt.outcome), ["mismatch"]);
   assertEquals(store.currentStatus.verification_status, "mismatch");
+  assertEquals(store.currentStatus.verified_doc_type, originalFacts.doc_type);
+  assertEquals(store.currentStatus.verified_year, originalFacts.doc_year);
+  assertEquals(store.currentStatus.verified_expiry_date, originalFacts.expiry_date);
+  assertEquals(store.currentStatus.verified_at, originalFacts.verified_at);
 });
 
 Deno.test(
