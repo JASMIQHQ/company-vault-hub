@@ -210,8 +210,7 @@ Deno.serve(async req=>{
     const declared = normalizeDocumentType(doc.document_type);
     const mismatch = Boolean(
       declared &&
-        declared !== "OTHER" &&
-        detected !== "OTHER" &&
+        declared !== "OTHER" && detected !== "OTHER" &&
         declared !== detected,
     );
     const status =
@@ -220,10 +219,9 @@ Deno.serve(async req=>{
         : mismatch && confidence === "high"
           ? "mismatch"
           : "verified";
-    const now=new Date().toISOString();
-    const statusPatch =
-      status === "verified"
-        ? {
+    const now = new Date().toISOString();
+    const statusPatch = status === "verified"
+      ? {
             verified_doc_type: detected,
             verified_year: year,
             verified_expiry_date: expiry,
