@@ -21,7 +21,7 @@ jobs:
         env:
           LINT_BASE_SHA: ${{ github.event.pull_request.base.sha || github.event.before }}
           LINT_HEAD_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
-        run: bun run scripts/lint-parity.mjs
+        run: node .github/scripts/lint-parity.mjs
       - name: Upload lint comparison evidence
         if: always()
         uses: actions/upload-artifact@v4
