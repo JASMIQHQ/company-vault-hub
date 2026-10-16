@@ -29,7 +29,6 @@ jobs:
   script-static-check:
     name: Validate isolation test script
     runs-on: ubuntu-latest
-    if: github.event_name == 'workflow_dispatch'
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -41,6 +40,7 @@ jobs:
     name: Two-user RLS and resource isolation
     runs-on: ubuntu-latest
     timeout-minutes: 5
+    if: github.event_name == 'workflow_dispatch'
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
