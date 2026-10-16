@@ -12,7 +12,7 @@ assert.ok(
   "Expected both RPC replacements in order",
 );
 const upload = sql.slice(uploadStart, complianceStart);
-const compliance = sql.slice(complianceStart);
+const rest = sql.slice(complianceStart);
 for (const fragment of [
   "from public.companies c",
   "where c.id = p_company_id and c.is_active = true",
@@ -32,8 +32,14 @@ for (const fragment of [
   "private.is_company_member(v_company_id)",
   "where id = p_tender_id and company_id = v_company_id",
   "organization_id = v_company_org_id",
+  "create policy company_documents_company_access",
+  "c.organization_id = company_documents.organization_id",
+  "create policy tenders_company_access",
+  "c.organization_id = tenders.organization_id",
+  "revoke execute on function public.register_document_upload",
+  "revoke execute on function public.calculate_tender_compliance",
 ]) {
-  assert.ok(compliance.includes(fragment), `Tender guard missing: ${fragment}`);
+  assert.ok(rest.includes(fragment), `Tenant guard missing: ${fragment}`);
 }
-assert.ok(compliance.includes("from public.tenders t"), "Tender lookup must use persisted tender");
+assert.ok(rest.includes("from public.tenders t"), "Tender lookup must use persisted tender");
 console.log("G34 organisation-consistency migration static checks passed.");
