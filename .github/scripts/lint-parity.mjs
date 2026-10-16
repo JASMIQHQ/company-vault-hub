@@ -41,7 +41,12 @@ function requireSuccess(command, args, cwd) {
 async function lintAt(sha, directory, outputFile) {
   requireSuccess("git", ["worktree", "add", "--detach", directory, sha], root);
   requireSuccess("bun", ["install", "--frozen-lockfile"], directory);
-  const result = run("bunx", ["eslint", ".", "--format", "json", "--output-file", outputFile], directory, { capture: true });
+  const result = run(
+    "bunx",
+    ["eslint", ".", "--format", "json", "--output-file", outputFile],
+    directory,
+    { capture: true },
+  );
   // ESLint exit code 1 means lint findings exist; 2 means configuration/runtime failure.
   if (result.status !== 0 && result.status !== 1) {
     process.stderr.write(result.stdout || "");
@@ -56,7 +61,10 @@ function loadFindings(jsonPath, workspace) {
   let errors = 0;
   let warnings = 0;
   for (const file of files) {
-    const filePath = path.relative(workspace, path.resolve(file.filePath)).split(path.sep).join("/");
+    const filePath = path
+      .relative(workspace, path.resolve(file.filePath))
+      .split(path.sep)
+      .join("/");
     for (const message of file.messages || []) {
       const finding = {
         file: filePath,
