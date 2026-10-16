@@ -26,7 +26,7 @@ jobs:
       - name: One-time PR #57 exact-commit parity audit
         env:
           LINT_BASE_SHA: 3ed0ea815b486a03cdef700c9767f04eacb54754
-          LINT_HEAD_SHA: 9d89178daa9aa8c58641f00d3bf47f5353e8368b
+          LINT_HEAD_SHA: 6180ba1cfca1524a5e9175037b95d34e52788561
         run: node .github/scripts/lint-parity.mjs
       - name: Upload lint comparison evidence
         if: always()
