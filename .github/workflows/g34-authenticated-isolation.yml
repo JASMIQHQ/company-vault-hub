@@ -1,0 +1,59 @@
+name: G34 Authenticated Company Isolation
+
+on:
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+    inputs:
+      company_a_id:
+        description: Staging Company A UUID
+        required: true
+        type: string
+      company_b_id:
+        description: Staging Company B UUID
+        required: true
+        type: string
+      tender_a_id:
+        description: Existing staging tender owned by Company A
+        required: true
+        type: string
+      tender_b_id:
+        description: Existing staging tender owned by Company B
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+jobs:
+  script-static-check:
+    name: Validate isolation test script
+    runs-on: ubuntu-latest
+    if: github.event_name == 'workflow_dispatch'
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - run: node --check .github/scripts/g34-authenticated-isolation.mjs
+
+  authenticated-company-isolation:
+    name: Two-user RLS and resource isolation
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Run read-only authenticated isolation acceptance
+        env:
+          SUPABASE_URL: ${{ secrets.G34_STAGING_SUPABASE_URL }}
+          SUPABASE_ANON_KEY: ${{ secrets.G34_STAGING_SUPABASE_ANON_KEY }}
+          G34_TEST_USER_A_TOKEN: ${{ secrets.G34_STAGING_USER_A_ACCESS_TOKEN }}
+          G34_TEST_USER_B_TOKEN: ${{ secrets.G34_STAGING_USER_B_ACCESS_TOKEN }}
+          G34_COMPANY_A_ID: ${{ inputs.company_a_id }}
+          G34_COMPANY_B_ID: ${{ inputs.company_b_id }}
+          G34_TENDER_A_ID: ${{ inputs.tender_a_id }}
+          G34_TENDER_B_ID: ${{ inputs.tender_b_id }}
+        run: node .github/scripts/g34-authenticated-isolation.mjs
