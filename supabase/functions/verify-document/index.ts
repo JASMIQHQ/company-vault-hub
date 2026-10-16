@@ -1,6 +1,7 @@
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.58.0";
 import { DOCUMENT_TYPES, normalizeDocumentType, type VerifiedDocType } from "../_shared/document-classifier.ts";
+import { persistVerificationOutcome } from "../_shared/verification-integrity.ts";
 
 const C={"Access-Control-Allow-Origin":"*","Access-Control-Allow-Headers":"authorization, x-client-info, apikey, content-type","Access-Control-Allow-Methods":"POST, OPTIONS"};
 const MAX=20*1024*1024;
@@ -31,7 +32,55 @@ Deno.serve(async req=>{
   if(!url||!serviceKey||!key)return json({error:"Verification service configuration is missing.",provider:p},500);
   const admin=createClient(url,serviceKey,{auth:{persistSession:false,autoRefreshToken:false}});
   let userId:string|null=null,doc:any=null;
-  const recordAttempt=async(outcome:"verified"|"mismatch"|"failed",extra:any={})=>{if(!doc)return; const {data,error}=await admin.from("document_verification_attempts").insert({document_id:doc.id,organization_id:doc.organization_id,company_id:doc.company_id,requested_by:userId,provider:p,model:extra.model??null,outcome,detected_doc_type:extra.doc_type??null,detected_year:extra.year??null,detected_expiry_date:extra.expiry_date??null,confidence:extra.confidence??null,error_stage:extra.error_stage??null,error_message:extra.error_message??null,diagnostics:extra.diagnostics??null}).select("id").single(); if(error)throw error; return data.id;};
+  const recordAttempt = async (outcome: "verified" | "mismatch" | "failed", extra: any = {}) => {
+    if (!doc) {
+      throw new Error("Document context is required to record a verification attempt.");
+    }
+    const { data, error } = await admin
+      .from("document_verification_attempts")
+      .insert({
+        document_id: doc.id,
+        organization_id: doc.organization_id,
+        company_id: doc.company_id,
+        requested_by: userId,
+        provider: p,
+        model: extra.model ?? null,
+        outcome,
+        detected_doc_type: extra.doc_type ?? null,
+        detected_year: extra.year ?? null,
+        detected_expiry_date: extra.expiry_date ?? null,
+        confidence: extra.confidence ?? null,
+        error_stage: extra.error_stage ?? null,
+        error_message: extra.error_message ?? null,
+        diagnostics: extra.diagnostics ?? null,
+      })
+      .select("id")
+      .single();
+    if (error) throw error;
+    return data.id;
+  };
+  const persistOutcome = (
+    outcome: "verified" | "mismatch" | "failed",
+    extra: Record<string, unknown> = {},
+    statusPatch: Record<string, unknown> = {},
+    facts?: Record<string, unknown>,
+  ) =>
+    persistVerificationOutcome(outcome, extra, statusPatch, facts, {
+      recordAttempt,
+      updateCurrentStatus: async (patch) => {
+        const { error } = await admin
+          .from("company_documents")
+          .update(patch)
+          .eq("id", doc.id)
+          .eq("organization_id", doc.organization_id)
+          .eq("company_id", doc.company_id);
+        if (error) throw error;
+      },
+      insertVerifiedFacts: async (row) => {
+        const { error } = await admin.from("document_verified_facts").insert(row);
+        if (error) throw error;
+      },
+    });
   try{
     const token=(req.headers.get("Authorization")??"").replace(/^Bearer\s+/i,""); if(!token)return json({error:"Not authenticated."},401);
     const {data:u,error:ue}=await admin.auth.getUser(token); if(ue||!u.user)return json({error:"Not authenticated."},401); userId=u.user.id;
@@ -43,18 +92,164 @@ Deno.serve(async req=>{
     const {data:companyMembership}=await admin.from("company_members").select("company_id").eq("company_id",doc.company_id).eq("profile_id",profile.id).maybeSingle();
     if(!companyMembership)return json({error:"Document not found or not accessible."},404);
     const {data:blob,error:dl}=await admin.storage.from("company-documents").download(doc.storage_path);
-    if(dl||!blob){await recordAttempt("failed",{error_stage:"STORAGE_DOWNLOAD",error_message:"Could not download document for verification."});await admin.from("company_documents").update({verification_status:"failed",verified_at:new Date().toISOString()}).eq("id",doc.id).eq("organization_id",doc.organization_id).eq("company_id",doc.company_id);return json({error:"Could not download document for verification.",stage:"STORAGE_DOWNLOAD"},502);}
-    const bytes=new Uint8Array(await blob.arrayBuffer()); if(bytes.byteLength>MAX){await recordAttempt("failed",{error_stage:"PDF_TOO_LARGE",error_message:"PDF exceeds 20 MB limit."});await admin.from("company_documents").update({verification_status:"failed",verified_at:new Date().toISOString()}).eq("id",doc.id).eq("organization_id",doc.organization_id).eq("company_id",doc.company_id);return json({error:"PDF_TOO_LARGE",document_id:doc.id,raw_bytes:bytes.byteLength,max_raw_bytes:MAX},413);}
-    const chunks:string[]=[];for(let i=0;i<bytes.length;i+=0x8000)chunks.push(String.fromCharCode(...bytes.subarray(i,i+0x8000))); const base64=btoa(chunks.join("")); const filename=doc.original_filename??doc.document_name??"unknown";
-    let result:any;try{result=await aiCall(p,key,base64,filename,doc.id)}catch(e){await recordAttempt("failed",{error_stage:"AI_REQUEST_EXCEPTION",error_message:e instanceof Error?e.message:String(e)});await admin.from("company_documents").update({verification_status:"failed",verified_at:new Date().toISOString()}).eq("id",doc.id).eq("organization_id",doc.organization_id).eq("company_id",doc.company_id);return json({error:"AI verification request failed.",stage:"AI_REQUEST_EXCEPTION"},502)}
-    if(!result.ok){await recordAttempt("failed",{model:result.model,error_stage:result.stage,error_message:result.message,diagnostics:result.diagnostics});await admin.from("company_documents").update({verification_status:"failed",verified_at:new Date().toISOString()}).eq("id",doc.id).eq("organization_id",doc.organization_id).eq("company_id",doc.company_id);return json({error:result.message,provider:p,stage:result.stage,diagnostics:result.diagnostics},502)}
-    const parsed=parse(result.text); if(!parsed||!validType(parsed.doc_type)){await recordAttempt("failed",{model:result.model,error_stage:"AI_CONTENT_PARSE_EXCEPTION",error_message:"Invalid verification payload.",diagnostics:{extracted_text:result.text}});await admin.from("company_documents").update({verification_status:"failed",verified_at:new Date().toISOString()}).eq("id",doc.id).eq("organization_id",doc.organization_id).eq("company_id",doc.company_id);return json({error:"Invalid verification payload.",provider:p,model:result.model,stage:"AI_CONTENT_PARSE_EXCEPTION"},502)}
-    const year=typeof parsed.year==="number"&&Number.isInteger(parsed.year)&&parsed.year>=1900&&parsed.year<=2100?parsed.year:null; const expiry=typeof parsed.expiry_date==="string"&&/^\d{4}-\d{2}-\d{2}$/.test(parsed.expiry_date)?parsed.expiry_date:null; const confidence=parsed.confidence==="high"?"high":"low"; const detected=parsed.doc_type as VerifiedDocType; const declared=normalizeDocumentType(doc.document_type); const mismatch=Boolean(declared&&declared!=="OTHER"&&detected!=="OTHER"&&declared!==detected); const status=detected==="OTHER"?"mismatch":mismatch&&confidence==="high"?"mismatch":"verified";
-    const attemptId=await recordAttempt(status,{model:result.model,doc_type:detected,year,expiry_date:expiry,confidence});
-    const now=new Date().toISOString(); const {error:up}=await admin.from("company_documents").update({verified_doc_type:detected,verified_year:year,verified_expiry_date:expiry,verification_status:status,verified_at:now}).eq("id",doc.id).eq("organization_id",doc.organization_id).eq("company_id",doc.company_id); if(up)throw up;
-    if(status==="verified"){
-      const {error:factError}=await admin.from("document_verified_facts").insert({document_id:doc.id,organization_id:doc.organization_id,company_id:doc.company_id,doc_type:detected,doc_year:year,expiry_date:expiry,confidence,verification_attempt_id:attemptId,verified_at:now}); if(factError)throw factError;
+    if (dl || !blob) {
+      await persistOutcome(
+        "failed",
+        {
+          error_stage: "STORAGE_DOWNLOAD",
+          error_message: "Could not download document for verification.",
+        },
+        { verification_status: "failed" },
+      );
+      return json(
+        {
+          error: "Could not download document for verification.",
+          stage: "STORAGE_DOWNLOAD",
+        },
+        502,
+      );
     }
+    const bytes = new Uint8Array(await blob.arrayBuffer());
+    if (bytes.byteLength > MAX) {
+      await persistOutcome(
+        "failed",
+        {
+          error_stage: "PDF_TOO_LARGE",
+          error_message: "PDF exceeds 20 MB limit.",
+        },
+        { verification_status: "failed" },
+      );
+      return json(
+        {
+          error: "PDF_TOO_LARGE",
+          document_id: doc.id,
+          raw_bytes: bytes.byteLength,
+          max_raw_bytes: MAX,
+        },
+        413,
+      );
+    }
+    const chunks:string[]=[];for(let i=0;i<bytes.length;i+=0x8000)chunks.push(String.fromCharCode(...bytes.subarray(i,i+0x8000))); const base64=btoa(chunks.join("")); const filename=doc.original_filename??doc.document_name??"unknown";
+    let result: any;
+    try {
+      result = await aiCall(p, key, base64, filename, doc.id);
+    } catch (e) {
+      await persistOutcome(
+        "failed",
+        {
+          error_stage: "AI_REQUEST_EXCEPTION",
+          error_message: e instanceof Error ? e.message : String(e),
+        },
+        { verification_status: "failed" },
+      );
+      return json(
+        {
+          error: "AI verification request failed.",
+          stage: "AI_REQUEST_EXCEPTION",
+        },
+        502,
+      );
+    }
+    if (!result.ok) {
+      await persistOutcome(
+        "failed",
+        {
+          model: result.model,
+          error_stage: result.stage,
+          error_message: result.message,
+          diagnostics: result.diagnostics,
+        },
+        { verification_status: "failed" },
+      );
+      return json(
+        {
+          error: result.message,
+          provider: p,
+          stage: result.stage,
+          diagnostics: result.diagnostics,
+        },
+        502,
+      );
+    }
+    const parsed = parse(result.text);
+    if (!parsed || !validType(parsed.doc_type)) {
+      await persistOutcome(
+        "failed",
+        {
+          model: result.model,
+          error_stage: "AI_CONTENT_PARSE_EXCEPTION",
+          error_message: "Invalid verification payload.",
+          diagnostics: { extracted_text: result.text },
+        },
+        { verification_status: "failed" },
+      );
+      return json(
+        {
+          error: "Invalid verification payload.",
+          provider: p,
+          model: result.model,
+          stage: "AI_CONTENT_PARSE_EXCEPTION",
+        },
+        502,
+      );
+    }
+    const year =
+      typeof parsed.year === "number" &&
+      Number.isInteger(parsed.year) &&
+      parsed.year >= 1900 &&
+      parsed.year <= 2100
+        ? parsed.year
+        : null;
+    const expiry =
+      typeof parsed.expiry_date === "string" && /^\d{4}-\d{2}-\d{2}$/.test(parsed.expiry_date)
+        ? parsed.expiry_date
+        : null;
+    const confidence = parsed.confidence === "high" ? "high" : "low";
+    const detected = parsed.doc_type as VerifiedDocType;
+    const declared = normalizeDocumentType(doc.document_type);
+    const mismatch = Boolean(
+      declared && declared !== "OTHER" && detected !== "OTHER" && declared !== detected,
+    );
+    const status =
+      detected === "OTHER"
+        ? "mismatch"
+        : mismatch && confidence === "high"
+          ? "mismatch"
+          : "verified";
+    const now = new Date().toISOString();
+    const statusPatch =
+      status === "verified"
+        ? {
+            verified_doc_type: detected,
+            verified_year: year,
+            verified_expiry_date: expiry,
+            verification_status: status,
+            verified_at: now,
+          }
+        : { verification_status: status };
+    const attemptId = await persistOutcome(
+      status,
+      {
+        model: result.model,
+        doc_type: detected,
+        year,
+        expiry_date: expiry,
+        confidence,
+      },
+      statusPatch,
+      status === "verified"
+        ? {
+            document_id: doc.id,
+            organization_id: doc.organization_id,
+            company_id: doc.company_id,
+            doc_type: detected,
+            doc_year: year,
+            expiry_date: expiry,
+            confidence,
+            verified_at: now,
+          }
+        : undefined,
+    );
     return json({document_id:doc.id,verified_doc_type:detected,verified_year:year,verified_expiry_date:expiry,verification_status:status,confidence,provider:p,model:result.model,verification_attempt_id:attemptId});
   }catch(e){console.error("verify-document failed",e);return json({error:e instanceof Error?e.message:"Document verification failed.",stage:"UNHANDLED_EXCEPTION"},500)}
 });
