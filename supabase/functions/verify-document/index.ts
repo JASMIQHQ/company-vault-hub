@@ -64,9 +64,9 @@ Deno.serve(async req=>{
   };
   const persistOutcome = (
     outcome: "verified" | "mismatch" | "failed",
-    extra: any = {},
-    statusPatch: any = {},
-    facts?: any,
+    extra: Record<string, unknown> = {},
+    statusPatch: Record<string, unknown> = {},
+    facts?: Record<string, unknown>,
   ) =>
     persistVerificationOutcome(outcome, extra, statusPatch, facts, {
       recordAttempt,
