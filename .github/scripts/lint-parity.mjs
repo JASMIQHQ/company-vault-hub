@@ -119,7 +119,10 @@ try {
     `- Newly introduced findings: ${introduced.length}`,
     "",
     introduced.length
-      ? introduced.slice(0, 100).map((item) => `- \`${item.file}\` — ${item.ruleId}: ${item.message}`).join("\n")
+      ? introduced
+          .slice(0, 100)
+          .map((item) => `- \`${item.file}\` — ${item.ruleId}: ${item.message}`)
+          .join("\n")
       : "No new lint findings were detected relative to the base commit.",
   ].join("\n");
 
