@@ -201,17 +201,14 @@ Deno.serve(async req=>{
         ? parsed.year
         : null;
     const expiry =
-      typeof parsed.expiry_date === "string" &&
-      /^\d{4}-\d{2}-\d{2}$/.test(parsed.expiry_date)
+      typeof parsed.expiry_date === "string" && /^\d{4}-\d{2}-\d{2}$/.test(parsed.expiry_date)
         ? parsed.expiry_date
         : null;
     const confidence = parsed.confidence === "high" ? "high" : "low";
     const detected = parsed.doc_type as VerifiedDocType;
     const declared = normalizeDocumentType(doc.document_type);
     const mismatch = Boolean(
-      declared &&
-        declared !== "OTHER" && detected !== "OTHER" &&
-        declared !== detected,
+      declared && declared !== "OTHER" && detected !== "OTHER" &&d !== detected,
     );
     const status =
       detected === "OTHER"
@@ -219,7 +216,7 @@ Deno.serve(async req=>{
         : mismatch && confidence === "high"
           ? "mismatch"
           : "verified";
-    const now = new Date().toISOString();
+    const now = new D = te().toISOString();
     const statusPatch = status === "verified"
       ? {
             verified_doc_type: detected,
