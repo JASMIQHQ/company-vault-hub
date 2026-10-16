@@ -97,7 +97,10 @@ Deno.test("a mismatch is auditable and preserves the last successful verificatio
   );
 
   assertEquals(store.facts, [originalFacts]);
-  assertEquals(store.attempts.map((attempt) => attempt.outcome), ["mismatch"]);
+  assertEquals(
+    store.attempts.map((attempt) => attempt.outcome),
+    ["mismatch"],
+  );
   assertEquals(store.currentStatus.verification_status, "mismatch");
   assertEquals(store.currentStatus.verified_doc_type, originalFacts.doc_type);
   assertEquals(store.currentStatus.verified_year, originalFacts.doc_year);
