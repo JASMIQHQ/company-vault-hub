@@ -1,24 +1,56 @@
-# G34: Company/organisation consistency audit
+# G34: Company/organisation consistency audit and remediation
 
-## Finding
+## Confirmed findings
 
-The live definitions of `public.register_document_upload` and `public.calculate_tender_compliance` use SECURITY DEFINER execution.
+The live definitions of public.register_document_upload and public.calculate_tender_compliance use SECURITY DEFINER execution.
 
-- `register_document_upload` obtains the document `organization_id` from `current_organization_id()`, then checks membership in the requested company. For users with memberships in multiple organisations, the selected organisation is not guaranteed to be the requested company's organisation.
-- `calculate_tender_compliance` verifies membership in the tender's company but does not explicitly reject a tender whose stored `organization_id` differs from that company's organisation before writing its compliance percentage.
-- Current table foreign keys validate that the referenced company and organisation exist independently; they do not enforce that the two organisation IDs agree.
+- register_document_upload originally obtained the new document's organization_id from current_organization_id(), then separately checked membership in the requested company. The helper selects one organisation membership without a requested organisation ID, so multi-organisation membership could make the chosen tenant ambiguous.
+- calculate_tender_compliance originally checked membership in the tender's company but did not explicitly reject a persisted tender whose organization_id differed from the company's organisation before updating compliance.
+- The live foreign keys validate that referenced company and organisation rows exist independently; they do not enforce equality between a document/tender organisation and its company's organisation.
+- The live read-only consistency query found zero mismatched company-document or tender organisation relationships in the examined records. No production rows were changed.
 
-## Read-only evidence
+## Proposed remediation committed to this branch
 
-The live audit query returned zero mismatched company-document and tender organisation relationships in the rows examined. No production rows were changed.
+Migration: supabase/migrations/20261016160000_g34_enforce_company_organization_consistency.sql
 
-## Proposed fix
+1. Upload organisation is derived from the active persisted company.
+2. Upload is rejected unless the authenticated caller is a member of that company.
+3. Tender compliance is rejected unless the persisted tender's organisation equals its active company's organisation and the caller is a member of that company.
+4. The compliance update repeats the tender, company and organisation predicates as a defence-in-depth write guard.
+5. EXECUTE is explicitly revoked from PUBLIC and anon, and granted to authenticated and service_role, preserving the observed intended roles.
 
-1. In `register_document_upload`, derive the organisation from the active persisted company row, then check company membership before inserting.
-2. In `calculate_tender_compliance`, verify the persisted tender organisation equals the active company's organisation before reading requirements or updating compliance.
-3. Add regression checks for multi-organisation membership, mismatched organisation/company relationships, and valid same-company operations.
-4. Apply only through the reviewed migration/release process after migration provenance and authenticated G34 gates pass.
+## Automated guard
+
+.github/scripts/g34-org-consistency-migration-check.mjs adds static assertions for the critical migration invariants. .github/workflows/g34-org-consistency-migration-check.yml runs that check when relevant files change.
+
+This is a source-level regression guard, not a substitute for applying the migration to a disposable/staging database and testing actual RLS/role behaviour.
+
+## Required staging acceptance tests
+
+Run with two separate authenticated users in a staging project; do not use a service-role token for the negative-access tests.
+
+| Case | Setup / action | Expected result |
+|---|---|---|
+| U1 | User A uploads to an active company they belong to | Success; inserted document organisation equals that company's organisation |
+| U2 | User A attempts upload to a company they do not belong to | SQLSTATE 42501; no row inserted |
+| U3 | User A belongs to companies in two organisations; uploads to company in the non-default organisation | Success; document organisation follows the requested company, not current_organization_id() |
+| T1 | Member calculates compliance for a consistent tender/company pair | Existing percentage calculation and write succeed |
+| T2 | Member calls calculation for a tender whose persisted organisation differs from its company's organisation | SQLSTATE 42501; compliance value unchanged |
+| T3 | Member calls calculation for an inactive company or missing tender | SQLSTATE 42501; no update |
+| P1 | Anonymous role calls either RPC | Execute denied |
+| P2 | Authenticated non-member calls either RPC against another company's IDs | Forbidden; no cross-company data mutation |
+
+Where the production schema prevents constructing an inconsistent tender through normal writes, create that fixture only in an isolated disposable test database with constraints deliberately bypassed for the test, then roll back/destroy that database. Never corrupt staging or production data to manufacture the case.
 
 ## Release status
 
-Finding confirmed from live function definitions. Proposed SQL migration was not committed or applied because the repository write action was blocked by the execution safety checks. No production DDL, data changes, or deployment were performed.
+- [x] Live function definitions and grants inspected read-only.
+- [x] Proposed SQL migration committed on an isolated branch.
+- [x] Static migration guard and workflow committed on that branch.
+- [ ] Static workflow observed passing on the PR.
+- [ ] Migration applied and verified in disposable/staging environment.
+- [ ] Authenticated acceptance tests passed.
+- [ ] Migration provenance gate reconciled and approved.
+- [ ] Required independent review and repository checks passed.
+
+The migration has not been applied to production. No production DDL, data writes, or deployment were performed.
