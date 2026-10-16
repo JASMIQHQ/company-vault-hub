@@ -7,6 +7,7 @@ The live definitions of public.register_document_upload and public.calculate_ten
 - register_document_upload originally obtained the new document's organization_id from current_organization_id(), then separately checked membership in the requested company. The helper selects one organisation membership without a requested organisation ID, so multi-organisation membership could make the chosen tenant ambiguous.
 - calculate_tender_compliance originally checked membership in the tender's company but did not explicitly reject a persisted tender whose organization_id differed from the company's organisation before updating compliance.
 - The live RLS policies on company_documents and tenders originally checked company membership but did not require the row's organization_id to equal the company's persisted organization_id. Thus, membership alone was not a sufficient tenant-consistency check for direct authenticated table writes.
+- A fresh read-only pg_policies inventory on 2026-10-16 confirmed exactly one policy on each of company_documents and tenders: company_documents_company_access and tenders_company_access. Both are permissive FOR ALL policies for authenticated. The companies table has companies_org_access (PERMISSIVE, ALL, roles {public}) using is_org_member(organization_id). No second permissive policy on either target table was found in that inventory.
 - The live foreign keys validate that referenced company and organisation rows exist independently; they do not enforce equality between a document/tender organisation and its company's organisation.
 - The live read-only consistency query found zero mismatched company-document or tender organisation relationships in the examined records. No production rows were changed.
 
@@ -21,15 +22,18 @@ Migration: supabase/migrations/20261016160000_g34_enforce_company_organization_c
 5. The company_documents and tenders authenticated RLS policies require both active company membership and equality between the row organisation and persisted company organisation, for reads and writes.
 6. EXECUTE is explicitly revoked from PUBLIC and anon, and granted to authenticated and service_role, preserving the observed intended roles.
 
-## Automated guard and CI evidence
+## Automated guard and CI evidence (refreshed 2026-10-16)
 
-.github/scripts/g34-org-consistency-migration-check.mjs adds static assertions for RPC tenant checks, direct-write policies, and execute-grant hardening. .github/workflows/g34-org-consistency-migration-check.yml runs that check when relevant files change.
+Latest PR head: 82cf63f83ec0f3dd1b104fbe2dc3724fcea0b9e6.
 
-- Static migration guard: passed on PR head fb274b5f80527a2010e73399a20ab13e36234cf8.
-- Existing G25-G30 build verification: passed on the same PR head.
-- Repository Quality Gate: failed at the existing full-repository lint step with 3,894 findings (3,876 errors and 18 warnings); the new migration guard script itself had no lint findings. Build step in that workflow was skipped after lint failed, but the separate build verification passed.
+- Static migration safety assertions: PASS on latest head.
+- Independent build job: PASS on latest head.
+- Vercel preview comments check: PASS; no unresolved preview feedback.
+- Repository Quality Gate: FAIL at the full-repository lint step with 3,894 findings (3,876 errors and 18 warnings). The migration guard script itself had no lint findings in the earlier detailed lint output. The quality job's build stage is skipped after lint fails, but the separate build job passes.
+- Independent PR review: none recorded at the time of this refresh.
+- PR #60 remains open and unmerged. PR #59 authenticated isolation harness remains separate and unmerged.
 
-The static guard is not a substitute for applying the migration to a disposable/staging database and testing actual RLS/role behaviour.
+The static guard is not a substitute for applying the migration to a disposable/staging database and testing actual RLS/role behaviour. A successful preview is not database acceptance evidence.
 
 ## Required staging acceptance tests
 
@@ -55,9 +59,10 @@ Where the production schema prevents constructing an inconsistent tender through
 
 - [x] Live function definitions, RLS policies, execute grants, foreign keys and consistency counts inspected read-only.
 - [x] Proposed SQL migration committed on an isolated branch.
-- [x] Static migration guard and workflow committed and passing.
-- [x] Separate existing G25-G30 build verification passing.
-- [ ] Repository Quality Gate green; full-repository lint remains at the known 3,894-finding baseline.
+- [x] Static migration guard and workflow passing on latest PR head.
+- [x] Independent build passing on latest PR head.
+- [x] Target-table policy inventory checked; one permissive policy found per target table.
+- [ ] Repository Quality Gate green; full-repository lint remains at 3,894 findings.
 - [ ] Migration applied and verified in disposable/staging environment.
 - [ ] Authenticated acceptance tests passed.
 - [ ] Migration provenance gate reconciled and approved.
