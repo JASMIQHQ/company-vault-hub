@@ -73,6 +73,52 @@ BEGIN
 END;
 $$;
 
+-- Direct authenticated table writes must enforce the same tenant invariant
+-- as the RPCs; company membership alone does not validate the row's org ID.
+DROP POLICY IF EXISTS company_documents_company_access ON public.company_documents;
+CREATE POLICY company_documents_company_access
+ON public.company_documents FOR ALL TO authenticated
+USING (
+  (SELECT private.is_company_member(company_documents.company_id))
+  AND EXISTS (
+    SELECT 1 FROM public.companies c
+    WHERE c.id = company_documents.company_id
+      AND c.organization_id = company_documents.organization_id
+      AND c.is_active = true
+  )
+)
+WITH CHECK (
+  (SELECT private.is_company_member(company_documents.company_id))
+  AND EXISTS (
+    SELECT 1 FROM public.companies c
+    WHERE c.id = company_documents.company_id
+      AND c.organization_id = company_documents.organization_id
+      AND c.is_active = true
+  )
+);
+
+DROP POLICY IF EXISTS tenders_company_access ON public.tenders;
+CREATE POLICY tenders_company_access
+ON public.tenders FOR ALL TO authenticated
+USING (
+  (SELECT private.is_company_member(tenders.company_id))
+  AND EXISTS (
+    SELECT 1 FROM public.companies c
+    WHERE c.id = tenders.company_id
+      AND c.organization_id = tenders.organization_id
+      AND c.is_active = true
+  )
+)
+WITH CHECK (
+  (SELECT private.is_company_member(tenders.company_id))
+  AND EXISTS (
+    SELECT 1 FROM public.companies c
+    WHERE c.id = tenders.company_id
+      AND c.organization_id = tenders.organization_id
+      AND c.is_active = true
+  )
+);
+
 REVOKE EXECUTE ON FUNCTION public.register_document_upload(uuid, text, text, text, text, text, text, bigint, text) FROM PUBLIC, anon;
 GRANT EXECUTE ON FUNCTION public.register_document_upload(uuid, text, text, text, text, text, text, bigint, text) TO authenticated, service_role;
 REVOKE EXECUTE ON FUNCTION public.calculate_tender_compliance(uuid) FROM PUBLIC, anon;
