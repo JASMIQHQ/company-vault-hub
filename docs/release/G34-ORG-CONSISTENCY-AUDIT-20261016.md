@@ -21,11 +21,15 @@ Migration: supabase/migrations/20261016160000_g34_enforce_company_organization_c
 5. The company_documents and tenders authenticated RLS policies require both active company membership and equality between the row organisation and persisted company organisation, for reads and writes.
 6. EXECUTE is explicitly revoked from PUBLIC and anon, and granted to authenticated and service_role, preserving the observed intended roles.
 
-## Automated guard
+## Automated guard and CI evidence
 
 .github/scripts/g34-org-consistency-migration-check.mjs adds static assertions for RPC tenant checks, direct-write policies, and execute-grant hardening. .github/workflows/g34-org-consistency-migration-check.yml runs that check when relevant files change.
 
-This is a source-level regression guard, not a substitute for applying the migration to a disposable/staging database and testing actual RLS/role behaviour.
+- Static migration guard: passed on PR head fb274b5f80527a2010e73399a20ab13e36234cf8.
+- Existing G25-G30 build verification: passed on the same PR head.
+- Repository Quality Gate: failed at the existing full-repository lint step with 3,894 findings (3,876 errors and 18 warnings); the new migration guard script itself had no lint findings. Build step in that workflow was skipped after lint failed, but the separate build verification passed.
+
+The static guard is not a substitute for applying the migration to a disposable/staging database and testing actual RLS/role behaviour.
 
 ## Required staging acceptance tests
 
@@ -51,8 +55,9 @@ Where the production schema prevents constructing an inconsistent tender through
 
 - [x] Live function definitions, RLS policies, execute grants, foreign keys and consistency counts inspected read-only.
 - [x] Proposed SQL migration committed on an isolated branch.
-- [x] Static migration guard and workflow committed on that branch.
-- [ ] Static workflow observed passing on the latest PR commit.
+- [x] Static migration guard and workflow committed and passing.
+- [x] Separate existing G25-G30 build verification passing.
+- [ ] Repository Quality Gate green; full-repository lint remains at the known 3,894-finding baseline.
 - [ ] Migration applied and verified in disposable/staging environment.
 - [ ] Authenticated acceptance tests passed.
 - [ ] Migration provenance gate reconciled and approved.
