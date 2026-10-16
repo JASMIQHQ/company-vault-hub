@@ -79,9 +79,15 @@ Deno.test(
       503,
     );
     assertEquals(store.currentStatus.verification_status, "failed");
-    assertEquals(store.currentStatus.verified_doc_type, originalFacts.doc_type);
+    assertEquals(
+      store.currentStatus.verified_doc_type,
+      originalFacts.doc_type,
+    );
     assertEquals(store.currentStatus.verified_year, originalFacts.doc_year);
-    assertEquals(store.currentStatus.verified_expiry_date, originalFacts.expiry_date);
+    assertEquals(
+      store.currentStatus.verified_expiry_date,
+      originalFacts.expiry_date,
+    );
     assertEquals(store.currentStatus.verified_at, originalFacts.verified_at);
   },
 );
@@ -89,34 +95,41 @@ Deno.test(
 Deno.test(
   "a mismatch is auditable and preserves the last successful verification",
   async () => {
-  const store = makeStore({
-    verified_doc_type: originalFacts.doc_type,
-    verified_year: originalFacts.doc_year,
-    verified_expiry_date: originalFacts.expiry_date,
-    verified_at: originalFacts.verified_at,
-    verification_status: "verified",
-  });
-  store.facts.push(structuredClone(originalFacts));
+    const store = makeStore({
+      verified_doc_type: originalFacts.doc_type,
+      verified_year: originalFacts.doc_year,
+      verified_expiry_date: originalFacts.expiry_date,
+      verified_at: originalFacts.verified_at,
+      verification_status: "verified",
+    });
+    store.facts.push(structuredClone(originalFacts));
 
-  await persistVerificationOutcome(
-    "mismatch",
-    { doc_type: "OTHER", confidence: "low" },
-    { verification_status: "mismatch" },
-    undefined,
-    store.adapter,
-  );
+    await persistVerificationOutcome(
+      "mismatch",
+      { doc_type: "OTHER", confidence: "low" },
+      { verification_status: "mismatch" },
+      undefined,
+      store.adapter,
+    );
 
-  assertEquals(store.facts, [originalFacts]);
-  assertEquals(
-    store.attempts.map((attempt) => attempt.outcome),
-    ["mismatch"],
-  );
-  assertEquals(store.currentStatus.verification_status, "mismatch");
-  assertEquals(store.currentStatus.verified_doc_type, originalFacts.doc_type);
-  assertEquals(store.currentStatus.verified_year, originalFacts.doc_year);
-  assertEquals(store.currentStatus.verified_expiry_date, originalFacts.expiry_date);
-  assertEquals(store.currentStatus.verified_at, originalFacts.verified_at);
-});
+    assertEquals(store.facts, [originalFacts]);
+    assertEquals(
+      store.attempts.map((attempt) => attempt.outcome),
+      ["mismatch"],
+    );
+    assertEquals(store.currentStatus.verification_status, "mismatch");
+    assertEquals(
+      store.currentStatus.verified_doc_type,
+      originalFacts.doc_type,
+    );
+    assertEquals(store.currentStatus.verified_year, originalFacts.doc_year);
+    assertEquals(
+      store.currentStatus.verified_expiry_date,
+      originalFacts.expiry_date,
+    );
+    assertEquals(store.currentStatus.verified_at, originalFacts.verified_at);
+  },
+);
 
 Deno.test(
   "a later success appends a new fact version without deleting attempt history",
