@@ -1,8 +1,5 @@
 import { assertEquals, assertRejects } from "jsr:@std/assert";
-import {
-  persistVerificationOutcome,
-  type VerificationOutcome,
-} from "./verification-integrity.ts";
+import { persistVerificationOutcome, type VerificationOutcome } from "./verification-integrity.ts";
 
 const originalFacts = {
   document_id: "e2c59dd9-1f20-4a45-99e7-b99035ca07e0",
@@ -23,10 +20,15 @@ function makeStore(initialCurrentStatus: Record<string, unknown> = {}) {
     extra: Record<string, unknown>;
   }> = [];
   const facts: Array<Record<string, unknown>> = [];
-  let currentStatus: Record<string, unknown> = structuredClone(initialCurrentStatus);
+  let currentStatus: Record<string, unknown> = structuredClone(
+    initialCurrentStatus,
+  );
   let nextId = 1;
   const adapter = {
-    async recordAttempt(outcome: VerificationOutcome, extra: Record<string, unknown>) {
+    async recordAttempt(
+      outcome: VerificationOutcome,
+      extra: Record<string, unknown>,
+    ) {
       const id = `attempt-${nextId++}`;
       attempts.push({ id, outcome, extra: structuredClone(extra) });
       return id;
@@ -72,7 +74,10 @@ Deno.test(
     assertEquals(store.attempts.length, 1);
     assertEquals(store.attempts[0].outcome, "failed");
     assertEquals(store.attempts[0].extra.error_stage, "AI_UPSTREAM_HTTP");
-    assertEquals((store.attempts[0].extra.diagnostics as { http_status: number }).http_status, 503);
+    assertEquals(
+      (store.attempts[0].extra.diagnostics as { http_status: number }).http_status,
+      503,
+    );
     assertEquals(store.currentStatus.verification_status, "failed");
     assertEquals(store.currentStatus.verified_doc_type, originalFacts.doc_type);
     assertEquals(store.currentStatus.verified_year, originalFacts.doc_year);
@@ -81,7 +86,9 @@ Deno.test(
   },
 );
 
-Deno.test("a mismatch is auditable and preserves the last successful verification", async () => {
+Deno.test(
+  "a mismatch is auditable and preserves the last successful verification",
+  async () => {
   const store = makeStore({
     verified_doc_type: originalFacts.doc_type,
     verified_year: originalFacts.doc_year,
@@ -100,7 +107,10 @@ Deno.test("a mismatch is auditable and preserves the last successful verificatio
   );
 
   assertEquals(store.facts, [originalFacts]);
-  assertEquals(store.attempts.map((attempt) => attempt.outcome), ["mismatch"]);
+  assertEquals(
+    store.attempts.map((attempt) => attempt.outcome),
+    ["mismatch"],
+  );
   assertEquals(store.currentStatus.verification_status, "mismatch");
   assertEquals(store.currentStatus.verified_doc_type, originalFacts.doc_type);
   assertEquals(store.currentStatus.verified_year, originalFacts.doc_year);
@@ -113,8 +123,16 @@ Deno.test(
   async () => {
     const store = makeStore();
     store.facts.push(structuredClone(originalFacts));
-    store.attempts.push({ id: "attempt-success-1", outcome: "verified", extra: {} });
-    store.attempts.push({ id: "attempt-failed-2", outcome: "failed", extra: { http_status: 503 } });
+    store.attempts.push({
+      id: "attempt-success-1",
+      outcome: "verified",
+      extra: {},
+    });
+    store.attempts.push({
+      id: "attempt-failed-2",
+      outcome: "failed",
+      extra: { http_status: 503 },
+    });
 
     const newFact = {
       document_id: originalFacts.document_id,
@@ -129,8 +147,17 @@ Deno.test(
 
     const attemptId = await persistVerificationOutcome(
       "verified",
-      { doc_type: newFact.doc_type, year: newFact.doc_year, expiry_date: newFact.expiry_date, confidence: newFact.confidence },
-      { verification_status: "verified", verified_doc_type: newFact.doc_type, verified_at: newFact.verified_at },
+      {
+        doc_type: newFact.doc_type,
+        year: newFact.doc_year,
+        expiry_date: newFact.expiry_date,
+        confidence: newFact.confidence,
+      },
+      {
+        verification_status: "verified",
+        verified_doc_type: newFact.doc_type,
+        verified_at: newFact.verified_at,
+      },
       newFact,
       store.adapter,
     );
@@ -145,9 +172,7 @@ Deno.test(
   },
 );
 
-Deno.test(
-  "invalid fact/outcome combinations fail before writing anything",
-  async () => {
+Deno.test("invalid fact/outcome combinations fail before writing anything", async () => {
     const store = makeStore();
     await assertRejects(() =>
       persistVerificationOutcome("verified", {}, {}, undefined, store.adapter),
