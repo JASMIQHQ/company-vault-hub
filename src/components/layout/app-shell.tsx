@@ -77,6 +77,16 @@ function Brand() {
   );
 }
 
+function Footer() {
+  return (
+    <footer className="border-t border-border/40 px-4 py-4 sm:px-6">
+      <p className="text-center text-[11px] text-muted-foreground/70">
+        © 2026 JASMIQ Intelligence · Crafted by Bosah
+      </p>
+    </footer>
+  );
+}
+
 export function AppShell({ children }: { children: ReactNode }) {
   const router = useRouter();
   const [mobileOpen, setMobileOpen] = useState(false);
@@ -179,6 +189,7 @@ export function AppShell({ children }: { children: ReactNode }) {
           </header>
 
           <main className="flex-1">{children}</main>
+          <Footer />
         </div>
       </div>
     </div>
