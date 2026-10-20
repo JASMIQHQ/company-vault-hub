@@ -10,6 +10,7 @@ Use a dedicated staging Supabase project, never production credentials for this 
 - User A must be an active member of Company A and **not** Company B.
 - User B must be an active member of Company B and **not** Company A.
 - Each company must have at least one existing Vault document and one existing tender.
+- Each tender must have at least one existing `tender_requirements`, `tender_files`, `compliance_matches`, and `generated_documents` row so every resource check has a positive control; an empty table must not count as proof of isolation.
 - Tender A and Tender B must belong to their respective companies.
 - The users must have valid access tokens from normal sign-in; do not paste tokens into workflow inputs or commit them.
 
