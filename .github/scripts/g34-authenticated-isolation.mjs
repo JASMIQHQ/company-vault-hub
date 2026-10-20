@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /**
- * Authenticated G34/G35 tenant-boundary acceptance test.
+ * Authenticated G34/G35 tenant-boundary acceptance test. Validates distinct user identities first.
  *
  * Uses two real, separately scoped Supabase user access tokens through the
  * public Data API. It intentionally never uses the service-role key and does
@@ -68,6 +68,38 @@ async function run() {
   const companyB = env.G34_COMPANY_B_ID;
   const tenderA = env.G34_TENDER_A_ID;
   const tenderB = env.G34_TENDER_B_ID;
+
+  // Establish that the two bearer tokens represent different authenticated
+  // Supabase users before treating their reads as an isolation test.
+  async function authenticatedUser(token, label) {
+    const response = await fetch(`${baseUrl}/auth/v1/user`, {
+      headers: {
+        apikey: env.SUPABASE_ANON_KEY,
+        authorization: `Bearer ${token}`,
+        accept: "application/json",
+      },
+    });
+    if (!response.ok) {
+      const detail = (await response.text()).slice(0, 300);
+      throw new Error(`${label} token could not be validated (HTTP ${response.status}): ${detail}`);
+    }
+    const user = await response.json();
+    if (typeof user.id !== "string" || !uuidPattern.test(user.id)) {
+      throw new Error(`${label} token did not resolve to a valid authenticated user ID`);
+    }
+    return user.id;
+  }
+  const [userAId, userBId] = await Promise.all([
+    authenticatedUser(A, "User A"),
+    authenticatedUser(B, "User B"),
+  ]);
+  assert("User A and User B tokens resolve to distinct authenticated users", userAId !== userBId,
+    userAId === userBId ? "Both tokens resolve to the same user; negative isolation evidence would be invalid" : "Distinct user identities confirmed");
+  if (userAId === userBId) {
+    console.error("Release gate FAILED before resource checks: use two different staging users.");
+    process.exitCode = 1;
+    return;
+  }
 
   // Positive controls: each token can access its own company's real records.
   const [aDocs, bDocs, aTender, bTender] = await Promise.all([
