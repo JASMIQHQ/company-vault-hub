@@ -127,7 +127,8 @@ async function run() {
   assert("User B cannot read Company A tender", bForeignTender.length === 0, `${bForeignTender.length} foreign row(s) visible`);
 
   // Related resources are checked by persisted tender ownership, not by a
-  // client-supplied company selector. Empty result is the required boundary.
+  // client-supplied company selector. Positive controls prevent empty tables
+  // from making a negative-only isolation check pass vacuously.
   const relatedTables = [
     ["tender_requirements", "id,tender_id"],
     ["tender_files", "id,tender_id"],
@@ -135,10 +136,14 @@ async function run() {
     ["generated_documents", "id,tender_id"],
   ];
   for (const [table, select] of relatedTables) {
-    const [aSeesB, bSeesA] = await Promise.all([
+    const [aOwn, bOwn, aSeesB, bSeesA] = await Promise.all([
+      rows(A, table, select, { tender_id: `eq.${tenderA}`, limit: "1" }),
+      rows(B, table, select, { tender_id: `eq.${tenderB}`, limit: "1" }),
       rows(A, table, select, { tender_id: `eq.${tenderB}`, limit: "5" }),
       rows(B, table, select, { tender_id: `eq.${tenderA}`, limit: "5" }),
     ]);
+    assert(`User A can read its Company A ${table} fixture`, aOwn.length > 0, `${aOwn.length} own row(s) visible`);
+    assert(`User B can read its Company B ${table} fixture`, bOwn.length > 0, `${bOwn.length} own row(s) visible`);
     assert(`User A cannot read Company B ${table}`, aSeesB.length === 0, `${aSeesB.length} foreign row(s) visible`);
     assert(`User B cannot read Company A ${table}`, bSeesA.length === 0, `${bSeesA.length} foreign row(s) visible`);
   }
