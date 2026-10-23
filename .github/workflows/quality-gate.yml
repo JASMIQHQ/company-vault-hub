@@ -35,7 +35,6 @@ jobs:
     name: Build candidate
     runs-on: ubuntu-latest
     needs: lint-parity
-    # Build still runs when lint parity finds regressions so the two results are independently visible.
     if: always()
     steps:
       - uses: actions/checkout@v4
@@ -45,11 +44,19 @@ jobs:
         with:
           bun-version: latest
       - run: bun install --frozen-lockfile
-      - name: Test Supabase staging isolation configuration
-        run: bun test src/integrations/supabase/resolve-config.test.ts
-      - name: Build Vercel Preview with staging forced on
+      - run: bun run build
+
+  # Stable aggregate check name required by the repository ruleset.
+  quality-gate:
+    name: Quality Gate
+    runs-on: ubuntu-latest
+    needs: [lint-parity, build]
+    if: always()
+    steps:
+      - name: Require lint parity and build to pass
         env:
-          VERCEL_ENV: preview
-        run: bun run build
-      - name: Build normal production configuration
-        run: bun run build
+          LINT_RESULT: ${{ needs.lint-parity.result }}
+          BUILD_RESULT: ${{ needs.build.result }}
+        run: |
+          test "$LINT_RESULT" = "success"
+          test "$BUILD_RESULT" = "success"
