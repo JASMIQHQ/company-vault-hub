@@ -45,3 +45,18 @@ jobs:
           bun-version: latest
       - run: bun install --frozen-lockfile
       - run: bun run build
+
+  # Stable aggregate check name required by the repository ruleset.
+  quality-gate:
+    name: Quality Gate
+    runs-on: ubuntu-latest
+    needs: [lint-parity, build]
+    if: always()
+    steps:
+      - name: Require lint parity and build to pass
+        env:
+          LINT_RESULT: ${{ needs.lint-parity.result }}
+          BUILD_RESULT: ${{ needs.build.result }}
+        run: |
+          test "$LINT_RESULT" = "success"
+          test "$BUILD_RESULT" = "success"
