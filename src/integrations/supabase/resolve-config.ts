@@ -17,9 +17,7 @@ export interface SupabaseConfig {
 
 export function resolveSupabaseConfig(env: SupabaseEnvironment): SupabaseConfig {
   const stagingRequired = env.stagingRequired === "true";
-  const url = stagingRequired
-    ? env.stagingUrl
-    : env.stagingUrl || env.url || env.serverUrl;
+  const url = stagingRequired ? env.stagingUrl : env.stagingUrl || env.url || env.serverUrl;
   const publishableKey = stagingRequired
     ? env.stagingPublishableKey
     : env.stagingPublishableKey ||
@@ -32,11 +30,7 @@ export function resolveSupabaseConfig(env: SupabaseEnvironment): SupabaseConfig 
     const missing = [
       ...(!url ? [stagingRequired ? "VITE_SUPABASE_STAGING_URL" : "SUPABASE_URL"] : []),
       ...(!publishableKey
-        ? [
-            stagingRequired
-              ? "VITE_SUPABASE_STAGING_PUBLISHABLE_KEY"
-              : "SUPABASE_PUBLISHABLE_KEY",
-          ]
+        ? [stagingRequired ? "VITE_SUPABASE_STAGING_PUBLISHABLE_KEY" : "SUPABASE_PUBLISHABLE_KEY"]
         : []),
     ];
     const message = stagingRequired
