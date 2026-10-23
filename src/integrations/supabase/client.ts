@@ -30,25 +30,34 @@ function createSupabaseFetch(supabaseKey: string): typeof fetch {
 }
 
 function createSupabaseClient() {
-  // Deploy previews may opt into an isolated Supabase project without changing
-  // the production project's shared environment variables.
-  const SUPABASE_URL =
-    import.meta.env.VITE_SUPABASE_STAGING_URL ||
-    import.meta.env.VITE_SUPABASE_URL ||
-    process.env.SUPABASE_URL;
-  const SUPABASE_PUBLISHABLE_KEY =
-    import.meta.env.VITE_SUPABASE_STAGING_PUBLISHABLE_KEY ||
-    import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY ||
-    import.meta.env.VITE_SUPABASE_ANON_KEY ||
-    process.env.SUPABASE_PUBLISHABLE_KEY ||
-    process.env.SUPABASE_ANON_KEY;
+  // Set VITE_SUPABASE_STAGING_REQUIRED=true on preview deployments. When enabled,
+  // staging credentials are the only accepted configuration; never fall back to
+  // shared production credentials if either staging value is missing.
+  const stagingRequired = import.meta.env.VITE_SUPABASE_STAGING_REQUIRED === "true";
+  const stagingUrl = import.meta.env.VITE_SUPABASE_STAGING_URL;
+  const stagingKey = import.meta.env.VITE_SUPABASE_STAGING_PUBLISHABLE_KEY;
+
+  const SUPABASE_URL = stagingRequired
+    ? stagingUrl
+    : stagingUrl || import.meta.env.VITE_SUPABASE_URL || process.env.SUPABASE_URL;
+  const SUPABASE_PUBLISHABLE_KEY = stagingRequired
+    ? stagingKey
+    : stagingKey ||
+      import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY ||
+      import.meta.env.VITE_SUPABASE_ANON_KEY ||
+      process.env.SUPABASE_PUBLISHABLE_KEY ||
+      process.env.SUPABASE_ANON_KEY;
 
   if (!SUPABASE_URL || !SUPABASE_PUBLISHABLE_KEY) {
     const missing = [
-      ...(!SUPABASE_URL ? ["SUPABASE_URL"] : []),
-      ...(!SUPABASE_PUBLISHABLE_KEY ? ["SUPABASE_PUBLISHABLE_KEY"] : []),
+      ...(!SUPABASE_URL ? [stagingRequired ? "VITE_SUPABASE_STAGING_URL" : "SUPABASE_URL"] : []),
+      ...(!SUPABASE_PUBLISHABLE_KEY
+        ? [stagingRequired ? "VITE_SUPABASE_STAGING_PUBLISHABLE_KEY" : "SUPABASE_PUBLISHABLE_KEY"]
+        : []),
     ];
-    const message = `Missing Supabase environment variable(s): ${missing.join(", ")}. Connect Supabase in Lovable Cloud.`;
+    const message = stagingRequired
+      ? `Staging isolation is enabled but required variable(s) are missing: ${missing.join(", ")}. Refusing to connect to any fallback project.`
+      : `Missing Supabase environment variable(s): ${missing.join(", ")}. Connect Supabase in Lovable Cloud.`;
     console.error(`[Supabase] ${message}`);
     throw new Error(message);
   }
