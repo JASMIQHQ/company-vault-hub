@@ -47,4 +47,9 @@ jobs:
       - run: bun install --frozen-lockfile
       - name: Test Supabase staging isolation configuration
         run: bun test src/integrations/supabase/resolve-config.test.ts
-      - run: bun run build
+      - name: Build Vercel Preview with staging forced on
+        env:
+          VERCEL_ENV: preview
+        run: bun run build
+      - name: Build normal production configuration
+        run: bun run build
