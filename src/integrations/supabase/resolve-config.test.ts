@@ -1,5 +1,24 @@
 import { describe, expect, test } from "bun:test";
+import { isPreviewDeployment } from "./deployment-mode";
 import { resolveSupabaseConfig } from "./resolve-config";
+
+describe("preview deployment isolation", () => {
+  test("forces staging mode for Vercel Preview deployments", () => {
+    expect(isPreviewDeployment({ vercelEnv: "preview" })).toBe(true);
+  });
+
+  test("forces staging mode for Netlify Deploy Previews", () => {
+    expect(isPreviewDeployment({ netlifyContext: "deploy-preview" })).toBe(true);
+  });
+
+  test("does not classify Vercel production as a preview", () => {
+    expect(isPreviewDeployment({ vercelEnv: "production" })).toBe(false);
+  });
+
+  test("does not classify Netlify production as a preview", () => {
+    expect(isPreviewDeployment({ netlifyContext: "production" })).toBe(false);
+  });
+});
 
 describe("resolveSupabaseConfig", () => {
   test("staging-required mode uses only dedicated staging credentials", () => {
