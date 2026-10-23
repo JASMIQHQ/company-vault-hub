@@ -9,7 +9,7 @@ permissions:
 
 jobs:
   tanstack-start-security-floor:
-    name: Enforce patched TanStack Start version
+    name: TanStack Start Security Floor
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
