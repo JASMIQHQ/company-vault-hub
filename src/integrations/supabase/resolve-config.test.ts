@@ -99,6 +99,18 @@ describe("resolveSupabaseConfig", () => {
     ).toThrow("A Supabase secret key cannot be used by the browser client");
   });
 
+  test("accepts a legacy anon JWT in browser configuration", () => {
+    expect(
+      resolveSupabaseConfig({
+        url: "https://project.supabase.co",
+        anonKey: "eyJhbGciOiJub25lIn0.eyJyb2xlIjoiYW5vbiJ9.signature",
+      }),
+    ).toEqual({
+      url: "https://project.supabase.co",
+      publishableKey: "eyJhbGciOiJub25lIn0.eyJyb2xlIjoiYW5vbiJ9.signature",
+    });
+  });
+
   test("normal mode preserves the existing generic environment fallback", () => {
     expect(
       resolveSupabaseConfig({
