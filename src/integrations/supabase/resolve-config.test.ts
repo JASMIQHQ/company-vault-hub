@@ -93,8 +93,7 @@ describe("resolveSupabaseConfig", () => {
       resolveSupabaseConfig({
         stagingRequired: "true",
         stagingUrl: "https://staging-project.supabase.co",
-        stagingPublishableKey:
-          "eyJhbGciOiJub25lIn0.eyJyb2xlIjoic2VydmljZV9yb2xlIn0.signature",
+        stagingPublishableKey: "eyJhbGciOiJub25lIn0.eyJyb2xlIjoic2VydmljZV9yb2xlIn0.signature",
       }),
     ).toThrow("A Supabase secret key cannot be used by the browser client");
   });
