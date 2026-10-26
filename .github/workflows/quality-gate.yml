@@ -1,8 +1,10 @@
 name: Quality Gate
 
 on:
+  # Include the staging-client branch because security hardening PRs are
+  # intentionally stacked on it while staging isolation remains unapproved.
   pull_request:
-    branches: [main]
+    branches: [main, fix/staging-client-with-lint-gate-20261023]
   push:
     branches: [main]
 
