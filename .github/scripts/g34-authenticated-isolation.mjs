@@ -25,21 +25,13 @@ if (missing.length) {
 
 const env = Object.fromEntries(required.map((key) => [key, process.env[key].trim()]));
 const uuidPattern = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
-for (const key of [
-  "G34_COMPANY_A_ID",
-  "G34_COMPANY_B_ID",
-  "G34_TENDER_A_ID",
-  "G34_TENDER_B_ID",
-]) {
+for (const key of ["G34_COMPANY_A_ID", "G34_COMPANY_B_ID", "G34_TENDER_A_ID", "G34_TENDER_B_ID"]) {
   if (!uuidPattern.test(env[key])) {
     console.error(`${key} must be a UUID`);
     process.exit(2);
   }
 }
-if (
-  env.G34_COMPANY_A_ID === env.G34_COMPANY_B_ID ||
-  env.G34_TENDER_A_ID === env.G34_TENDER_B_ID
-) {
+if (env.G34_COMPANY_A_ID === env.G34_COMPANY_B_ID || env.G34_TENDER_A_ID === env.G34_TENDER_B_ID) {
   console.error("The test requires distinct company IDs and distinct tender IDs.");
   process.exit(2);
 }
@@ -94,9 +86,7 @@ async function run() {
     });
     if (!response.ok) {
       const detail = (await response.text()).slice(0, 300);
-      throw new Error(
-        `${label} token could not be validated (HTTP ${response.status}): ${detail}`,
-      );
+      throw new Error(`${label} token could not be validated (HTTP ${response.status}): ${detail}`);
     }
     const user = await response.json();
     if (typeof user.id !== "string" || !uuidPattern.test(user.id)) {
