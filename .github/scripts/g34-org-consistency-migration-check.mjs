@@ -42,4 +42,31 @@ for (const fragment of [
   assert.ok(rest.includes(fragment), `Tenant guard missing: ${fragment}`);
 }
 assert.ok(rest.includes("from public.tenders t"), "Tender lookup must use persisted tender");
-console.log("G34 organisation-consistency migration static checks passed.");
+
+// Service-role Edge Functions bypass RLS and must enforce the same invariant
+// independently before accessing tenant-owned tender data.
+const matcher = (
+  await readFile("supabase/functions/match-tender-evidence/index.ts", "utf8")
+).toLowerCase();
+const analyzer = (
+  await readFile("supabase/functions/analyze-tender/index.ts", "utf8")
+).toLowerCase();
+for (const [name, source] of [
+  ["match-tender-evidence", matcher],
+  ["analyze-tender", analyzer],
+]) {
+  assert.ok(
+    source.includes('.from("companies")'),
+    `${name} must look up the persisted company`,
+  );
+  assert.ok(
+    source.includes("company.organization_id !== tender") ||
+      source.includes("company.organization_id !== tenderrow"),
+    `${name} must reject a company/tender organisation mismatch`,
+  );
+  assert.ok(
+    source.includes("!company.is_active"),
+    `${name} must reject an inactive company`,
+  );
+}
+console.log("G34 organisation-consistency migration and Edge Function guards passed.");
