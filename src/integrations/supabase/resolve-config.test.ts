@@ -60,6 +60,56 @@ describe("resolveSupabaseConfig", () => {
     ).toThrow("Refusing to connect to any fallback project");
   });
 
+  test("rejects a Supabase secret key in staging-required browser configuration", () => {
+    expect(() =>
+      resolveSupabaseConfig({
+        stagingRequired: "true",
+        stagingUrl: "https://staging-project.supabase.co",
+        stagingPublishableKey: "sb_secret_do_not_use_in_browser",
+      }),
+    ).toThrow("A Supabase secret key cannot be used by the browser client");
+  });
+
+  test("rejects a Supabase secret key in normal browser configuration", () => {
+    expect(() =>
+      resolveSupabaseConfig({
+        url: "https://project.supabase.co",
+        publishableKey: "sb_secret_do_not_use_in_browser",
+      }),
+    ).toThrow("A Supabase secret key cannot be used by the browser client");
+  });
+
+  test("rejects a legacy service-role JWT in normal browser configuration", () => {
+    expect(() =>
+      resolveSupabaseConfig({
+        url: "https://project.supabase.co",
+        anonKey: "eyJhbGciOiJub25lIn0.eyJyb2xlIjoic2VydmljZV9yb2xlIn0.signature",
+      }),
+    ).toThrow("A Supabase secret key cannot be used by the browser client");
+  });
+
+  test("rejects a legacy service-role JWT in staging-required browser configuration", () => {
+    expect(() =>
+      resolveSupabaseConfig({
+        stagingRequired: "true",
+        stagingUrl: "https://staging-project.supabase.co",
+        stagingPublishableKey: "eyJhbGciOiJub25lIn0.eyJyb2xlIjoic2VydmljZV9yb2xlIn0.signature",
+      }),
+    ).toThrow("A Supabase secret key cannot be used by the browser client");
+  });
+
+  test("accepts a legacy anon JWT in browser configuration", () => {
+    const config = resolveSupabaseConfig({
+      url: "https://project.supabase.co",
+      anonKey: "eyJhbGciOiJub25lIn0.eyJyb2xlIjoiYW5vbiJ9.signature",
+    });
+
+    expect(config).toEqual({
+      url: "https://project.supabase.co",
+      publishableKey: "eyJhbGciOiJub25lIn0.eyJyb2xlIjoiYW5vbiJ9.signature",
+    });
+  });
+
   test("normal mode preserves the existing generic environment fallback", () => {
     expect(
       resolveSupabaseConfig({
