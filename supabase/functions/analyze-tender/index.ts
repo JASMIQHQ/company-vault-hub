@@ -141,11 +141,7 @@ Deno.serve(async (req) => {
       console.error("company lookup failed", companyError);
       return json({ error: "Could not validate tender ownership." }, 500);
     }
-    if (
-      !company ||
-      !company.is_active ||
-      company.organization_id !== tender.organization_id
-    ) {
+    if (!company || !company.is_active || company.organization_id !== tender.organization_id) {
       return json({ error: "Tender not found." }, 404);
     }
 
