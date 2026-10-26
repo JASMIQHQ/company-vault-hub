@@ -79,6 +79,26 @@ describe("resolveSupabaseConfig", () => {
     ).toThrow("A Supabase secret key cannot be used by the browser client");
   });
 
+  test("rejects a legacy service-role JWT in normal browser configuration", () => {
+    expect(() =>
+      resolveSupabaseConfig({
+        url: "https://project.supabase.co",
+        anonKey: "eyJhbGciOiJub25lIn0.eyJyb2xlIjoic2VydmljZV9yb2xlIn0.signature",
+      }),
+    ).toThrow("A Supabase secret key cannot be used by the browser client");
+  });
+
+  test("rejects a legacy service-role JWT in staging-required browser configuration", () => {
+    expect(() =>
+      resolveSupabaseConfig({
+        stagingRequired: "true",
+        stagingUrl: "https://staging-project.supabase.co",
+        stagingPublishableKey:
+          "eyJhbGciOiJub25lIn0.eyJyb2xlIjoic2VydmljZV9yb2xlIn0.signature",
+      }),
+    ).toThrow("A Supabase secret key cannot be used by the browser client");
+  });
+
   test("normal mode preserves the existing generic environment fallback", () => {
     expect(
       resolveSupabaseConfig({
