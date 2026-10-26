@@ -100,12 +100,12 @@ describe("resolveSupabaseConfig", () => {
   });
 
   test("accepts a legacy anon JWT in browser configuration", () => {
-    expect(
-      resolveSupabaseConfig({
-        url: "https://project.supabase.co",
-        anonKey: "eyJhbGciOiJub25lIn0.eyJyb2xlIjoiYW5vbiJ9.signature",
-      }),
-    ).toEqual({
+    const config = resolveSupabaseConfig({
+      url: "https://project.supabase.co",
+      anonKey: "eyJhbGciOiJub25lIn0.eyJyb2xlIjoiYW5vbiJ9.signature",
+    });
+
+    expect(config).toEqual({
       url: "https://project.supabase.co",
       publishableKey: "eyJhbGciOiJub25lIn0.eyJyb2xlIjoiYW5vbiJ9.signature",
     });
