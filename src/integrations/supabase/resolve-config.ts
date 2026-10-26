@@ -39,5 +39,14 @@ export function resolveSupabaseConfig(env: SupabaseEnvironment): SupabaseConfig 
     throw new Error(message);
   }
 
+  // This resolver is used by the browser client. Supabase secret keys must
+  // never be shipped to or accepted by frontend code; use a publishable key
+  // (or a legacy public anon key) here instead.
+  if (publishableKey.startsWith("sb_secret_")) {
+    throw new Error(
+      "A Supabase secret key cannot be used by the browser client. Configure a publishable key or legacy public anon key.",
+    );
+  }
+
   return { url, publishableKey };
 }
