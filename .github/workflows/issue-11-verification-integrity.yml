@@ -1,0 +1,28 @@
+name: Issue 11 verification integrity regression
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - "supabase/functions/verify-document/**"
+      - "supabase/functions/_shared/verification-integrity.ts"
+      - "supabase/functions/_shared/verification-integrity.test.ts"
+      - ".github/workflows/issue-11-verification-integrity.yml"
+  push:
+    branches: ["test/issue-11-verification-integrity-20261015"]
+    paths:
+      - "supabase/functions/verify-document/**"
+      - "supabase/functions/_shared/verification-integrity.ts"
+      - "supabase/functions/_shared/verification-integrity.test.ts"
+      - ".github/workflows/issue-11-verification-integrity.yml"
+
+jobs:
+  regression:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: denoland/setup-deno@v2
+        with:
+          deno-version: v2.x
+      - name: Run isolated verification integrity tests
+        run: deno test supabase/functions/_shared/verification-integrity.test.ts
