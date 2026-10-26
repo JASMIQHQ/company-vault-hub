@@ -55,18 +55,12 @@ for (const [name, source] of [
   ["match-tender-evidence", matcher],
   ["analyze-tender", analyzer],
 ]) {
-  assert.ok(
-    source.includes('.from("companies")'),
-    `${name} must look up the persisted company`,
-  );
+  assert.ok(source.includes('.from("companies")'), `${name} must look up the persisted company`);
   assert.ok(
     source.includes("company.organization_id !== tender") ||
       source.includes("company.organization_id !== tenderrow"),
     `${name} must reject a company/tender organisation mismatch`,
   );
-  assert.ok(
-    source.includes("!company.is_active"),
-    `${name} must reject an inactive company`,
-  );
+  assert.ok(source.includes("!company.is_active"), `${name} must reject an inactive company`);
 }
 console.log("G34 organisation-consistency migration and Edge Function guards passed.");
