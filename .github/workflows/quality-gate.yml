@@ -44,6 +44,8 @@ jobs:
         with:
           bun-version: latest
       - run: bun install --frozen-lockfile
+      - name: Test Supabase browser configuration security
+        run: bun test src/integrations/supabase/resolve-config.test.ts
       - run: bun run build
 
   # Stable aggregate check name required by the repository ruleset.
