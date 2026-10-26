@@ -15,6 +15,20 @@ export interface SupabaseConfig {
   publishableKey: string;
 }
 
+function isLegacyServiceRoleJwt(key: string): boolean {
+  const parts = key.split(".");
+  if (parts.length !== 3) return false;
+
+  try {
+    const payload = parts[1].replace(/-/g, "+").replace(/_/g, "/");
+    const decoded = atob(payload.padEnd(Math.ceil(payload.length / 4) * 4, "="));
+    const claims = JSON.parse(decoded) as { role?: unknown };
+    return claims.role === "service_role";
+  } catch {
+    return false;
+  }
+}
+
 export function resolveSupabaseConfig(env: SupabaseEnvironment): SupabaseConfig {
   const stagingRequired = env.stagingRequired === "true";
   const url = stagingRequired ? env.stagingUrl : env.stagingUrl || env.url || env.serverUrl;
@@ -42,7 +56,7 @@ export function resolveSupabaseConfig(env: SupabaseEnvironment): SupabaseConfig 
   // This resolver is used by the browser client. Supabase secret keys must
   // never be shipped to or accepted by frontend code; use a publishable key
   // (or a legacy public anon key) here instead.
-  if (publishableKey.startsWith("sb_secret_")) {
+  if (publishableKey.startsWith("sb_secret_") || isLegacyServiceRoleJwt(publishableKey)) {
     throw new Error(
       "A Supabase secret key cannot be used by the browser client. Configure a publishable key or legacy public anon key.",
     );
