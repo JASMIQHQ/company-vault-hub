@@ -118,11 +118,7 @@ Deno.serve(async (req) => {
       .eq("id", tenderRow.company_id)
       .maybeSingle();
     if (companyError) throw companyError;
-    if (
-      !company ||
-      !company.is_active ||
-      company.organization_id !== tenderRow.organization_id
-    ) {
+    if (!company || !company.is_active || company.organization_id !== tenderRow.organization_id) {
       return json({ error: "Tender not found." }, 404);
     }
 
