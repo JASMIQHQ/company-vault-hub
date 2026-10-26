@@ -129,6 +129,22 @@ Deno.serve(async (req) => {
     if (!orgIds.includes(tender.organization_id) || !tender.company_id) {
       return json({ error: "Tender not found." }, 404);
     }
+
+    // Service-role queries bypass RLS; verify the persisted company/org
+    // relationship before claiming the tender or processing its file.
+    const { data: company, error: companyError } = await admin
+      .from("companies")
+      .select("id, organization_id, is_active")
+      .eq("id", tender.company_id)
+      .maybeSingle();
+    if (companyError) {
+      console.error("company lookup failed", companyError);
+      return json({ error: "Could not validate tender ownership." }, 500);
+    }
+    if (!company || !company.is_active || company.organization_id !== tender.organization_id) {
+      return json({ error: "Tender not found." }, 404);
+    }
+
     const { data: companyMembership } = await admin
       .from("company_members")
       .select("company_id")
