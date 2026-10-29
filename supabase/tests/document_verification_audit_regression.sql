@@ -1,13 +1,17 @@
--- Verification audit regression contract.
+-- Verification audit regression checks.
 -- Run only in an isolated staging/test database after the corrective migration is applied.
--- These checks validate the installed trigger definition without mutating application rows.
+-- Read-only assertions; no application rows are modified.
 
 do $$
 declare
   v_definition text;
+  v_bad_mismatch_facts bigint;
+  v_missing_verified_facts bigint;
 begin
-  select pg_get_functiondef('public.audit_company_document_verification()'::regprocedure)
-    into v_definition;
+  select regexp_replace(lower(pg_get_functiondef(
+    'public.audit_company_document_verification()'::regprocedure
+  )), '\s+', ' ', 'g')
+  into v_definition;
 
   if v_definition is null then
     raise exception 'Verification audit trigger function is missing';
@@ -24,15 +28,27 @@ begin
   if position('document_verification_attempts' in v_definition) = 0 then
     raise exception 'Trigger must continue writing verification attempts';
   end if;
-end $$;
 
--- Data-level acceptance queries to run after applying the migration:
--- 1. Must return zero rows: current mismatch documents represented as verified facts.
---    select f.document_id from public.document_verified_facts f
---    join public.company_documents d on d.id=f.document_id
---    where d.deleted_at is null and d.verification_status='mismatch';
--- 2. Every active verified document with a verified_doc_type should have a fact.
---    select d.id from public.company_documents d
---    where d.deleted_at is null and d.verification_status='verified'
---      and d.verified_doc_type is not null
---      and not exists (select 1 from public.document_verified_facts f where f.document_id=d.id);
+  select count(*) into v_bad_mismatch_facts
+  from public.document_verified_facts f
+  join public.company_documents d on d.id = f.document_id
+  where d.deleted_at is null
+    and d.verification_status = 'mismatch';
+
+  if v_bad_mismatch_facts <> 0 then
+    raise exception 'Found % mismatch documents represented as verified facts', v_bad_mismatch_facts;
+  end if;
+
+  select count(*) into v_missing_verified_facts
+  from public.company_documents d
+  where d.deleted_at is null
+    and d.verification_status = 'verified'
+    and d.verified_doc_type is not null
+    and not exists (
+      select 1 from public.document_verified_facts f where f.document_id = d.id
+    );
+
+  if v_missing_verified_facts <> 0 then
+    raise exception 'Found % verified documents missing verified-fact rows', v_missing_verified_facts;
+  end if;
+end $$;
