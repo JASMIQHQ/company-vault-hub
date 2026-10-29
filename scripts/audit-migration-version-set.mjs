@@ -23,9 +23,7 @@ for (const name of sqlFiles) {
 }
 
 const duplicates = [
-  ...new Set(
-    actual.filter((version, index) => actual.indexOf(version) !== index),
-  ),
+  ...new Set(actual.filter((version, index) => actual.indexOf(version) !== index)),
 ].sort();
 const expectedSet = new Set(expected);
 const actualSet = new Set(actual);
@@ -55,4 +53,6 @@ if (
   process.exit(1);
 }
 
-console.log("PASS: migration version set exactly matches the recorded 66-version live ledger.");
+console.log(
+  "PASS: migration version set exactly matches the recorded 66-version live ledger.",
+);
