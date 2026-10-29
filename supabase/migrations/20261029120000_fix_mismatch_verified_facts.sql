@@ -26,19 +26,24 @@ where d.deleted_at is null
     select 1 from public.document_verified_facts f where f.document_id = d.id
   );
 
--- Preserve historical attempts for both verified and mismatch outcomes.
+-- Ensure the current outcome is represented in attempt history, even if an older
+-- attempt with a different outcome already exists for the same document.
 insert into public.document_verification_attempts
   (document_id, organization_id, company_id, provider, model, outcome,
    detected_doc_type, detected_year, detected_expiry_date, confidence, created_at)
 select d.id, d.organization_id, d.company_id, 'historical', null,
-       case when d.verification_status = 'verified' then 'verified' else 'mismatch' end,
-       d.verified_doc_type, d.verified_year, d.verified_expiry_date, 'high',
+       d.verification_status,
+       d.verified_doc_type, d.verified_year, d.verified_expiry_date,
+       case when d.verification_status = 'verified' then 'high' else null end,
        coalesce(d.verified_at, now())
 from public.company_documents d
 where d.deleted_at is null
   and d.verification_status in ('verified', 'mismatch')
   and not exists (
-    select 1 from public.document_verification_attempts a where a.document_id = d.id
+    select 1
+    from public.document_verification_attempts a
+    where a.document_id = d.id
+      and a.outcome = d.verification_status
   );
 
 create or replace function public.audit_company_document_verification()
