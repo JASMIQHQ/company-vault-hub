@@ -66,6 +66,11 @@ begin
       now()
     );
 
+    if new.verification_status = 'mismatch' then
+      delete from public.document_verified_facts f
+      where f.document_id = new.id;
+    end if;
+
     if new.verification_status = 'verified'
        and new.verified_doc_type is not null
        and not exists (
