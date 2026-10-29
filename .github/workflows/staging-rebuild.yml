@@ -65,14 +65,14 @@ jobs:
           echo "Migration files in checked-out commit: $count"
           test "$count" -ge 1 || { echo "::error::No migration files found"; exit 1; }
           node scripts/audit-migration-version-set.mjs
-          echo "Target ref validated: dedicated staging only."
+          supabase link --project-ref "$STAGING_REF" --password "$STAGING_DB_PASSWORD"
+          echo "Target ref validated and linked: dedicated staging only."
 
       - name: Capture local and remote migration ledger (read-only)
         shell: bash
         run: |
           set -euo pipefail
           supabase migration list \
-            --project-ref "$STAGING_REF" \
             --password "$STAGING_DB_PASSWORD" | tee migration-list.txt
 
       - name: Show pending migration plan (no database writes)
@@ -80,7 +80,6 @@ jobs:
         run: |
           set -euo pipefail
           supabase db push \
-            --project-ref "$STAGING_REF" \
             --password "$STAGING_DB_PASSWORD" \
             --include-all \
             --dry-run 2>&1 | tee plan.txt
@@ -123,6 +122,7 @@ jobs:
           test "$STAGING_REF" = "rmtoaaxnuwsecmajhwjx"
           test "$STAGING_REF" != "itqepknvdiedldcyunig"
           test "$CONFIRMATION" = "REBUILD JASMIQ STAGING"
+          supabase link --project-ref "$STAGING_REF" --password "$STAGING_DB_PASSWORD"
 
       - name: Recheck migration provenance manifest
         run: node scripts/audit-migration-version-set.mjs
@@ -131,7 +131,6 @@ jobs:
         run: |
           set -euo pipefail
           supabase db push \
-            --project-ref "$STAGING_REF" \
             --password "$STAGING_DB_PASSWORD" \
             --include-all
 
