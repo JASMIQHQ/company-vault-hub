@@ -41,6 +41,7 @@ on:
 
 jobs:
   tender-readiness:
+    name: Tender readiness test
     runs-on: ubuntu-latest
     steps:
       - name: Checkout

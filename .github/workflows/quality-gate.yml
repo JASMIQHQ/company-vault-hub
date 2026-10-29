@@ -7,13 +7,58 @@ on:
     branches: [main]
 
 jobs:
-  quality:
+  lint-parity:
+    name: Lint parity (base vs head)
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
       - uses: oven-sh/setup-bun@v2
         with:
           bun-version: latest
+      - name: Compare lint findings against the base commit
+        env:
+          LINT_BASE_SHA: ${{ github.event.pull_request.base.sha || github.event.before }}
+          LINT_HEAD_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+        run: node .github/scripts/lint-parity.mjs
+      - name: Upload lint comparison evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: lint-parity-${{ github.run_id }}
+          path: ${{ runner.temp }}/jasmiq-lint-parity/
+          if-no-files-found: warn
+          retention-days: 30
+
+  build:
+    name: Build candidate
+    runs-on: ubuntu-latest
+    needs: lint-parity
+    if: always()
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.sha }}
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+      - name: Verify exact live-ledger migration version set
+        run: node scripts/audit-migration-version-set.mjs
       - run: bun install --frozen-lockfile
-      - run: bun run lint
       - run: bun run build
+
+  # Stable aggregate check name required by the repository ruleset.
+  quality-gate:
+    name: Quality Gate
+    runs-on: ubuntu-latest
+    needs: [lint-parity, build]
+    if: always()
+    steps:
+      - name: Require lint parity and build to pass
+        env:
+          LINT_RESULT: ${{ needs.lint-parity.result }}
+          BUILD_RESULT: ${{ needs.build.result }}
+        run: |
+          test "$LINT_RESULT" = "success"
+          test "$BUILD_RESULT" = "success"
