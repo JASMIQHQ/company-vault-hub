@@ -34,7 +34,11 @@ console.log(`Expected live-ledger versions: ${expected.length}`);
 console.log(`SQL migration files found: ${sqlFiles.length}`);
 console.log(`Unique version prefixes found: ${actualSet.size}`);
 if (missing.length) console.error(`Missing live versions: ${missing.join(", ")}`);
-if (extra.length) console.error(`Unrecognized extra versions: ${[...new Set(extra)].sort().join(", ")}`);
+if (extra.length) {
+  console.error(
+    `Unrecognized extra versions: ${[...new Set(extra)].sort().join(", ")}`,
+  );
+}
 if (duplicates.length) console.error(`Duplicate version prefixes: ${duplicates.join(", ")}`);
 if (invalidNames.length) console.error(`Invalid migration filenames: ${invalidNames.join(", ")}`);
 
@@ -53,6 +57,4 @@ if (
   process.exit(1);
 }
 
-console.log(
-  "PASS: migration version set exactly matches the recorded 66-version live ledger.",
-);
+console.log("PASS: migration version set exactly matches the recorded 66-version live ledger.");
