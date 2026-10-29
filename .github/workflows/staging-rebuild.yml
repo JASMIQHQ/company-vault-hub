@@ -63,6 +63,7 @@ jobs:
           count="$(find supabase/migrations -maxdepth 1 -type f -name '*.sql' | wc -l | tr -d ' ')"
           echo "Migration files in checked-out commit: $count"
           test "$count" -ge 1 || { echo "::error::No migration files found"; exit 1; }
+          node scripts/audit-migration-version-set.mjs
           echo "Target ref validated: dedicated staging only."
 
       - name: Show pending migration plan (no database writes)
@@ -102,6 +103,9 @@ jobs:
           test "$STAGING_REF" = "rmtoaaxnuwsecmajhwjx"
           test "$STAGING_REF" != "itqepknvdiedldcyunig"
           test "$CONFIRMATION" = "REBUILD JASMIQ STAGING"
+
+      - name: Recheck migration provenance manifest
+        run: node scripts/audit-migration-version-set.mjs
 
       - name: Apply migrations to staging
         run: |
