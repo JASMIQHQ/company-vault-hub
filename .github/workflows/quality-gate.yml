@@ -43,6 +43,8 @@ jobs:
       - uses: oven-sh/setup-bun@v2
         with:
           bun-version: latest
+      - name: Verify exact live-ledger migration version set
+        run: node scripts/audit-migration-version-set.mjs
       - run: bun install --frozen-lockfile
       - run: bun run build
 
