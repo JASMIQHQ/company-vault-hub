@@ -12,7 +12,7 @@ This procedure is intentionally split into planning, review, and application. Do
 1. Review PR #56's reconstructed migration SQL independently against the live migration ledger and known schema/function definitions.
 2. Do not treat matching migration version prefixes as proof that SQL contents are historically correct.
 3. Ensure the checked-out commit contains the reviewed migration set.
-4. Configure repository secrets for the staging workflow: `SUPABASE_ACCESS_TOKEN`, `STAGING_PROJECT_REF` (must be `rmtoaaxnuwsecmajhwjx`), and `STAGING_DB_PASSWORD`.
+4. Configure these as **environment secrets** on the GitHub Actions environment `jasmiq-staging`: `SUPABASE_ACCESS_TOKEN`, `STAGING_PROJECT_REF` (must be `rmtoaaxnuwsecmajhwjx`), and `STAGING_DB_PASSWORD`. Do not store them as repository-wide secrets.
 5. Configure the GitHub Actions environment `jasmiq-staging` with required reviewers before any apply run.
 
 ## 2. Exact migration-version gate
