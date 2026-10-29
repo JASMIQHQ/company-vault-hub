@@ -1,0 +1,144 @@
+name: Staging schema rebuild (guarded)
+
+on:
+  workflow_dispatch:
+    inputs:
+      mode:
+        description: "Run a dry-run plan, or apply reviewed migrations to staging"
+        required: true
+        type: choice
+        options:
+          - dry-run
+          - apply
+        default: dry-run
+      confirmation:
+        description: 'For apply only, type exactly: REBUILD JASMIQ STAGING'
+        required: false
+        type: string
+
+permissions:
+  contents: read
+
+concurrency:
+  group: jasmiq-staging-schema-rebuild
+  cancel-in-progress: false
+
+jobs:
+  preflight:
+    name: Verify target and preview migration plan
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+      STAGING_REF: ${{ secrets.STAGING_PROJECT_REF }}
+      STAGING_DB_PASSWORD: ${{ secrets.STAGING_DB_PASSWORD }}
+      INPUT_MODE: ${{ inputs.mode }}
+      CONFIRMATION: ${{ inputs.confirmation }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: supabase/setup-cli@v1
+        with:
+          version: latest
+
+      - name: Refuse any project other than the dedicated staging project
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -n "$SUPABASE_ACCESS_TOKEN" || { echo "::error::SUPABASE_ACCESS_TOKEN is missing"; exit 1; }
+          test -n "$STAGING_DB_PASSWORD" || { echo "::error::STAGING_DB_PASSWORD is missing"; exit 1; }
+          test "$STAGING_REF" = "rmtoaaxnuwsecmajhwjx" || {
+            echo "::error::STAGING_PROJECT_REF must be the dedicated staging project rmtoaaxnuwsecmajhwjx"
+            exit 1
+          }
+          test "$STAGING_REF" != "itqepknvdiedldcyunig" || {
+            echo "::error::Production project ref is forbidden"
+            exit 1
+          }
+          if [ "$INPUT_MODE" = "apply" ] && [ "$CONFIRMATION" != "REBUILD JASMIQ STAGING" ]; then
+            echo "::error::Apply mode requires the exact confirmation phrase."
+            exit 1
+          fi
+          test -d supabase/migrations || { echo "::error::Migration directory is missing"; exit 1; }
+          count="$(find supabase/migrations -maxdepth 1 -type f -name '*.sql' | wc -l | tr -d ' ')"
+          echo "Migration files in checked-out commit: $count"
+          test "$count" -ge 1 || { echo "::error::No migration files found"; exit 1; }
+          node scripts/audit-migration-version-set.mjs
+          echo "Target ref validated: dedicated staging only."
+
+      - name: Show pending migration plan (no database writes)
+        shell: bash
+        run: |
+          set -euo pipefail
+          supabase db push \
+            --project-ref "$STAGING_REF" \
+            --password "$STAGING_DB_PASSWORD" \
+            --include-all \
+            --dry-run
+
+  apply:
+    name: Apply reviewed migrations to staging only
+    needs: preflight
+    if: ${{ inputs.mode == 'apply' }}
+    runs-on: ubuntu-latest
+    environment: jasmiq-staging
+    timeout-minutes: 45
+    env:
+      SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+      STAGING_REF: ${{ secrets.STAGING_PROJECT_REF }}
+      STAGING_DB_PASSWORD: ${{ secrets.STAGING_DB_PASSWORD }}
+      CONFIRMATION: ${{ inputs.confirmation }}
+      INPUT_MODE: ${{ inputs.mode }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: supabase/setup-cli@v1
+        with:
+          version: latest
+
+      - name: Revalidate target immediately before applying
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$STAGING_REF" = "rmtoaaxnuwsecmajhwjx"
+          test "$STAGING_REF" != "itqepknvdiedldcyunig"
+          test "$CONFIRMATION" = "REBUILD JASMIQ STAGING"
+
+      - name: Recheck migration provenance manifest
+        run: node scripts/audit-migration-version-set.mjs
+
+      - name: Apply migrations to staging
+        run: |
+          set -euo pipefail
+          supabase db push \
+            --project-ref "$STAGING_REF" \
+            --password "$STAGING_DB_PASSWORD" \
+            --include-all
+
+      - name: Deploy required Edge Functions to staging
+        shell: bash
+        run: |
+          set -euo pipefail
+          for function_name in analyze-tender match-tender-evidence verify-document analyze-document detect-tender-bid-structure; do
+            supabase functions deploy "$function_name" --project-ref "$STAGING_REF"
+          done
+
+      - name: Record non-secret release evidence
+        if: always()
+        shell: bash
+        run: |
+          {
+            echo "### Staging rebuild"
+            echo "- Workflow commit: \`${GITHUB_SHA}\`"
+            echo "- Target project: \`$STAGING_REF\`"
+            echo "- Mode: \`$INPUT_MODE\`"
+            echo "- Timestamp (UTC): \`$(date -u +%FT%TZ)\`"
+            echo "- This workflow does not create storage buckets or seed test users."
+          } >> "$GITHUB_STEP_SUMMARY"
+
+# Safety notes:
+# - This workflow never targets production; the staging project ref is pinned above.
+# - Default mode is dry-run and performs no database writes.
+# - Apply requires a separate explicit confirmation and the jasmiq-staging environment.
+# - Before using apply, independently review PR #56's migration SQL and the dry-run output.
+# - Storage buckets/policies and authenticated test fixtures are separate gates.
