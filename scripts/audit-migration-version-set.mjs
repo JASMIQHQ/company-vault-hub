@@ -22,7 +22,11 @@ for (const name of sqlFiles) {
   actual.push(match[1]);
 }
 
-const duplicates = [...new Set(actual.filter((version, index) => actual.indexOf(version) !== index))].sort();
+const duplicates = [
+  ...new Set(
+    actual.filter((version, index) => actual.indexOf(version) !== index),
+  ),
+].sort();
 const expectedSet = new Set(expected);
 const actualSet = new Set(actual);
 const missing = expected.filter((version) => !actualSet.has(version)).sort();
@@ -45,7 +49,9 @@ if (
   duplicates.length > 0 ||
   invalidNames.length > 0
 ) {
-  console.error("FAIL: migration filenames do not exactly match the recorded live migration ledger.");
+  console.error(
+    "FAIL: migration filenames do not exactly match the recorded live migration ledger.",
+  );
   process.exit(1);
 }
 
