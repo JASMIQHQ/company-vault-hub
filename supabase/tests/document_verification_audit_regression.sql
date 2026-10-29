@@ -11,7 +11,7 @@ declare
 begin
   select regexp_replace(lower(pg_get_functiondef(
     'public.audit_company_document_verification()'::regprocedure
-  )), '\\s+', ' ', 'g')
+  )), E'\\s+', ' ', 'g')
   into v_definition;
 
   if v_definition is null then
