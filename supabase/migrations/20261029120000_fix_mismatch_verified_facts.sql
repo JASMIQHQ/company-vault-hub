@@ -4,6 +4,32 @@
 
 begin;
 
+-- Keep verification attempts strictly append-only. A derived verified-fact row may
+-- be deleted only when its current document outcome is mismatch. This narrow exception
+-- is required for the cleanup below and the audit trigger's mismatch path.
+create or replace function public.prevent_verification_audit_mutation()
+returns trigger
+language plpgsql
+security definer
+set search_path = public
+as $$
+begin
+  if tg_table_name = 'document_verified_facts'
+     and tg_op = 'DELETE'
+     and exists (
+       select 1
+       from public.company_documents d
+       where d.id = old.document_id
+         and d.deleted_at is null
+         and d.verification_status = 'mismatch'
+     ) then
+    return old;
+  end if;
+
+  raise exception 'Verification audit records are append-only';
+end;
+$$;
+
 -- A fact row is trusted evidence, not merely a record that verification ran.
 -- Remove facts for documents whose current outcome is explicitly mismatch; the attempt
 -- history remains in document_verification_attempts.
