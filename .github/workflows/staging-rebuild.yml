@@ -12,7 +12,7 @@ on:
           - apply
         default: dry-run
       confirmation:
-        description: 'For apply only, type exactly: REBUILD JASMIQ STAGING'
+        description: 'For apply only; still requires post-preflight approval by jasmiq-staging environment reviewers. Type: REBUILD JASMIQ STAGING'
         required: false
         type: string
 
@@ -95,6 +95,22 @@ jobs:
           if-no-files-found: warn
           retention-days: 30
 
+      - name: Publish preflight evidence for review
+        if: always()
+        shell: bash
+        run: |
+          {
+            echo "### Staging preflight evidence"
+            echo "- Run: \`https://github.com/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID\`"
+            echo "- Artifact: \`jasmiq-staging-preflight-$GITHUB_RUN_ID\` (contains plan.txt and migration-list.txt)"
+            if [ "$INPUT_MODE" = "apply" ]; then
+              echo "- **Do not approve the apply job until the artifact and PR #56 SQL have been independently reviewed.**"
+              echo "- Apply is gated by the \`jasmiq-staging\` GitHub Environment; configure required reviewers there."
+            else
+              echo "- Dry-run mode only: no migrations or Edge Functions are applied."
+            fi
+          } >> "$GITHUB_STEP_SUMMARY"
+
   apply:
     name: Apply reviewed migrations to staging only
     needs: preflight
@@ -158,6 +174,6 @@ jobs:
 # Safety notes:
 # - This workflow never targets production; the staging project ref is pinned above.
 # - Default mode is dry-run and performs no database writes.
-# - Apply requires a separate explicit confirmation and the jasmiq-staging environment.
-# - Before using apply, independently review PR #56's migration SQL and the dry-run output.
+# - Apply requires the exact confirmation phrase AND post-preflight approval by required reviewers on the jasmiq-staging environment. Configure required reviewers in GitHub Settings > Environments.
+# - The apply job must remain blocked until reviewers inspect the archived dry-run plan and independently review PR #56's migration SQL.
 # - Storage buckets/policies and authenticated test fixtures are separate gates.
