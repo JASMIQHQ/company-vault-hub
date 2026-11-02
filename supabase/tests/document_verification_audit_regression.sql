@@ -5,6 +5,7 @@
 do $$
 declare
   v_definition text;
+  v_guard_definition text;
   v_bad_mismatch_facts bigint;
   v_missing_verified_facts bigint;
   v_missing_mismatch_attempts bigint;
@@ -28,6 +29,21 @@ begin
 
   if position('document_verification_attempts' in v_definition) = 0 then
     raise exception 'Trigger must continue writing verification attempts';
+  end if;
+
+  select regexp_replace(lower(pg_get_functiondef(
+    'public.prevent_verification_audit_mutation()'::regprocedure
+  )), E'\\s+', ' ', 'g')
+  into v_guard_definition;
+
+  if position('tg_table_name = ''document_verified_facts''' in v_guard_definition) = 0
+     or position('tg_op = ''delete''' in v_guard_definition) = 0
+     or position('d.verification_status = ''mismatch''' in v_guard_definition) = 0 then
+    raise exception 'Mutation guard must permit only mismatch fact cleanup';
+  end if;
+
+  if position('raise exception ''verification audit records are append-only''' in v_guard_definition) = 0 then
+    raise exception 'Mutation guard must retain append-only protection';
   end if;
 
   select count(*) into v_bad_mismatch_facts
