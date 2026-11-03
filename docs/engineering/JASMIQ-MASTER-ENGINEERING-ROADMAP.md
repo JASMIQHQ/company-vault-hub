@@ -274,3 +274,19 @@ For each feature, record: existing route/component; existing table/RPC/function;
 |---|---|---|
 | 2026-11-03 | Production remains frozen; work proceeds via reviewed PRs and staging | Prevent unverified migration/security changes from reaching customer data |
 | 2026-11-03 | This register is planning, not proof of implementation | Existing feature state must be audited against code and live schema |
+
+
+## Audit findings recorded during execution (2026-11-03)
+
+These are source-code findings, not assumptions; tracked by [Issue #70](https://github.com/JASMIQHQ/company-vault-hub/issues/70), [Issue #71](https://github.com/JASMIQHQ/company-vault-hub/issues/71) and [Issue #72](https://github.com/JASMIQHQ/company-vault-hub/issues/72).
+
+- The migration version audit script checks filenames/count/prefixes only. It cannot establish that the SQL matches what was applied to production or that replay is safe.
+- Recovered migration `20260902135736_backfill_and_enforce_document_verification_audit.sql` backfills verified-fact rows for both `verified` and `mismatch`, and its trigger inserts facts for both outcomes. This violates the intended evidence semantics.
+- PR #68's proposed correction deletes facts on a mismatch, including previously successful evidence. That is also unacceptable: a mismatch attempt must not create a fact or erase an earlier successful fact.
+- Company membership and company-scoped RLS were introduced in `20260928124212_g34_company_authorization_boundary.sql`; this requires table-by-table policy and negative cross-company testing, not a general claim of tenant isolation.
+- Storage policies in `20260928124639_g35_company_storage_authorization.sql` require a matching persisted document/tender record. Prebinding, upload order, cleanup and signed URL behavior need integration tests.
+- Owner-company creation RPC in `20260928125509_g34_owner_company_creation_rpc.sql` checks organization-owner authorization; authenticated non-owner and unauthenticated invocation need explicit tests.
+- Staging project `rmtoaaxnuwsecmajhwjx` is healthy and empty (zero migration records); no reconstruction has been executed.
+- PR #67 is not approved for apply: its preflight and apply jobs are in one dispatch, so the generated plan is not subject to an enforced post-plan review decision. Required reviewers for the GitHub environment have not been verified.
+
+**Gate decision:** A2/A3/A4 remain BLOCKED. Do not merge or execute migration/rebuild changes until the issues above are resolved and staging evidence is independently reviewed.
