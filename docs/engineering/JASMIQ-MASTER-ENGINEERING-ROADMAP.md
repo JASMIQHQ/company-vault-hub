@@ -290,3 +290,13 @@ These are source-code findings, not assumptions; tracked by [Issue #70](https://
 - PR #67 is not approved for apply: its preflight and apply jobs are in one dispatch, so the generated plan is not subject to an enforced post-plan review decision. Required reviewers for the GitHub environment have not been verified.
 
 **Gate decision:** A2/A3/A4 remain BLOCKED. Do not merge or execute migration/rebuild changes until the issues above are resolved and staging evidence is independently reviewed.
+
+
+## Active execution tracking
+
+- [WP-02 Migration SQL provenance and risk review — Issue #70](https://github.com/JASMIQHQ/company-vault-hub/issues/70)
+- [WP-05 Verification fact integrity — Issue #71](https://github.com/JASMIQHQ/company-vault-hub/issues/71)
+- [WP-06 Tenant isolation certification — Issue #72](https://github.com/JASMIQHQ/company-vault-hub/issues/72)
+- [WP-03 Validate staging plan/apply controls — Issue #73](https://github.com/JASMIQHQ/company-vault-hub/issues/73)
+- [WP-01 Release controls and CODEOWNERS — PR #69](https://github.com/JASMIQHQ/company-vault-hub/pull/69)
+- [WP-03 Staging workflow split — PR #67](https://github.com/JASMIQHQ/company-vault-hub/pull/67)
