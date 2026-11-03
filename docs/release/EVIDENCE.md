@@ -7,10 +7,10 @@
 | Gate / Work package | Status | Evidence (run/PR/report) | Reviewer / date | Notes |
 |---|---|---|---|---|
 | R0 Release controls | AUDIT_REQUIRED | [Active repository ruleset #25160251](https://github.com/JASMIQHQ/company-vault-hub/rules/25160251) | 2026-11-03 audit | 1 approval + five required contexts present; stale-review dismissal, CODEOWNERS enforcement, last-push approval and review-thread resolution are OFF. CODEOWNERS file added in PR #69; ruleset still needs authorized settings update. Environments/reviewer gates and secrets not verified. |
-| A2 Migration provenance | BLOCKED | PR #56 | — | Content and SQL review required |
-| A2 Staging rebuild | BLOCKED | PR #67 | — | Dry-run plan review and independent apply approval required |
-| A3 Verification integrity | AUDIT_REQUIRED | PR #68 | — | Staging regression not yet proven |
-| A4 Tenant isolation | BLOCKED | Pending staging suite | — | Positive and negative tests required |
+| A2 Migration provenance | BLOCKED | [PR #56](https://github.com/JASMIQHQ/company-vault-hub/pull/56); [WP #70](https://github.com/JASMIQHQ/company-vault-hub/issues/70) | — | Filename parity is not SQL provenance; content/risk review required |
+| A2 Staging rebuild | BLOCKED | [PR #67](https://github.com/JASMIQHQ/company-vault-hub/pull/67); [WP #73](https://github.com/JASMIQHQ/company-vault-hub/issues/73) | — | Separate plan/apply workflows drafted; syntax, environment reviewer and staging-only secrets still need validation |
+| A3 Verification integrity | BLOCKED | [PR #68](https://github.com/JASMIQHQ/company-vault-hub/pull/68); [WP #71](https://github.com/JASMIQHQ/company-vault-hub/issues/71) | — | Preserve historical success; behavioral regression needed |
+| A4 Tenant isolation | BLOCKED | [WP #72](https://github.com/JASMIQHQ/company-vault-hub/issues/72) | — | Positive and negative tests required across RLS/RPC/storage/functions |
 | Vault acceptance | AUDIT_REQUIRED | Pending | — | Upload/verify/replace/history |
 | Tender Command acceptance | AUDIT_REQUIRED | Pending | — | Deterministic fixtures/readiness |
 | Compliance rules | DESIGN_REQUIRED | Pending | — | Source/version/applicability |
