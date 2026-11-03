@@ -1,0 +1,127 @@
+name: Staging migration apply (reviewed plan required)
+
+on:
+  workflow_dispatch:
+    inputs:
+      plan_run_id:
+        description: "Successful read-only plan workflow run ID"
+        required: true
+        type: string
+      approved_plan_sha256:
+        description: "Exact plan.sha256 from that run's artifact"
+        required: true
+        type: string
+      confirmation:
+        description: "Type exactly: APPLY REVIEWED JASMIQ STAGING PLAN"
+        required: true
+        type: string
+
+permissions:
+  contents: read
+  actions: read
+
+concurrency:
+  group: jasmiq-staging-schema-apply
+  cancel-in-progress: false
+
+jobs:
+  apply:
+    name: Apply previously reviewed plan to staging only
+    runs-on: ubuntu-latest
+    environment: jasmiq-staging
+    timeout-minutes: 60
+    env:
+      SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+      STAGING_REF: ${{ secrets.STAGING_PROJECT_REF }}
+      STAGING_DB_PASSWORD: ${{ secrets.STAGING_DB_PASSWORD }}
+      PLAN_RUN_ID: ${{ inputs.plan_run_id }}
+      APPROVED_PLAN_SHA: ${{ inputs.approved_plan_sha256 }}
+      CONFIRMATION: ${{ inputs.confirmation }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: supabase/setup-cli@v1
+        with:
+          version: latest
+      - name: Validate confirmation and immutable plan reference
+        shell: bash
+        run: |
+          set -euo pipefail
+          [[ "$PLAN_RUN_ID" =~ ^[0-9]+$ ]]
+          [[ "$APPROVED_PLAN_SHA" =~ ^[a-f0-9]{64}$ ]]
+          test "$CONFIRMATION" = "APPLY REVIEWED JASMIQ STAGING PLAN"
+          test "$STAGING_REF" = "rmtoaaxnuwsecmajhwjx"
+          test "$STAGING_REF" != "itqepknvdiedldcyunig"
+          test -n "$SUPABASE_ACCESS_TOKEN"
+          test -n "$STAGING_DB_PASSWORD"
+      - name: Download exact plan artifact from earlier run
+        uses: actions/download-artifact@v4
+        with:
+          name: jasmiq-staging-plan-${{ inputs.plan_run_id }}
+          run-id: ${{ inputs.plan_run_id }}
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          path: reviewed-plan
+      - name: Verify artifact digest and source commit
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -f reviewed-plan/plan.txt
+          test -f reviewed-plan/plan.sha256
+          actual="$(sha256sum reviewed-plan/plan.txt | awk '{print $1}')"
+          recorded="$(cat reviewed-plan/plan.sha256)"
+          test "$actual" = "$recorded"
+          test "$actual" = "$APPROVED_PLAN_SHA" || {
+            echo "::error::Approved plan SHA does not match downloaded artifact"; exit 1;
+          }
+          test "$(cat reviewed-plan/source-commit.txt)" = "$(git rev-parse HEAD)" || {
+            echo "::error::Apply source commit differs from reviewed plan commit"; exit 1;
+          }
+          sha256sum -c reviewed-plan/migration-files.sha256
+      - name: Revalidate target and regenerate plan immediately before writes
+        shell: bash
+        run: |
+          set -euo pipefail
+          supabase link --project-ref "$STAGING_REF" --password "$STAGING_DB_PASSWORD"
+          supabase db push --password "$STAGING_DB_PASSWORD" --include-all --dry-run 2>&1 | tee current-plan.txt
+          current="$(sha256sum current-plan.txt | awk '{print $1}')"
+          test "$current" = "$APPROVED_PLAN_SHA" || {
+            echo "::error::Remote schema plan changed since approval; stop and generate a new plan"; exit 1;
+          }
+      - name: Apply reviewed migrations to staging
+        shell: bash
+        run: |
+          set -euo pipefail
+          supabase db push --password "$STAGING_DB_PASSWORD" --include-all
+      - name: Deploy five required Edge Functions to staging
+        shell: bash
+        run: |
+          set -euo pipefail
+          for fn in analyze-tender match-tender-evidence verify-document analyze-document detect-tender-bid-structure; do
+            supabase functions deploy "$fn" --project-ref "$STAGING_REF"
+          done
+      - name: Capture post-apply ledger
+        shell: bash
+        run: |
+          set -euo pipefail
+          supabase migration list --password "$STAGING_DB_PASSWORD" | tee post-apply-migration-list.txt
+      - name: Upload apply evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: jasmiq-staging-apply-${{ github.run_id }}
+          path: |
+            reviewed-plan/
+            current-plan.txt
+            post-apply-migration-list.txt
+          if-no-files-found: warn
+          retention-days: 30
+      - name: Report apply run
+        if: always()
+        run: |
+          {
+            echo "## Staging apply evidence"
+            echo "- Run: https://github.com/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID"
+            echo "- Reviewed plan run: $PLAN_RUN_ID"
+            echo "- Approved plan SHA: $APPROVED_PLAN_SHA"
+            echo "- Target: staging only"
+            echo "- This is not tenant-isolation or feature acceptance; run those gates separately."
+          } >> "$GITHUB_STEP_SUMMARY"
