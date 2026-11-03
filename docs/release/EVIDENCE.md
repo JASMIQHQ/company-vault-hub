@@ -6,7 +6,7 @@
 
 | Gate / Work package | Status | Evidence (run/PR/report) | Reviewer / date | Notes |
 |---|---|---|---|---|
-| R0 Release controls | AUDIT_REQUIRED | Pending repository/settings audit | — | Verify real checks before ruleset |
+| R0 Release controls | AUDIT_REQUIRED | [Active repository ruleset #25160251](https://github.com/JASMIQHQ/company-vault-hub/rules/25160251) | 2026-11-03 audit | 1 approval + five required contexts present; stale-review dismissal, CODEOWNERS enforcement, last-push approval and review-thread resolution are OFF. CODEOWNERS file added in PR #69; ruleset still needs authorized settings update. Environments/reviewer gates and secrets not verified. |
 | A2 Migration provenance | BLOCKED | PR #56 | — | Content and SQL review required |
 | A2 Staging rebuild | BLOCKED | PR #67 | — | Dry-run plan review and independent apply approval required |
 | A3 Verification integrity | AUDIT_REQUIRED | PR #68 | — | Staging regression not yet proven |
