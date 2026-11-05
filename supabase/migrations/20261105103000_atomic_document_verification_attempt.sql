@@ -33,7 +33,12 @@ begin
       and document_id = new.id
       and organization_id = new.organization_id
       and company_id = new.company_id
-      and outcome = v_outcome;
+      and outcome = v_outcome
+      and (v_outcome='failed' or (
+        detected_doc_type is not distinct from new.verified_doc_type
+        and detected_year is not distinct from new.verified_year
+        and detected_expiry_date is not distinct from new.verified_expiry_date
+      ));
 
     if not found then
       raise exception 'Verification attempt does not match document transition';
@@ -92,7 +97,7 @@ declare
   v_doc public.company_documents%rowtype;
   v_attempt_id uuid;
 begin
-  if p_outcome not in ('verified','mismatch','failed') then
+  if p_outcome is null or p_outcome not in ('verified','mismatch','failed') then
     raise exception 'Unsupported verification outcome';
   end if;
 
