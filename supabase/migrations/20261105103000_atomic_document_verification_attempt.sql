@@ -53,7 +53,7 @@ begin
     values
       (new.id, new.organization_id, new.company_id, 'system_trigger', null,
        v_outcome, new.verified_doc_type, new.verified_year, new.verified_expiry_date,
-       case when v_outcome='verified' then 'high' else null end, now())
+       case when v_outcome='verified' then 'low' else null end, now())
     returning id into v_attempt_id;
   end if;
 
@@ -66,7 +66,7 @@ begin
        expiry_date, confidence, verification_attempt_id, verified_at)
     values
       (new.id, new.organization_id, new.company_id, new.verified_doc_type,
-       new.verified_year, new.verified_expiry_date, 'high', v_attempt_id,
+       new.verified_year, new.verified_expiry_date, coalesce(v_attempt.confidence, 'low'), v_attempt_id,
        coalesce(new.verified_at, now()));
   end if;
 
