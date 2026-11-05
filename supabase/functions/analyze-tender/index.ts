@@ -113,7 +113,7 @@ Deno.serve(async (req) => {
 
     const { data: memberships } = await admin
       .from("organization_members")
-      .select("organization_id")
+      .select("organization_id, is_owner")
       .eq("profile_id", profile.id);
     const orgIds = (memberships ?? []).map((m) => m.organization_id);
     if (orgIds.length === 0) return json({ error: "No organization found for this user." }, 403);
@@ -131,11 +131,14 @@ Deno.serve(async (req) => {
     }
     const { data: companyMembership } = await admin
       .from("company_members")
-      .select("company_id")
+      .select("company_id, membership_source")
       .eq("company_id", tender.company_id)
       .eq("profile_id", profile.id)
       .maybeSingle();
-    if (!companyMembership) {
+    const companyAuthorized = companyMembership?.membership_source === "explicit" ||
+      (companyMembership?.membership_source === "owner" &&
+        (memberships ?? []).some((m) => m.organization_id === tender.organization_id && m.is_owner === true));
+    if (!companyAuthorized) {
       return json({ error: "Tender not found." }, 404);
     }
 
