@@ -117,15 +117,16 @@ Deno.serve(async (req) => {
     if (!doc.company_id) return json({ error: "Document not found." }, 404);
     const { data: companyMembership } = await admin
       .from("company_members")
-      .select("company_id, membership_source")
+      .select("company_id, organization_id, membership_source")
       .eq("company_id", doc.company_id)
       .eq("profile_id", profile.id)
       .maybeSingle();
-    const companyAuthorized = companyMembership?.membership_source === "explicit" ||
+    const companyAuthorized = companyMembership?.organization_id === doc.organization_id &&
+      (companyMembership?.membership_source === "explicit" ||
       (companyMembership?.membership_source === "owner" &&
         (memberships ?? []).some(
           (m) => m.organization_id === doc.organization_id && m.is_owner === true,
-        ));
+        )));
     if (!companyAuthorized) return json({ error: "Document not found." }, 404);
 
     documentId = doc.id;
@@ -223,7 +224,9 @@ Deno.serve(async (req) => {
     const { error: updateError } = await admin
       .from("company_documents")
       .update(updatePayload)
-      .eq("id", doc.id);
+      .eq("id", doc.id)
+      .eq("organization_id", doc.organization_id)
+      .eq("company_id", doc.company_id);
     if (updateError) {
       console.error("company_documents update failed", updateError);
       return await fail("Could not save the analysis results.");
