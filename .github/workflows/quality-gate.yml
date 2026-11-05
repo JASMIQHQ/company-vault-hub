@@ -113,7 +113,6 @@ jobs:
           test_files=(supabase/tests/*.sql)
           if [ ${#test_files[@]} -eq 0 ]; then
             echo "No SQL regression scripts are present in this branch."
-            exit 0
           fi
           if [ -f supabase/ops/ensure-required-storage-buckets.sql ]; then
             psql "$DB_URL" -v ON_ERROR_STOP=1 -f supabase/ops/ensure-required-storage-buckets.sql
