@@ -11,11 +11,15 @@ create index if not exists company_members_profile_id_idx on public.company_memb
 create index if not exists company_members_organization_id_idx on public.company_members(organization_id);
 alter table public.company_members enable row level security;
 
-insert into public.company_members(company_id,profile_id,organization_id)
-select c.id,om.profile_id,c.organization_id
+-- Only organization owners are implicitly entitled to every company in
+-- their organization. Ordinary organization members must be explicitly assigned
+-- to a company; organization membership alone is not company authorization.
+insert into public.company_members(company_id,profile_id,organization_id,role)
+select c.id,om.profile_id,c.organization_id,'owner'
 from public.companies c
 join public.organization_members om on om.organization_id=c.organization_id
 where c.is_active=true
+  and om.is_owner is true
 on conflict do nothing;
 
 create schema if not exists private;
