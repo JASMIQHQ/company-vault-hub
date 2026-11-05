@@ -55,17 +55,37 @@ jobs:
       - run: bun install --frozen-lockfile
       - run: bun run build
 
+  edge-functions:
+    name: Edge Function type check
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.sha }}
+
+      - uses: denoland/setup-deno@v2
+
+      - name: Type-check every deployed Edge Function
+        run: |
+          set -euo pipefail
+          for fn in analyze-tender match-tender-evidence verify-document analyze-document detect-tender-bid-structure; do
+            echo "Checking supabase/functions/$fn/index.ts"
+            deno check --no-lock "supabase/functions/$fn/index.ts"
+          done
+
   # Stable aggregate check name required by the repository ruleset.
   quality-gate:
     name: Quality Gate
     runs-on: ubuntu-latest
-    needs: [lint-parity, build]
+    needs: [lint-parity, build, edge-functions]
     if: always()
     steps:
-      - name: Require lint parity and build to pass
+      - name: Require lint parity, build, and Edge Function checks to pass
         env:
           LINT_RESULT: ${{ needs.lint-parity.result }}
           BUILD_RESULT: ${{ needs.build.result }}
+          EDGE_RESULT: ${{ needs.edge-functions.result }}
         run: |
           test "$LINT_RESULT" = "success"
           test "$BUILD_RESULT" = "success"
+          test "$EDGE_RESULT" = "success"
