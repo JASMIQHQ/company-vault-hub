@@ -2,22 +2,6 @@ name: Tender readiness test
 
 on:
   pull_request:
-    paths:
-      - "src/lib/tender-readiness.ts"
-      - "src/lib/tender-readiness.test.ts"
-      - "src/lib/requirement-diagnostics.ts"
-      - "src/lib/requirement-diagnostics.test.ts"
-      - "src/lib/requirement-diagnostics-parser.ts"
-      - "src/lib/requirement-diagnostics-parser.test.ts"
-      - "src/lib/company-readiness.ts"
-      - "src/lib/company-readiness.test.ts"
-      - "src/lib/company-readiness-baseline.ts"
-      - "src/components/vault/company-readiness-card.tsx"
-      - "src/components/vault/company-vault-groups.tsx"
-      - "src/routes/_authenticated/vault.tsx"
-      - "package.json"
-      - "bun.lock"
-      - ".github/workflows/tender-readiness-test.yml"
   push:
     branches:
       - "feat/a5-4-readiness-slice-1"
@@ -41,6 +25,7 @@ on:
 
 jobs:
   tender-readiness:
+    name: Tender readiness test
     runs-on: ubuntu-latest
     steps:
       - name: Checkout

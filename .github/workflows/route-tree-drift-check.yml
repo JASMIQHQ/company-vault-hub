@@ -4,18 +4,6 @@ name: Route tree drift check
 
 on:
   pull_request:
-    paths:
-      - "src/routes/**"
-      - "src/components/tenders/**"
-      - "src/components/vault/**"
-      - "src/hooks/**"
-      - "src/lib/**"
-      - "src/routeTree.gen.ts"
-      - "src/router.tsx"
-      - "vite.config.ts"
-      - "package.json"
-      - "bun.lock"
-      - ".github/workflows/route-tree-drift-check.yml"
   push:
     branches:
       - "main"
@@ -34,6 +22,7 @@ on:
 
 jobs:
   route-tree-drift:
+    name: Route tree drift check
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
