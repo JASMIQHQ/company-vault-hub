@@ -131,15 +131,16 @@ Deno.serve(async (req) => {
     }
     const { data: companyMembership } = await admin
       .from("company_members")
-      .select("company_id, membership_source")
+      .select("company_id, organization_id, membership_source")
       .eq("company_id", tender.company_id)
       .eq("profile_id", profile.id)
       .maybeSingle();
-    const companyAuthorized = companyMembership?.membership_source === "explicit" ||
+    const companyAuthorized = companyMembership?.organization_id === tender.organization_id &&
+      (companyMembership?.membership_source === "explicit" ||
       (companyMembership?.membership_source === "owner" &&
         (memberships ?? []).some(
           (m) => m.organization_id === tender.organization_id && m.is_owner === true,
-        ));
+        )));
     if (!companyAuthorized) {
       return json({ error: "Tender not found." }, 404);
     }
