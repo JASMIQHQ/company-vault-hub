@@ -37,11 +37,14 @@ Deno.serve(async req=>{
     const {data:u,error:ue}=await admin.auth.getUser(token); if(ue||!u.user)return json({error:"Not authenticated."},401); userId=u.user.id;
     const body=await req.json().catch(()=>({})) as {document_id?:string}; if(!body.document_id)return json({error:"A document_id is required."},400);
     const {data:profile}=await admin.from("profiles").select("id").eq("auth_user_id",u.user.id).maybeSingle(); if(!profile)return json({error:"No profile found for this user."},403); profileId=profile.id;
-    const {data:memberships}=await admin.from("organization_members").select("organization_id").eq("profile_id",profile.id); const orgs=(memberships??[]).map(x=>x.organization_id).filter(Boolean);
+    const {data:memberships}=await admin.from("organization_members").select("organization_id,is_owner").eq("profile_id",profile.id); const orgs=(memberships??[]).map(x=>x.organization_id).filter(Boolean);
     const {data:d,error:de}=await admin.from("company_documents").select("id,organization_id,company_id,document_name,original_filename,document_type,category,storage_path,mime_type").eq("id",body.document_id).maybeSingle(); if(de)throw de; doc=d;
     if(!doc||!orgs.includes(doc.organization_id))return json({error:"Document not found or not accessible."},404);
-    const {data:companyMembership}=await admin.from("company_members").select("company_id").eq("company_id",doc.company_id).eq("profile_id",profile.id).maybeSingle();
-    if(!companyMembership)return json({error:"Document not found or not accessible."},404);
+    const {data:companyMembership}=await admin.from("company_members").select("company_id,membership_source").eq("company_id",doc.company_id).eq("profile_id",profile.id).maybeSingle();
+    const companyAuthorized=companyMembership?.membership_source==="explicit" ||
+      (companyMembership?.membership_source==="owner" &&
+        (memberships??[]).some(x=>x.organization_id===doc.organization_id && x.is_owner===true));
+    if(!companyAuthorized)return json({error:"Document not found or not accessible."},404);
     const {data:blob,error:dl}=await admin.storage.from("company-documents").download(doc.storage_path);
     if(dl||!blob){await recordAttempt("failed",{error_stage:"STORAGE_DOWNLOAD",error_message:"Could not download document for verification."});return json({error:"Could not download document for verification.",stage:"STORAGE_DOWNLOAD"},502);}
     const bytes=new Uint8Array(await blob.arrayBuffer()); if(bytes.byteLength>MAX){await recordAttempt("failed",{error_stage:"PDF_TOO_LARGE",error_message:"PDF exceeds 20 MB limit."});return json({error:"PDF_TOO_LARGE",document_id:doc.id,raw_bytes:bytes.byteLength,max_raw_bytes:MAX},413);}
