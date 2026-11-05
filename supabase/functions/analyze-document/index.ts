@@ -191,7 +191,7 @@ Deno.serve(async (req) => {
     let parsed: Record<string, unknown>;
     try {
       parsed = JSON.parse(
-        typeof content === "string" ? content.replace(/^\`\`\`json|\`\`\`$/g, "").trim() : "",
+        typeof content === "string" ? content.replace(/^```json|```$/g, "").trim() : "",
       );
     } catch {
       return await fail("The AI returned an unreadable response.");
