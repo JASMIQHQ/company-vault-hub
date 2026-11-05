@@ -71,7 +71,7 @@ Deno.serve(async (req) => {
 
     const { data: memberships } = await admin
       .from("organization_members")
-      .select("organization_id")
+      .select("organization_id, is_owner")
       .eq("profile_id", profile.id);
     const orgIds = (memberships ?? []).map((row) => row.organization_id);
     if (!orgIds.length) return json({ error: "No organization found for this user." }, 403);
@@ -84,6 +84,17 @@ Deno.serve(async (req) => {
     if (tenderError) return json({ error: "Could not load the tender." }, 500);
     if (!tender) return json({ error: "Tender not found." }, 404);
     if (!orgIds.includes(tender.organization_id)) return json({ error: "You are not allowed to configure this tender." }, 403);
+    if (!tender.company_id) return json({ error: "Tender not found." }, 404);
+    const { data: companyMembership } = await admin
+      .from("company_members")
+      .select("company_id, membership_source")
+      .eq("company_id", tender.company_id)
+      .eq("profile_id", profile.id)
+      .maybeSingle();
+    const companyAuthorized = companyMembership?.membership_source === "explicit" ||
+      (companyMembership?.membership_source === "owner" &&
+        (memberships ?? []).some((m) => m.organization_id === tender.organization_id && m.is_owner === true));
+    if (!companyAuthorized) return json({ error: "Tender not found." }, 404);
     if (tender.analysis_status !== "analyzed" && tender.analysis_status !== "requires_review") {
       return json({ error: "Analyze the tender before detecting its bid structure." }, 409);
     }
