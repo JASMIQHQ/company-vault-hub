@@ -41,7 +41,6 @@ begin
   end if;
 
   if has_function_privilege('anon', 'private.is_company_member(uuid)'::regprocedure, 'EXECUTE')
-     or has_function_privilege('public', 'private.is_company_member(uuid)'::regprocedure, 'EXECUTE')
      or not has_function_privilege('authenticated', 'private.is_company_member(uuid)'::regprocedure, 'EXECUTE') then
     raise exception 'Company authorization helper has an unsafe execute grant';
   end if;
