@@ -115,7 +115,10 @@ Deno.serve(async (req) => {
       .eq("company_id", tenderRow.company_id)
       .eq("profile_id", profile.id)
       .maybeSingle();
-    if (!companyMembership) return json({ error: "Tender not found." }, 404);
+    const companyAuthorized = companyMembership?.membership_source === "explicit" ||
+    (companyMembership?.membership_source === "owner" &&
+      (memberships ?? []).some((m) => m.organization_id === tenderRow.organization_id && m.is_owner === true));
+  if (!companyAuthorized) return json({ error: "Tender not found." }, 404);
 
     const { data: requirements, error: requirementsError } = await admin.from("tender_requirements").select("id, category, requirement_name, requirement_text, display_order").eq("tender_id", tenderRow.id).eq("organization_id", tenderRow.organization_id).order("display_order", { ascending: true, nullsFirst: false });
     if (requirementsError) throw requirementsError;
