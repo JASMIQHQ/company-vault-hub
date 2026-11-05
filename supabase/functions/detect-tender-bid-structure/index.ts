@@ -91,12 +91,13 @@ Deno.serve(async (req) => {
       .eq("company_id", tender.company_id)
       .eq("profile_id", profile.id)
       .maybeSingle();
-    const companyAuthorized = companyMembership?.organization_id === tender.organization_id &&
+    const companyAuthorized =
+      companyMembership?.organization_id === tender.organization_id &&
       (companyMembership?.membership_source === "explicit" ||
-      (companyMembership?.membership_source === "owner" &&
-        (memberships ?? []).some(
-          (m) => m.organization_id === tender.organization_id && m.is_owner === true,
-        )));
+        (companyMembership?.membership_source === "owner" &&
+          (memberships ?? []).some(
+            (m) => m.organization_id === tender.organization_id && m.is_owner === true,
+          )));
     if (!companyAuthorized) return json({ error: "Tender not found." }, 404);
     if (tender.analysis_status !== "analyzed" && tender.analysis_status !== "requires_review") {
       return json({ error: "Analyze the tender before detecting its bid structure." }, 409);
