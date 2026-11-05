@@ -2,6 +2,11 @@ name: Staging migration plan (read-only)
 
 on:
   workflow_dispatch:
+    inputs:
+      source_ref:
+        description: "Exact reviewed migration branch or 40-character commit SHA"
+        required: true
+        type: string
 
 permissions:
   contents: read
@@ -22,6 +27,8 @@ jobs:
       STAGING_DB_PASSWORD: ${{ secrets.STAGING_DB_PASSWORD }}
     steps:
       - uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.source_ref }}
       - uses: supabase/setup-cli@v3
         with:
           version: 2.122.1
