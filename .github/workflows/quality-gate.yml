@@ -83,19 +83,43 @@ jobs:
           done
           exit "$failed"
 
+  migration-replay:
+    name: Local migration replay and SQL regression tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.sha }}
+
+      - uses: supabase/setup-cli@v3
+        with:
+          version: 2.122.1
+
+      - name: Start isolated local Supabase stack
+        run: supabase start
+
+      - name: Replay the complete migration history locally
+        run: supabase db reset --local
+
+      - name: Run database regression tests
+        run: supabase test db
+
   # Stable aggregate check name required by the repository ruleset.
   quality-gate:
     name: Quality Gate
     runs-on: ubuntu-latest
-    needs: [lint-parity, build, edge-functions]
+    needs: [lint-parity, build, edge-functions, migration-replay]
     if: always()
     steps:
-      - name: Require lint parity, build, and Edge Function checks to pass
+      - name: Require lint parity, build, Edge Function checks, and migration replay to pass
         env:
           LINT_RESULT: ${{ needs.lint-parity.result }}
           BUILD_RESULT: ${{ needs.build.result }}
           EDGE_RESULT: ${{ needs.edge-functions.result }}
+          MIGRATION_RESULT: ${{ needs.migration-replay.result }}
         run: |
           test "$LINT_RESULT" = "success"
           test "$BUILD_RESULT" = "success"
           test "$EDGE_RESULT" = "success"
+          test "$MIGRATION_RESULT" = "success"
