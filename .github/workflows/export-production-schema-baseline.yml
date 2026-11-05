@@ -17,7 +17,7 @@ jobs:
     environment: jasmiq-schema-export
     timeout-minutes: 25
     env:
-      PRODUCTION_DB_PASSWORD: ${{ secrets.PRODUCTION_DB_PASSWORD }}
+      PRODUCTION_DB_URL: ${{ secrets.PRODUCTION_DB_URL }}
     steps:
       - uses: actions/checkout@v4
         with:
@@ -31,11 +31,9 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          test -n "$PRODUCTION_DB_PASSWORD"
-          encoded_password="$(node -e 'process.stdout.write(encodeURIComponent(process.env.PRODUCTION_DB_PASSWORD))')"
-          connection="postgresql://postgres:${encoded_password}@db.itqepknvdiedldcyunig.supabase.co:5432/postgres?sslmode=require"
-          echo "::add-mask::$connection"
-          printf '%s' "$connection" > "$RUNNER_TEMP/production-db-url"
+          test -n "$PRODUCTION_DB_URL"
+          echo "::add-mask::$PRODUCTION_DB_URL"
+          printf '%s' "$PRODUCTION_DB_URL" > "$RUNNER_TEMP/production-db-url"
 
       - name: Dump schema only (no table data)
         shell: bash
