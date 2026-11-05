@@ -38,10 +38,9 @@ jobs:
       APPROVED_PLAN_SHA: ${{ inputs.approved_plan_sha256 }}
       CONFIRMATION: ${{ inputs.confirmation }}
     steps:
-      - uses: actions/checkout@v4
-      - uses: supabase/setup-cli@v1
+      - uses: supabase/setup-cli@v3
         with:
-          version: latest
+          version: 2.122.1
       - name: Validate confirmation and immutable plan reference
         shell: bash
         run: |
@@ -60,6 +59,14 @@ jobs:
           run-id: ${{ inputs.plan_run_id }}
           github-token: ${{ secrets.GITHUB_TOKEN }}
           path: reviewed-plan
+      - name: Checkout exact reviewed source commit
+        shell: bash
+        run: |
+          set -euo pipefail
+          source_commit="$(cat reviewed-plan/source-commit.txt)"
+          [[ "$source_commit" =~ ^[a-f0-9]{40}$ ]]
+          git fetch origin "$source_commit"
+          git checkout --detach "$source_commit"
       - name: Verify artifact digest and source commit
         shell: bash
         run: |
