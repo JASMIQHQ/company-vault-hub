@@ -38,6 +38,9 @@ jobs:
       APPROVED_PLAN_SHA: ${{ inputs.approved_plan_sha256 }}
       CONFIRMATION: ${{ inputs.confirmation }}
     steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
       - uses: supabase/setup-cli@v3
         with:
           version: 2.122.1
@@ -52,6 +55,25 @@ jobs:
           test "$STAGING_REF" != "itqepknvdiedldcyunig"
           test -n "$SUPABASE_ACCESS_TOKEN"
           test -n "$STAGING_DB_PASSWORD"
+      - name: Validate provenance of the referenced plan run
+        shell: bash
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          gh api "repos/${GITHUB_REPOSITORY}/actions/runs/${PLAN_RUN_ID}" > plan-run.json
+          jq -e --arg repo "${GITHUB_REPOSITORY}" '
+            .repository.full_name == $repo and
+            .head_repository.full_name == $repo and
+            .path == ".github/workflows/staging-rebuild.yml" and
+            .event == "workflow_dispatch" and
+            .status == "completed" and
+            .conclusion == "success" and
+            .head_branch == "main"
+          ' plan-run.json > /dev/null || {
+            echo "::error::The referenced run is not a successful read-only staging plan dispatched from main in this repository."
+            exit 1
+          }
       - name: Download exact plan artifact from earlier run
         uses: actions/download-artifact@v4
         with:
