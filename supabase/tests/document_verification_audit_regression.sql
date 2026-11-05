@@ -20,6 +20,9 @@ begin
      or position('outcome=''verified''' in v_trigger)=0 then
     raise exception 'Fact insertion must be restricted to verified outcomes';
   end if;
+  if position('coalesce(v_attempt.confidence, ''low'')' in v_trigger)=0 then
+    raise exception 'Verified facts must preserve attempt confidence rather than assume high confidence';
+  end if;
   if position('delete from public.document_verified_facts' in v_trigger)>0 then
     raise exception 'Verification trigger must never delete historical facts';
   end if;
