@@ -30,11 +30,11 @@ Deno.serve(async req=>{
   const url=Deno.env.get("SUPABASE_URL"),serviceKey=Deno.env.get("SUPABASE_SERVICE_ROLE_KEY"),p=provider(),key=p==="gemini"?Deno.env.get("GEMINI_API_KEY"):Deno.env.get("ANTHROPIC_API_KEY");
   if(!url||!serviceKey||!key)return json({error:"Verification service configuration is missing.",provider:p},500);
   const admin=createClient(url,serviceKey,{auth:{persistSession:false,autoRefreshToken:false}});
-  let userId:string|null=null,profileId:string|null=null,doc:any=null;
+  let profileId:string|null=null,doc:any=null;
   const recordAttempt=async(outcome:"verified"|"mismatch"|"failed",extra:any={})=>{if(!doc||!profileId)throw new Error("Verification context is incomplete."); const {data,error}=await admin.rpc("record_document_verification",{p_document_id:doc.id,p_requested_by:profileId,p_provider:p,p_model:extra.model??null,p_outcome:outcome,p_detected_doc_type:extra.doc_type??null,p_detected_year:extra.year??null,p_detected_expiry_date:extra.expiry_date??null,p_confidence:extra.confidence??null,p_error_stage:extra.error_stage??null,p_error_message:extra.error_message??null,p_diagnostics:extra.diagnostics??null}); if(error)throw error; return data as string;};
   try{
     const token=(req.headers.get("Authorization")??"").replace(/^Bearer\s+/i,""); if(!token)return json({error:"Not authenticated."},401);
-    const {data:u,error:ue}=await admin.auth.getUser(token); if(ue||!u.user)return json({error:"Not authenticated."},401); userId=u.user.id;
+    const {data:u,error:ue}=await admin.auth.getUser(token); if(ue||!u.user)return json({error:"Not authenticated."},401);
     const body=await req.json().catch(()=>({})) as {document_id?:string}; if(!body.document_id)return json({error:"A document_id is required."},400);
     const {data:profile}=await admin.from("profiles").select("id").eq("auth_user_id",u.user.id).maybeSingle(); if(!profile)return json({error:"No profile found for this user."},403); profileId=profile.id;
     const {data:memberships}=await admin.from("organization_members").select("organization_id,is_owner").eq("profile_id",profile.id); const orgs=(memberships??[]).map(x=>x.organization_id).filter(Boolean);
