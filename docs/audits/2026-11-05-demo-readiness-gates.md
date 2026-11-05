@@ -22,6 +22,12 @@ This runbook is for the first controlled staging demonstration. It does not auth
 7. Deploy the five repository-backed Edge Functions and verify their required secrets exist in staging.
 8. Run document lifecycle, tenant-isolation, Storage object-path, and end-to-end tender readiness tests before preparing demo data.
 
+## Preview environment isolation
+
+The repository's committed `.env` file currently contains the production Supabase URL and publishable key. Vercel Preview builds must explicitly override `VITE_SUPABASE_URL` and `VITE_SUPABASE_PUBLISHABLE_KEY` with the staging project URL and staging publishable key before anyone uses a preview for test data. Keep the Production context pointed at production.
+
+Do not assume a Preview deployment is connected to staging just because its URL contains a Git branch name. Verify the runtime Supabase project reference in the browser's network requests or a controlled app diagnostic before uploading anything. Apply the same check to Netlify Deploy Previews.
+
 ## Storage provisioning
 
 The migration history defines Storage object policies but does not create the bucket rows. A fresh staging project therefore needs the two private buckets provisioned separately. The SQL script is idempotent and mirrors the production bucket names and private visibility.
