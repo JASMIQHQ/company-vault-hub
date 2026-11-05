@@ -1,0 +1,82 @@
+name: Staging migration plan (read-only)
+
+on:
+  workflow_dispatch:
+    inputs:
+      source_ref:
+        description: "Exact reviewed 40-character commit SHA (not a branch name)"
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+concurrency:
+  group: jasmiq-staging-schema-plan
+  cancel-in-progress: false
+
+jobs:
+  plan:
+    name: Generate reviewable staging plan (no writes)
+    runs-on: ubuntu-latest
+    environment: jasmiq-staging
+    timeout-minutes: 30
+    env:
+      SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+      STAGING_REF: ${{ secrets.STAGING_PROJECT_REF }}
+      STAGING_DB_PASSWORD: ${{ secrets.STAGING_DB_PASSWORD }}
+      SOURCE_REF: ${{ inputs.source_ref }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.source_ref }}
+      - uses: supabase/setup-cli@v3
+        with:
+          version: 2.122.1
+      - name: Validate target and migration provenance guard
+        shell: bash
+        run: |
+          set -euo pipefail
+          [[ "$SOURCE_REF" =~ ^[a-f0-9]{40}$ ]]
+          test "$(git rev-parse HEAD)" = "$SOURCE_REF"
+          test -n "$SUPABASE_ACCESS_TOKEN"
+          test -n "$STAGING_DB_PASSWORD"
+          test "$STAGING_REF" = "rmtoaaxnuwsecmajhwjx"
+          test "$STAGING_REF" != "itqepknvdiedldcyunig"
+          test -d supabase/migrations
+          node scripts/audit-migration-version-set.mjs
+          supabase link --project-ref "$STAGING_REF" --password "$STAGING_DB_PASSWORD"
+      - name: Capture remote ledger and dry-run plan
+        shell: bash
+        run: |
+          set -euo pipefail
+          supabase migration list --password "$STAGING_DB_PASSWORD" | tee migration-list.txt
+          supabase db push --password "$STAGING_DB_PASSWORD" --include-all --dry-run 2>&1 | tee plan.txt
+          git rev-parse HEAD > source-commit.txt
+          find supabase/migrations -maxdepth 1 -type f -name '*.sql' -print0 | sort -z | xargs -0 sha256sum > migration-files.sha256
+          sha256sum plan.txt | awk '{print $1}' > plan.sha256
+      - name: Upload immutable review evidence
+        uses: actions/upload-artifact@v4
+        with:
+          name: jasmiq-staging-plan-${{ github.run_id }}
+          path: |
+            plan.txt
+            plan.sha256
+            migration-list.txt
+            source-commit.txt
+            migration-files.sha256
+          if-no-files-found: error
+          retention-days: 30
+      - name: Publish review instructions
+        if: always()
+        shell: bash
+        run: |
+          {
+            echo "## Staging plan — READ ONLY"
+            echo "- Workflow run: https://github.com/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID"
+            echo "- Artifact: jasmiq-staging-plan-$GITHUB_RUN_ID"
+            echo "- Source commit: $(cat source-commit.txt 2>/dev/null || echo unavailable)"
+            echo "- Plan SHA-256: $(cat plan.sha256 2>/dev/null || echo unavailable)"
+            echo "- No migrations or functions were applied."
+            echo "- Review the complete SQL diff and plan before starting the separate apply workflow."
+          } >> "$GITHUB_STEP_SUMMARY"
