@@ -63,6 +63,12 @@ jobs:
         with:
           ref: ${{ github.sha }}
 
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+
+      - run: bun install --frozen-lockfile
+
       - uses: denoland/setup-deno@v2
 
       - name: Type-check every deployed Edge Function
