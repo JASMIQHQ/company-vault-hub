@@ -1,0 +1,70 @@
+name: Export production schema baseline (read-only)
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: jasmiq-production-schema-export
+  cancel-in-progress: false
+
+jobs:
+  export:
+    name: Export schema-only baseline from production
+    runs-on: ubuntu-latest
+    environment: jasmiq-schema-export
+    timeout-minutes: 25
+    env:
+      PRODUCTION_DB_PASSWORD: ${{ secrets.PRODUCTION_DB_PASSWORD }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+
+      - uses: supabase/setup-cli@v3
+        with:
+          version: 2.122.1
+
+      - name: Validate read-only export credentials
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -n "$PRODUCTION_DB_PASSWORD"
+          connection="postgresql://postgres:${PRODUCTION_DB_PASSWORD}@db.itqepknvdiedldcyunig.supabase.co:5432/postgres?sslmode=require"
+          echo "::add-mask::$connection"
+          printf '%s' "$connection" > "$RUNNER_TEMP/production-db-url"
+
+      - name: Dump schema only (no table data)
+        shell: bash
+        run: |
+          set -euo pipefail
+          connection="$(cat "$RUNNER_TEMP/production-db-url")"
+          supabase db dump --db-url "$connection" -f production-schema.sql
+          test -s production-schema.sql
+          sha256sum production-schema.sql | tee production-schema.sha256
+          echo "Schema dump completed. No table data was exported."
+
+      - name: Upload review artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: jasmiq-production-schema-baseline-${{ github.run_id }}
+          path: |
+            production-schema.sql
+            production-schema.sha256
+          if-no-files-found: error
+          retention-days: 3
+
+      - name: Publish export summary
+        if: always()
+        shell: bash
+        run: |
+          {
+            echo "## Production schema export — READ ONLY"
+            echo "- Source project: `itqepknvdiedldcyunig`"
+            echo "- Dump type: schema only; no table rows or Storage objects"
+            echo "- Artifact: jasmiq-production-schema-baseline-$GITHUB_RUN_ID"
+            echo "- SHA-256: $(cat production-schema.sha256 2>/dev/null || echo unavailable)"
+            echo "- No production database writes were performed."
+          } >> "$GITHUB_STEP_SUMMARY"
