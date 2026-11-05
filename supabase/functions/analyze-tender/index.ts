@@ -54,10 +54,7 @@ Deno.serve(async (req) => {
   const publishableKey =
     Deno.env.get("SUPABASE_PUBLISHABLE_KEY") ?? Deno.env.get("SUPABASE_ANON_KEY");
   if (!publishableKey) {
-    return json(
-      { error: "Supabase publishable API key is not configured." },
-      500,
-    );
+    return json({ error: "Supabase publishable API key is not configured." }, 500);
   }
   const aiKey = Deno.env.get("LOVABLE_API_KEY");
   // New-format Supabase secret keys (sb_secret_...) are opaque strings, not JWTs.
