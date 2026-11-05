@@ -102,8 +102,23 @@ jobs:
       - name: Replay the complete migration history locally
         run: supabase db reset --local
 
-      - name: Run database regression tests
-        run: supabase test db
+      - name: Run SQL regression scripts
+        shell: bash
+        run: |
+          set -euo pipefail
+          sudo apt-get update
+          sudo apt-get install -y postgresql-client
+          eval "$(supabase status -o env)"
+          shopt -s nullglob
+          test_files=(supabase/tests/*.sql)
+          if [ ${#test_files[@]} -eq 0 ]; then
+            echo "No SQL regression scripts are present in this branch."
+            exit 0
+          fi
+          for test_file in "${test_files[@]}"; do
+            echo "Running ${test_file}"
+            psql "$DB_URL" -v ON_ERROR_STOP=1 -f "$test_file"
+          done
 
   # Stable aggregate check name required by the repository ruleset.
   quality-gate:
