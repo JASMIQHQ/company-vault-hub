@@ -137,7 +137,9 @@ Deno.serve(async (req) => {
       .maybeSingle();
     const companyAuthorized = companyMembership?.membership_source === "explicit" ||
       (companyMembership?.membership_source === "owner" &&
-        (memberships ?? []).some((m) => m.organization_id === tender.organization_id && m.is_owner === true));
+        (memberships ?? []).some(
+          (m) => m.organization_id === tender.organization_id && m.is_owner === true,
+        ));
     if (!companyAuthorized) {
       return json({ error: "Tender not found." }, 404);
     }
