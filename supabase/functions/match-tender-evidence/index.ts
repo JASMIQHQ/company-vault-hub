@@ -101,7 +101,10 @@ Deno.serve(async (req) => {
     const { data: profile, error: profileError } = await admin.from("profiles").select("id").eq("auth_user_id", userData.user.id).maybeSingle();
     if (profileError) throw profileError;
     if (!profile) return json({ error: "No profile found for this user." }, 403);
-    const { data: memberships, error: membershipError } = await admin.from("organization_members").select("organization_id, is_owner").eq("profile_id", profile.id);
+    const { data: memberships, error: membershipError } = await admin
+      .from("organization_members")
+      .select("organization_id, is_owner")
+      .eq("profile_id", profile.id);
     if (membershipError) throw membershipError;
     const organizationIds = (memberships ?? []).map((row) => row.organization_id).filter(Boolean);
 
@@ -111,7 +114,7 @@ Deno.serve(async (req) => {
     if (!tenderRow || !organizationIds.includes(tenderRow.organization_id) || !tenderRow.company_id) return json({ error: "Tender not found." }, 404);
     const { data: companyMembership } = await admin
       .from("company_members")
-      .select("company_id")
+      .select("company_id, membership_source")
       .eq("company_id", tenderRow.company_id)
       .eq("profile_id", profile.id)
       .maybeSingle();
