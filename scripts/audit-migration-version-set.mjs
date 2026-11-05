@@ -39,7 +39,9 @@ console.log(`Unique version prefixes found: ${actualSet.size}`);
 console.log(`Append-only migrations newer than the 2026-10-29 ledger snapshot: ${appended.length}`);
 if (missing.length) console.error(`Missing live versions: ${missing.join(", ")}`);
 if (unexpectedHistorical.length) {
-  console.error(`Unexpected versions at or before the live-ledger boundary: ${unexpectedHistorical.join(", ")}`);
+  console.error(
+    `Unexpected versions at or before the live-ledger boundary: ${unexpectedHistorical.join(", ")}`,
+  );
 }
 if (duplicates.length) console.error(`Duplicate version prefixes: ${duplicates.join(", ")}`);
 if (invalidNames.length) console.error(`Invalid migration filenames: ${invalidNames.join(", ")}`);
