@@ -24,7 +24,7 @@ This runbook is for the first controlled staging demonstration. It does not auth
 
 ## Preview environment isolation
 
-The repository's committed `.env` file currently contains the production Supabase URL and publishable key. Vercel Preview builds must explicitly override `VITE_SUPABASE_URL` and `VITE_SUPABASE_PUBLISHABLE_KEY` with the staging project URL and staging publishable key before anyone uses a preview for test data. Keep the Production context pointed at production.
+The repository's committed `.env` file currently contains the production Supabase URL and publishable key. Vercel Preview builds must explicitly override `VITE_SUPABASE_URL`, `VITE_SUPABASE_PUBLISHABLE_KEY`, `SUPABASE_URL`, `SUPABASE_PUBLISHABLE_KEY`, and the server-only `SUPABASE_SERVICE_ROLE_KEY` with staging credentials before anyone uses a preview for test data. The service-role key must remain server-side and must never use a `VITE_` prefix. Keep the Production context pointed at production.
 
 Do not assume a Preview deployment is connected to staging just because its URL contains a Git branch name. Verify the runtime Supabase project reference in the browser's network requests or a controlled app diagnostic before uploading anything. Apply the same check to Netlify Deploy Previews.
 
