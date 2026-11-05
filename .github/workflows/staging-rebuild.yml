@@ -4,7 +4,7 @@ on:
   workflow_dispatch:
     inputs:
       source_ref:
-        description: "Exact reviewed migration branch or 40-character commit SHA"
+        description: "Exact reviewed 40-character commit SHA (not a branch name)"
         required: true
         type: string
 
@@ -25,6 +25,7 @@ jobs:
       SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
       STAGING_REF: ${{ secrets.STAGING_PROJECT_REF }}
       STAGING_DB_PASSWORD: ${{ secrets.STAGING_DB_PASSWORD }}
+      SOURCE_REF: ${{ inputs.source_ref }}
     steps:
       - uses: actions/checkout@v4
         with:
@@ -36,6 +37,8 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
+          [[ "$SOURCE_REF" =~ ^[a-f0-9]{40}$ ]]
+          test "$(git rev-parse HEAD)" = "$SOURCE_REF"
           test -n "$SUPABASE_ACCESS_TOKEN"
           test -n "$STAGING_DB_PASSWORD"
           test "$STAGING_REF" = "rmtoaaxnuwsecmajhwjx"
