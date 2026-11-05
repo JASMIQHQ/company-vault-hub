@@ -18,7 +18,7 @@ The read-only local replay confirmed this dependency gap. Do not replay the 66 h
 ## One-time read-only export
 
 1. In GitHub Settings → Environments, create `jasmiq-schema-export` and require an approving reviewer.
-2. Add the environment secret `PRODUCTION_DB_PASSWORD`. Do not paste the password into chat or commit it to the repository.
+2. Add the environment secret `PRODUCTION_DB_URL` using the Session pooler connection string from Supabase Dashboard → Connect. It contains the production database credential; do not paste it into chat or commit it to the repository.
 3. From Actions, run `Export production schema baseline (read-only)`.
 4. Review the three-day artifact `jasmiq-production-schema-baseline-<run-id>` and its SHA-256. The workflow uses `supabase db dump` with schema-only defaults; it exports no table rows and performs no production writes.
 5. Inspect the dump for embedded credentials or secrets before committing or restoring it.
