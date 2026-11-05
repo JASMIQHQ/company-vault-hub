@@ -51,7 +51,11 @@ Deno.serve(async (req) => {
 
   const url = Deno.env.get("SUPABASE_URL")!;
   const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
-  const publishableKey = Deno.env.get("SUPABASE_PUBLISHABLE_KEY") ?? Deno.env.get("SUPABASE_ANON_KEY");
+  const publishableKey =
+    Deno.env.get("SUPABASE_PUBLISHABLE_KEY") ?? Deno.env.get("SUPABASE_ANON_KEY");
+  if (!publishableKey) {
+    return json({ error: "Supabase publishable API key is not configured." }, 500);
+  }
   const aiKey = Deno.env.get("LOVABLE_API_KEY");
   // New-format Supabase secret keys (sb_secret_...) are opaque strings, not JWTs.
   // PostgREST rejects them when sent as `Authorization: Bearer <key>`, which makes every
@@ -113,7 +117,7 @@ Deno.serve(async (req) => {
 
     const { data: memberships } = await admin
       .from("organization_members")
-      .select("organization_id")
+      .select("organization_id, is_owner")
       .eq("profile_id", profile.id);
     const orgIds = (memberships ?? []).map((m) => m.organization_id);
     if (orgIds.length === 0) return json({ error: "No organization found for this user." }, 403);
@@ -131,11 +135,18 @@ Deno.serve(async (req) => {
     }
     const { data: companyMembership } = await admin
       .from("company_members")
-      .select("company_id")
+      .select("company_id, organization_id, membership_source")
       .eq("company_id", tender.company_id)
       .eq("profile_id", profile.id)
       .maybeSingle();
-    if (!companyMembership) {
+    const companyAuthorized =
+      companyMembership?.organization_id === tender.organization_id &&
+      (companyMembership?.membership_source === "explicit" ||
+        (companyMembership?.membership_source === "owner" &&
+          (memberships ?? []).some(
+            (m) => m.organization_id === tender.organization_id && m.is_owner === true,
+          )));
+    if (!companyAuthorized) {
       return json({ error: "Tender not found." }, 404);
     }
 
@@ -299,7 +310,15 @@ Deno.serve(async (req) => {
       return json({ tender_id: tender.id, analysis_status: "analyzed", matching_status: "MATCHING_FAILED", requirements: requirements.length, matching: { error_code: "MATCHING_STATE_PERSIST_FAILED", error: matchingStateError.message } }, 500);
     }
     await admin.from("tenders").update({ opening_date: date("opening_date"), reference_number: str("reference_number"), procurement_method: str("procurement_method"), tender_type: str("tender_type"), industry: str("industry"), lot_number: str("lot_number"), lot_description: str("lot_description"), requires_bid_security: bool("requires_bid_security"), requires_bank_reference: bool("requires_bank_reference"), requires_affidavit: bool("requires_affidavit"), raw_text: clipped.slice(0, 40000) }).eq("id", tender.id);
-    const matcherResponse = await fetch(`${url}/functions/v1/match-tender-evidence`, { method: "POST", headers: { Authorization: `Bearer ${token}`, apikey: publishableKey, "Content-Type": "application/json" }, body: JSON.stringify({ tender_id: tender.id }) });
+    const matcherResponse = await fetch(`${url}/functions/v1/match-tender-evidence`, {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${token}`,
+        apikey: publishableKey,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({ tender_id: tender.id }),
+    });
     const matcherRaw = await matcherResponse.text();
     let matcherBody: Record<string, unknown> = {};
     try { matcherBody = matcherRaw ? JSON.parse(matcherRaw) : {}; } catch { matcherBody = { raw_body: matcherRaw }; }

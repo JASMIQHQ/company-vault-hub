@@ -55,17 +55,89 @@ jobs:
       - run: bun install --frozen-lockfile
       - run: bun run build
 
+  edge-functions:
+    name: Edge Function type check
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.sha }}
+
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+
+      - run: bun install --frozen-lockfile
+
+      - uses: denoland/setup-deno@v2
+
+      - name: Type-check every deployed Edge Function
+        run: |
+          set -uo pipefail
+          failed=0
+          for fn in analyze-tender match-tender-evidence verify-document analyze-document detect-tender-bid-structure; do
+            echo "Checking supabase/functions/$fn/index.ts"
+            if ! deno check --no-lock --node-modules-dir=auto "supabase/functions/$fn/index.ts"; then
+              failed=1
+            fi
+          done
+          exit "$failed"
+
+  migration-replay:
+    name: Local migration replay and SQL regression tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.sha }}
+
+      - uses: supabase/setup-cli@v3
+        with:
+          version: 2.122.1
+
+      - name: Start isolated local Supabase stack
+        run: supabase start
+
+      - name: Replay the complete migration history locally
+        run: supabase db reset --local
+
+      - name: Run SQL regression scripts
+        shell: bash
+        run: |
+          set -euo pipefail
+          sudo apt-get update
+          sudo apt-get install -y postgresql-client
+          eval "$(supabase status -o env)"
+          shopt -s nullglob
+          test_files=(supabase/tests/*.sql)
+          if [ ${#test_files[@]} -eq 0 ]; then
+            echo "No SQL regression scripts are present in this branch."
+          fi
+          if [ -f supabase/ops/ensure-required-storage-buckets.sql ]; then
+            psql "$DB_URL" -v ON_ERROR_STOP=1 -f supabase/ops/ensure-required-storage-buckets.sql
+            psql "$DB_URL" -v ON_ERROR_STOP=1 -c "DO \$\$ BEGIN IF (SELECT count(*) FROM storage.buckets WHERE id IN ('company-documents','tender-files') AND public = false) <> 2 THEN RAISE EXCEPTION 'Required private Storage buckets are missing'; END IF; END \$\$;"
+          fi
+          for test_file in "${test_files[@]}"; do
+            echo "Running ${test_file}"
+            psql "$DB_URL" -v ON_ERROR_STOP=1 -f "$test_file"
+          done
+
   # Stable aggregate check name required by the repository ruleset.
   quality-gate:
     name: Quality Gate
     runs-on: ubuntu-latest
-    needs: [lint-parity, build]
+    needs: [lint-parity, build, edge-functions, migration-replay]
     if: always()
     steps:
-      - name: Require lint parity and build to pass
+      - name: Require lint parity, build, Edge Function checks, and migration replay to pass
         env:
           LINT_RESULT: ${{ needs.lint-parity.result }}
           BUILD_RESULT: ${{ needs.build.result }}
+          EDGE_RESULT: ${{ needs.edge-functions.result }}
+          MIGRATION_RESULT: ${{ needs.migration-replay.result }}
         run: |
           test "$LINT_RESULT" = "success"
           test "$BUILD_RESULT" = "success"
+          test "$EDGE_RESULT" = "success"
+          test "$MIGRATION_RESULT" = "success"
