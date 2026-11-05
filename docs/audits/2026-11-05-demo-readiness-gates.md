@@ -11,6 +11,12 @@ This runbook is for the first controlled staging demonstration. It does not auth
 - Production has two private Storage buckets: `company-documents` and `tender-files`.
 - Staging currently has no Storage buckets.
 
+## Migration baseline recovery — blocking
+
+The 66-version migration ledger is not a complete empty-database bootstrap. The first recorded migration already calls `public.is_org_member(uuid)`, and the tracked migration directory does not create that function, `public.current_profile_id()`, or the organization-membership foundation before it is used. The local replay correctly stops at this point.
+
+Do not add a temporary helper merely to make replay pass. Follow [the schema baseline recovery runbook](./2026-11-05-schema-baseline-recovery.md): export a reviewed schema-only snapshot from production, restore it into staging only, mark the exact 66 historical versions applied, and then apply only the reviewed newer migrations. This is a baseline adoption, not a claim that the original 66 migrations replay cleanly from zero.
+
 ## Required order
 
 1. Merge the reviewed migration and Edge Function changes only after all required checks pass.
