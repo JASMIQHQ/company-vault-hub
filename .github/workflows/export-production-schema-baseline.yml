@@ -32,7 +32,8 @@ jobs:
         run: |
           set -euo pipefail
           test -n "$PRODUCTION_DB_PASSWORD"
-          connection="postgresql://postgres:${PRODUCTION_DB_PASSWORD}@db.itqepknvdiedldcyunig.supabase.co:5432/postgres?sslmode=require"
+          encoded_password="$(node -e 'process.stdout.write(encodeURIComponent(process.env.PRODUCTION_DB_PASSWORD))')"
+          connection="postgresql://postgres:${encoded_password}@db.itqepknvdiedldcyunig.supabase.co:5432/postgres?sslmode=require"
           echo "::add-mask::$connection"
           printf '%s' "$connection" > "$RUNNER_TEMP/production-db-url"
 
