@@ -7,10 +7,10 @@ begin;
 insert into public.document_verified_facts
   (document_id, organization_id, company_id, doc_type, doc_year, expiry_date, confidence, verification_attempt_id, verified_at)
 select d.id, d.organization_id, d.company_id, d.verified_doc_type, d.verified_year,
-       d.verified_expiry_date, 'high', a.id, coalesce(d.verified_at, a.created_at, now())
+       d.verified_expiry_date, coalesce(a.confidence, 'low'), a.id, coalesce(d.verified_at, a.created_at, now())
 from public.company_documents d
 left join lateral (
-  select va.id, va.created_at
+  select va.id, va.created_at, va.confidence
   from public.document_verification_attempts va
   where va.document_id=d.id and va.outcome='verified'
   order by va.created_at desc
@@ -23,7 +23,7 @@ where d.deleted_at is null
 
 -- Preserve the append-only mutation guard. No mismatch-specific DELETE exception.
 create or replace function public.prevent_verification_audit_mutation()
-returns trigger language plpgsql security definer set search_path=public as $$
+returns trigger language plpgsql security definer set search_path='' as $
 begin
   raise exception 'Verification audit records are append-only';
 end;
@@ -52,7 +52,7 @@ begin
     values
       (new.id, new.organization_id, new.company_id, 'system_trigger', null,
        v_outcome, new.verified_doc_type, new.verified_year, new.verified_expiry_date,
-       case when v_outcome='verified' then 'high' else null end, now())
+       case when v_outcome='verified' then 'low' else null end, now())
     returning id into v_attempt_id;
 
     if v_outcome='verified' and new.verified_doc_type is not null then
