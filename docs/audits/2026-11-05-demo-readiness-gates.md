@@ -46,7 +46,9 @@ Expected: exactly two rows, both with `public = false`.
 ## Edge Function secrets to confirm in staging
 
 - `LOVABLE_API_KEY` for tender analysis, bid-structure detection, and document analysis.
-- The configured verification-provider key used by `verify-document` (Gemini or Anthropic, according to the function's current provider selection).
+- `AI_PROVIDER=gemini` and `GEMINI_API_KEY` for document verification (Gemini is the function default).
+- If Anthropic is selected instead: `AI_PROVIDER=anthropic` and `ANTHROPIC_API_KEY`.
+- `GEMINI_MODEL` / `ANTHROPIC_MODEL` are optional overrides; the function has defaults.
 - Supabase URL and service-role credentials are supplied by the Supabase runtime; never put service-role credentials in browser variables.
 
 ## Acceptance tests before a client demonstration
