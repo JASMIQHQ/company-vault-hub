@@ -15,7 +15,7 @@ alter table public.company_members enable row level security;
 -- their organization. Ordinary organization members must be explicitly assigned
 -- to a company; organization membership alone is not company authorization.
 insert into public.company_members(company_id,profile_id,organization_id,role)
-select c.id,om.profile_id,c.organization_id,'owner'
+select c.id,om.profile_id,c.organization_id,'member'
 from public.companies c
 join public.organization_members om on om.organization_id=c.organization_id
 where c.is_active=true
