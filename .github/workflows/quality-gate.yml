@@ -73,11 +73,15 @@ jobs:
 
       - name: Type-check every deployed Edge Function
         run: |
-          set -euo pipefail
+          set -uo pipefail
+          failed=0
           for fn in analyze-tender match-tender-evidence verify-document analyze-document detect-tender-bid-structure; do
             echo "Checking supabase/functions/$fn/index.ts"
-            deno check --no-lock "supabase/functions/$fn/index.ts"
+            if ! deno check --no-lock "supabase/functions/$fn/index.ts"; then
+              failed=1
+            fi
           done
+          exit "$failed"
 
   # Stable aggregate check name required by the repository ruleset.
   quality-gate:
