@@ -104,7 +104,9 @@ Deno.serve(async (req) => {
 
     const { data: doc, error: docError } = await admin
       .from("company_documents")
-      .select("id, organization_id, company_id, storage_path, mime_type, document_type, expiry_date")
+      .select(
+        "id, organization_id, company_id, storage_path, mime_type, document_type, expiry_date",
+      )
       .eq("id", id)
       .maybeSingle();
     if (docError) return json({ error: "Could not load the document." }, 500);
@@ -121,7 +123,9 @@ Deno.serve(async (req) => {
       .maybeSingle();
     const companyAuthorized = companyMembership?.membership_source === "explicit" ||
       (companyMembership?.membership_source === "owner" &&
-        (memberships ?? []).some((m) => m.organization_id === doc.organization_id && m.is_owner === true));
+        (memberships ?? []).some(
+          (m) => m.organization_id === doc.organization_id && m.is_owner === true,
+        ));
     if (!companyAuthorized) return json({ error: "Document not found." }, 404);
 
     documentId = doc.id;
@@ -150,7 +154,9 @@ Deno.serve(async (req) => {
       const buffer = new Uint8Array(await blob.arrayBuffer());
       const pdf = await getDocumentProxy(buffer);
       const extracted = await extractText(pdf, { mergePages: true });
-      text = String(extracted.text ?? "").replace(/\s+/g, " ").trim();
+      text = String(extracted.text ?? "")
+        .replace(/\s+/g, " ")
+        .trim();
     } catch {
       return await fail("Could not read text from the document PDF.");
     }
@@ -184,7 +190,9 @@ Deno.serve(async (req) => {
     const content = aiJson?.choices?.[0]?.message?.content ?? "";
     let parsed: Record<string, unknown>;
     try {
-      parsed = JSON.parse(typeof content === "string" ? content.replace(/^```json|```$/g, "").trim() : "");
+      parsed = JSON.parse(
+        typeof content === "string" ? content.replace(/^\`\`\`json|\`\`\`$/g, "").trim() : "",
+      );
     } catch {
       return await fail("The AI returned an unreadable response.");
     }
