@@ -121,12 +121,13 @@ Deno.serve(async (req) => {
       .eq("company_id", doc.company_id)
       .eq("profile_id", profile.id)
       .maybeSingle();
-    const companyAuthorized = companyMembership?.organization_id === doc.organization_id &&
+    const companyAuthorized =
+      companyMembership?.organization_id === doc.organization_id &&
       (companyMembership?.membership_source === "explicit" ||
-      (companyMembership?.membership_source === "owner" &&
-        (memberships ?? []).some(
-          (m) => m.organization_id === doc.organization_id && m.is_owner === true,
-        )));
+        (companyMembership?.membership_source === "owner" &&
+          (memberships ?? []).some(
+            (m) => m.organization_id === doc.organization_id && m.is_owner === true,
+          )));
     if (!companyAuthorized) return json({ error: "Document not found." }, 404);
 
     documentId = doc.id;
