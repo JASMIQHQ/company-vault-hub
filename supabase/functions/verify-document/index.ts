@@ -52,9 +52,8 @@ Deno.serve(async req=>{
     const year=typeof parsed.year==="number"&&Number.isInteger(parsed.year)&&parsed.year>=1900&&parsed.year<=2100?parsed.year:null; const expiry=typeof parsed.expiry_date==="string"&&/^\d{4}-\d{2}-\d{2}$/.test(parsed.expiry_date)?parsed.expiry_date:null; const confidence=parsed.confidence==="high"?"high":"low"; const detected=parsed.doc_type as VerifiedDocType; const declared=normalizeDocumentType(doc.document_type); const mismatch=Boolean(declared&&declared!=="OTHER"&&detected!=="OTHER"&&declared!==detected); const status=detected==="OTHER"?"mismatch":mismatch&&confidence==="high"?"mismatch":"verified";
     const attemptId=await recordAttempt(status,{model:result.model,doc_type:detected,year,expiry_date:expiry,confidence});
     const now=new Date().toISOString(); const {error:up}=await admin.from("company_documents").update({verified_doc_type:detected,verified_year:year,verified_expiry_date:expiry,verification_status:status,verified_at:now}).eq("id",doc.id).eq("organization_id",doc.organization_id).eq("company_id",doc.company_id); if(up)throw up;
-    if(status==="verified"){
-      const {error:factError}=await admin.from("document_verified_facts").insert({document_id:doc.id,organization_id:doc.organization_id,company_id:doc.company_id,doc_type:detected,doc_year:year,expiry_date:expiry,confidence,verification_attempt_id:attemptId,verified_at:now}); if(factError)throw factError;
-    }
+    // The database audit trigger is the single writer for verified facts.
+    // Inserting here as well would duplicate the fact for the same document.
     return json({document_id:doc.id,verified_doc_type:detected,verified_year:year,verified_expiry_date:expiry,verification_status:status,confidence,provider:p,model:result.model,verification_attempt_id:attemptId});
   }catch(e){console.error("verify-document failed",e);return json({error:e instanceof Error?e.message:"Document verification failed.",stage:"UNHANDLED_EXCEPTION"},500)}
 });
