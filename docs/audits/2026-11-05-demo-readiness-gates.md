@@ -28,6 +28,16 @@ The repository's committed `.env` file currently contains the production Supabas
 
 Do not assume a Preview deployment is connected to staging just because its URL contains a Git branch name. Verify the runtime Supabase project reference in the browser's network requests or a controlled app diagnostic before uploading anything. Apply the same check to Netlify Deploy Previews.
 
+## GitHub staging environment prerequisites
+
+The GitHub Actions environment named `jasmiq-staging` must have a required reviewer and these environment secrets:
+
+- `SUPABASE_ACCESS_TOKEN`
+- `STAGING_PROJECT_REF` set to `rmtoaaxnuwsecmajhwjx`
+- `STAGING_DB_PASSWORD`
+
+Do not put these values in repository files, workflow inputs, or chat messages. The workflow hard-rejects any project reference other than the staging project.
+
 ## Storage provisioning
 
 The migration history defines Storage object policies but does not create the bucket rows. A fresh staging project therefore needs the two private buckets provisioned separately. The SQL script is idempotent and mirrors the production bucket names and private visibility.
