@@ -85,7 +85,7 @@ jobs:
           for line in source.splitlines():
               # Only alter GRANT / ALTER DEFAULT PRIVILEGES statements whose
               # grantee is anon or authenticated. Preserve all other grants.
-              match = re.match(r'^(.*?\\bGRANT\\s+)(.*?)\\s+(ON\\s+.*?\\s+TO\\s+)(.*?);\\s*$', line, re.I)
+              match = re.match(r'^(.*?\bGRANT\s+)(.*?)\s+(ON\s+.*?\s+TO\s+)(.*?);\s*$', line, re.I)
               if match and re.search(r'"(?:anon|authenticated)"', match.group(3) + match.group(4), re.I):
                   privileges = [p.strip() for p in match.group(2).split(",")]
                   kept = [p for p in privileges if p.upper() not in {"TRUNCATE", "MAINTAIN"}]
@@ -106,7 +106,7 @@ jobs:
           )
           sanitized = prelude + sanitized
           forbidden = re.compile(
-              r'^(?:.*?\\bGRANT\\s+[^;]*?\\b(?:TRUNCATE|MAINTAIN)\\b[^;]*?\\bTO\\s+.*?"(?:anon|authenticated)".*?;)',
+              r'^(?:.*?\bGRANT\s+[^;]*?\b(?:TRUNCATE|MAINTAIN)\b[^;]*?\bTO\s+.*?"(?:anon|authenticated)".*?;)',
               re.I | re.M,
           )
           if forbidden.search(sanitized):
@@ -227,7 +227,7 @@ jobs:
         run: |
           {
             echo "## Staging schema-only restore"
-            echo "- Target: jasmiq-staging (`rmtoaaxnuwsecmajhwjx`)"
+            echo "- Target: jasmiq-staging (rmtoaaxnuwsecmajhwjx)"
             echo "- Source export run: $SOURCE_RUN_ID"
             echo "- Expected source SQL SHA-256: $EXPECTED_SQL_SHA"
             echo "- Production database was not used as a restore target."
