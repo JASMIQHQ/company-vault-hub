@@ -80,7 +80,7 @@ jobs:
           import re
 
           source_bytes = Path("source-artifact/production-schema.sql").read_bytes()
-source = source_bytes.decode("utf-8")
+          source = source_bytes.decode("utf-8")
           output = []
           removed = 0
           for line in source.splitlines():
