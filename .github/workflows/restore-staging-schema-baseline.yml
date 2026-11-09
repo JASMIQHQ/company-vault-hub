@@ -79,7 +79,8 @@ jobs:
           from pathlib import Path
           import re
 
-          source = Path("source-artifact/production-schema.sql").read_text()
+          source_bytes = Path("source-artifact/production-schema.sql").read_bytes()
+source = source_bytes.decode("utf-8")
           output = []
           removed = 0
           for line in source.splitlines():
@@ -113,7 +114,7 @@ jobs:
               raise SystemExit("Unsafe TRUNCATE/MAINTAIN privilege remains for anon/authenticated")
           Path("staging-schema.sql").write_text(sanitized)
           Path("sanitization-report.txt").write_text(
-              f"Original SQL SHA-256: {__import__('hashlib').sha256(source.encode()).hexdigest()}\n"
+              f"Original SQL SHA-256: {__import__('hashlib').sha256(source_bytes).hexdigest()}\n"
               f"Staging SQL SHA-256: {__import__('hashlib').sha256(sanitized.encode()).hexdigest()}\n"
               f"Removed TRUNCATE/MAINTAIN privilege tokens for anon/authenticated: {removed}\n"
               "Original production artifact was not modified.\n"
