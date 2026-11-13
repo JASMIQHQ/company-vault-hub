@@ -14,6 +14,7 @@ Updated: 2026-11-13
 | Staging schema restore | NOT RUN | Restore workflow deliberately fails closed |
 | Staging effective ACL audit | NOT RUN | No staging catalog connection |
 | Staging default ACL review | NOT RUN | No staging catalog connection |
+| Production Supabase Security Advisor | REVIEW REQUIRED | 16 RLS-enabled tables without policies; 19 SECURITY DEFINER functions executable by authenticated; 2 extensions in public; leaked-password protection disabled |
 
 ## Safety boundary
 
