@@ -25,7 +25,7 @@ where d.deleted_at is null
 
 -- Preserve the append-only mutation guard. No mismatch-specific DELETE exception.
 create or replace function public.prevent_verification_audit_mutation()
-returns trigger language plpgsql security definer set search_path='' as $
+returns trigger language plpgsql security definer set search_path='' as $$
 begin
   raise exception 'Verification audit records are append-only';
 end;
