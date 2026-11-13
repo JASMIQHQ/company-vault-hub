@@ -1,5 +1,5 @@
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { FileCheck2, Loader2, ShieldCheck } from "lucide-react";
+import { FileCheck2, Loader2 } from "lucide-react";
 import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
@@ -72,11 +72,11 @@ export function VerifyDocumentAction({ document }: { document: CompanyDocument }
         title={tooLarge ? "AI verification supports PDF files up to 20 MB." : "Run AI document verification"}
         aria-label={`Verify ${document.document_name} with AI`}
       >
-        {verify.isPending ? <Loader2 className="size-4 animate-spin" /> : document.verified_at ? <ShieldCheck className="size-4" /> : <FileCheck2 className="size-4" />}
-        <span className="ml-1.5 hidden lg:inline">{verify.isPending ? "Verifying" : document.verified_at ? "Re-verify" : "Verify"}</span>
+        {verify.isPending ? <Loader2 className="size-4 animate-spin" /> : <FileCheck2 className="size-4" />}
+        <span className="ml-1.5 hidden lg:inline">{verify.isPending ? "Verifying" : document.verified_at ? "Run again" : "Verify"}</span>
       </Button>
       {tooLarge ? <span className="text-[10px] text-destructive">PDF exceeds 20 MB</span> : null}
-      {document.verified_at ? <span className="text-[10px] text-muted-foreground">Checked {new Date(document.verified_at).toLocaleDateString()}</span> : null}
+      {document.verified_at ? <span className="text-[10px] text-muted-foreground">Last attempt {new Date(document.verified_at).toLocaleDateString()}</span> : null}
     </div>
   );
 }
