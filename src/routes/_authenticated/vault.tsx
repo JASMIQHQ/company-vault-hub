@@ -44,7 +44,7 @@ function VaultPage() {
   const documentsQuery = useDocuments(session, org.activeOrgId);
   const companiesQuery = useCompanies(session, org.activeOrgId);
   const deletedQuery = useDeletedDocuments(session, org.activeOrgId);
-  const documents = documentsQuery.data ?? [];
+  const documents = useMemo(() => documentsQuery.data ?? [], [documentsQuery.data]);
 
   const categories = useMemo(() => {
     const found = new Set<string>();
