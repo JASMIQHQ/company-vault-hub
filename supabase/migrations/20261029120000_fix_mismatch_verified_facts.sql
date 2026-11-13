@@ -19,6 +19,8 @@ left join lateral (
 where d.deleted_at is null
   and d.verification_status='verified'
   and d.verified_doc_type is not null
+  -- Never create a new trusted fact without a real successful attempt.
+  and a.id is not null
   and not exists (select 1 from public.document_verified_facts f where f.document_id=d.id);
 
 -- Preserve the append-only mutation guard. No mismatch-specific DELETE exception.
