@@ -1,4 +1,4 @@
-name: Export production schema baseline (read-only)
+name: Export production schema baseline (read-only, privilege-free)
 
 on:
   workflow_dispatch:
@@ -23,10 +23,6 @@ jobs:
         with:
           ref: main
 
-      - uses: supabase/setup-cli@v3
-        with:
-          version: 2.122.1
-
       - name: Validate read-only export credentials
         shell: bash
         run: |
@@ -44,15 +40,46 @@ jobs:
           NODE
           printf '%s' "$PRODUCTION_DB_URL" > "$RUNNER_TEMP/production-db-url"
 
-      - name: Dump schema only (no table data)
+      - name: Dump application schemas without data, ACLs, or ownership
         shell: bash
         run: |
           set -euo pipefail
           connection="$(cat "$RUNNER_TEMP/production-db-url")"
-          supabase db dump --db-url "$connection" -f production-schema.sql
+          docker pull postgres:17
+          docker run --rm --network host \
+            --env DATABASE_URL="$connection" \
+            --volume "$PWD:/work" \
+            postgres:17 sh -ceu '
+              pg_dump --version
+              pg_dump \
+                --schema-only \
+                --no-privileges \
+                --no-owner \
+                --schema=public \
+                --schema=private \
+                --dbname="$DATABASE_URL" \
+                --file=/work/production-schema.sql
+            '
           test -s production-schema.sql
+          if grep -Eiq '^[[:space:]]*(GRANT|REVOKE|ALTER[[:space:]]+DEFAULT[[:space:]]+PRIVILEGES|ALTER[[:space:]]+.*[[:space:]]OWNER[[:space:]]+TO)([[:space:]]|;)' production-schema.sql; then
+            echo "::error::Privilege or ownership statements found in supposedly privilege-free export."
+            exit 1
+          fi
+          if grep -Eiq '^[[:space:]]*(COPY|INSERT[[:space:]]+INTO)([[:space:]]|;)' production-schema.sql; then
+            echo "::error::Data statements found in schema-only export."
+            exit 1
+          fi
           sha256sum production-schema.sql | tee production-schema.sha256
-          echo "Schema dump completed. No table data was exported."
+          {
+            echo "source_project=itqepknvdiedldcyunig"
+            echo "source_commit=$GITHUB_SHA"
+            echo "schemas=public,private"
+            echo "dump_mode=schema-only"
+            echo "acl=no-privileges"
+            echo "ownership=no-owner"
+            docker run --rm postgres:17 pg_dump --version
+          } > production-schema-manifest.txt
+          echo "Privilege-free schema export completed. No table data was exported."
 
       - name: Upload review artifact
         uses: actions/upload-artifact@v4
@@ -61,8 +88,9 @@ jobs:
           path: |
             production-schema.sql
             production-schema.sha256
+            production-schema-manifest.txt
           if-no-files-found: error
-          retention-days: 3
+          retention-days: 30
 
       - name: Publish export summary
         if: always()
@@ -71,7 +99,10 @@ jobs:
           {
             echo "## Production schema export — READ ONLY"
             echo "- Source project: `itqepknvdiedldcyunig`"
+            echo "- Schemas: public, private"
             echo "- Dump type: schema only; no table rows or Storage objects"
+            echo "- ACL statements: excluded by pg_dump --no-privileges"
+            echo "- Ownership statements: excluded by pg_dump --no-owner"
             echo "- Artifact: jasmiq-production-schema-baseline-$GITHUB_RUN_ID"
             echo "- SHA-256: $(cat production-schema.sha256 2>/dev/null || echo unavailable)"
             echo "- No production database writes were performed."
