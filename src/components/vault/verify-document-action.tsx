@@ -9,8 +9,10 @@ import type { CompanyDocument } from "@/lib/vault";
 const MAX_VERIFICATION_BYTES = 20 * 1024 * 1024;
 
 function isPdf(document: CompanyDocument) {
-  return document.mime_type === "application/pdf" ||
-    (document.original_filename ?? document.document_name).toLowerCase().endsWith(".pdf");
+  return (
+    document.mime_type === "application/pdf" ||
+    (document.original_filename ?? document.document_name).toLowerCase().endsWith(".pdf")
+  );
 }
 
 export function VerifyDocumentAction({ document }: { document: CompanyDocument }) {
@@ -51,13 +53,20 @@ export function VerifyDocumentAction({ document }: { document: CompanyDocument }
     },
     onError: (error) => {
       toast.error("Could not verify this document", {
-        description: error instanceof Error ? error.message : "The verification service returned an unexpected error.",
+        description:
+          error instanceof Error
+            ? error.message
+            : "The verification service returned an unexpected error.",
       });
     },
   });
 
   if (!pdf) {
-    return <span className="hidden text-[10px] text-muted-foreground xl:inline">AI verification: PDF only</span>;
+    return (
+      <span className="hidden text-[10px] text-muted-foreground xl:inline">
+        AI verification: PDF only
+      </span>
+    );
   }
 
   return (
@@ -69,14 +78,28 @@ export function VerifyDocumentAction({ document }: { document: CompanyDocument }
         className="rounded-lg"
         onClick={() => verify.mutate()}
         disabled={verify.isPending || tooLarge}
-        title={tooLarge ? "AI verification supports PDF files up to 20 MB." : "Run AI document verification"}
+        title={
+          tooLarge
+            ? "AI verification supports PDF files up to 20 MB."
+            : "Run AI document verification"
+        }
         aria-label={`Verify ${document.document_name} with AI`}
       >
-        {verify.isPending ? <Loader2 className="size-4 animate-spin" /> : <FileCheck2 className="size-4" />}
-        <span className="ml-1.5 hidden lg:inline">{verify.isPending ? "Verifying" : document.verified_at ? "Run again" : "Verify"}</span>
+        {verify.isPending ? (
+          <Loader2 className="size-4 animate-spin" />
+        ) : (
+          <FileCheck2 className="size-4" />
+        )}
+        <span className="ml-1.5 hidden lg:inline">
+          {verify.isPending ? "Verifying" : document.verified_at ? "Run again" : "Verify"}
+        </span>
       </Button>
       {tooLarge ? <span className="text-[10px] text-destructive">PDF exceeds 20 MB</span> : null}
-      {document.verified_at ? <span className="text-[10px] text-muted-foreground">Last attempt {new Date(document.verified_at).toLocaleDateString()}</span> : null}
+      {document.verified_at ? (
+        <span className="text-[10px] text-muted-foreground">
+          Last attempt {new Date(document.verified_at).toLocaleDateString()}
+        </span>
+      ) : null}
     </div>
   );
 }
