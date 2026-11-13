@@ -1,4 +1,4 @@
-import { useState, type ChangeEvent } from "react";
+import { useEffect, useMemo, useState, type ChangeEvent } from "react";
 import { CalendarDays, Loader2, UploadCloud } from "lucide-react";
 import { toast } from "sonner";
 
@@ -16,8 +16,9 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { CompanyPicker } from "@/components/vault/company-picker";
 import { useCompanies } from "@/hooks/use-companies";
-import { useSession, useUploadDocument } from "@/hooks/use-vault";
-import { ACCEPT_ATTRIBUTE, validateFile } from "@/lib/vault";
+import { useDocuments, useSession, useUploadDocument } from "@/hooks/use-vault";
+import { ACCEPT_ATTRIBUTE, sha256Hex, validateFile } from "@/lib/vault";
+import { findCompanyDuplicate } from "@/lib/vault-duplicates";
 
 export function UploadDialog({ organizationId }: { organizationId: string }) {
   const [open, setOpen] = useState(false);
@@ -27,10 +28,64 @@ export function UploadDialog({ organizationId }: { organizationId: string }) {
   const [companyId, setCompanyId] = useState<string | null>(null);
   const [hasExpiry, setHasExpiry] = useState<"yes" | "no" | "">("");
   const [expiryDate, setExpiryDate] = useState("");
+  const [fileHash, setFileHash] = useState<string | null>(null);
+  const [hashing, setHashing] = useState(false);
   const upload = useUploadDocument();
   const { session } = useSession();
   const companiesQuery = useCompanies(session, organizationId);
+  const documentsQuery = useDocuments(session, organizationId);
   const companies = companiesQuery.data ?? [];
+  const documents = useMemo(
+    () => documentsQuery.data ?? [],
+    [documentsQuery.data],
+  );
+
+  useEffect(() => {
+    let cancelled = false;
+    if (!file || !companyId) {
+      setFileHash(null);
+      setHashing(false);
+      return;
+    }
+    if (documentsQuery.isPending) {
+      setHashing(true);
+      return;
+    }
+    if (documentsQuery.isError) {
+      setFileHash(null);
+      setHashing(false);
+      return;
+    }
+
+    setFileHash(null);
+    setHashing(true);
+    void sha256Hex(file)
+      .then((hash) => {
+        if (!cancelled) setFileHash(hash);
+      })
+      .catch(() => {
+        if (!cancelled) {
+          setFileHash(null);
+          toast.error("Could not calculate the file fingerprint.");
+        }
+      })
+      .finally(() => {
+        if (!cancelled) setHashing(false);
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [file, companyId, documentsQuery.isPending, documentsQuery.isError]);
+
+  const duplicateDocument = useMemo(
+    () => (fileHash && companyId ? findCompanyDuplicate(documents, companyId, fileHash) : null),
+    [documents, companyId, fileHash],
+  );
+  const duplicateCheckUnavailable = Boolean(file && companyId && documentsQuery.isError);
+  const duplicateCheckPending = Boolean(
+    file && companyId && (documentsQuery.isPending || hashing || !fileHash),
+  );
 
   const reset = () => {
     setFile(null);
@@ -39,6 +94,7 @@ export function UploadDialog({ organizationId }: { organizationId: string }) {
     setCompanyId(null);
     setHasExpiry("");
     setExpiryDate("");
+    setFileHash(null);
   };
 
   const onFileChange = (event: ChangeEvent<HTMLInputElement>) => {
@@ -54,6 +110,7 @@ export function UploadDialog({ organizationId }: { organizationId: string }) {
       setFile(null);
       return;
     }
+    setFileHash(null);
     setFile(selected);
     if (!documentName) setDocumentName(selected.name.replace(/\.[^.]+$/, ""));
   };
@@ -67,6 +124,18 @@ export function UploadDialog({ organizationId }: { organizationId: string }) {
     if (!file) return;
     if (!companyId) {
       toast.error("Select the company this document belongs to.");
+      return;
+    }
+    if (documentsQuery.isError) {
+      toast.error("JASMIQ could not check this company for duplicate files. Reload the Vault before uploading.");
+      return;
+    }
+    if (duplicateCheckPending) {
+      toast.error("Wait for the duplicate check to finish before uploading.");
+      return;
+    }
+    if (duplicateDocument) {
+      toast.error(`This file already exists in this company as “${duplicateDocument.document_name}”.`);
       return;
     }
     if (!hasExpiry) {
@@ -123,7 +192,10 @@ export function UploadDialog({ organizationId }: { organizationId: string }) {
             organizationId={organizationId}
             companies={companies}
             value={companyId}
-            onChange={setCompanyId}
+            onChange={(value) => {
+              setCompanyId(value);
+              setFileHash(null);
+            }}
           />
           <div className="space-y-2">
             <Label htmlFor="vault-file">File</Label>
@@ -135,6 +207,20 @@ export function UploadDialog({ organizationId }: { organizationId: string }) {
               className="rounded-xl"
             />
           </div>
+          {file && companyId ? (
+            <div
+              role="status"
+              className="rounded-xl border border-border/60 bg-background/40 px-3 py-2 text-xs text-muted-foreground"
+            >
+              {duplicateCheckUnavailable
+                ? "Duplicate check unavailable. Reload the Vault before uploading."
+                : duplicateCheckPending
+                  ? "Checking this file against existing documents in the selected company…"
+                  : duplicateDocument
+                    ? `Duplicate found: “${duplicateDocument.document_name}” already exists in this company.`
+                    : "No matching file found in this company's active document records."}
+            </div>
+          ) : null}
           <div className="space-y-2">
             <Label htmlFor="vault-name">Document name</Label>
             <Input
@@ -205,7 +291,7 @@ export function UploadDialog({ organizationId }: { organizationId: string }) {
         <DialogFooter>
           <Button
             onClick={onSubmit}
-            disabled={!file || !companyId || !hasExpiry || (hasExpiry === "yes" && !expiryDate) || upload.isPending}
+            disabled={!file || !companyId || !hasExpiry || (hasExpiry === "yes" && !expiryDate) || upload.isPending || duplicateCheckPending || duplicateCheckUnavailable || Boolean(duplicateDocument)}
             className="rounded-xl w-full sm:w-auto"
           >
             {upload.isPending && <Loader2 className="mr-2 size-4 animate-spin" />}
