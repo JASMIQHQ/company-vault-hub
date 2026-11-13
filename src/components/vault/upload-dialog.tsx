@@ -417,6 +417,9 @@ export function UploadDialog({ organizationId }: { organizationId: string }) {
                   <p className="text-xs text-muted-foreground">
                     {summary.processed} of {summary.total} files processed
                   </p>
+                  <p className="mt-1 text-[10px] text-muted-foreground">
+                    Progress tracks completed file outcomes, not byte-level transfer percentage.
+                  </p>
                 </div>
                 {summary.failed > 0 ? (
                   <Button
