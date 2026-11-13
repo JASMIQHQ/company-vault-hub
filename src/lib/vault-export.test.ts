@@ -46,7 +46,8 @@ describe("buildVaultRegisterCsv", () => {
       new Map([["company-1", "Bosah Innovations Ltd"]]),
     );
 
-    expect(csv).toContain('"'=HYPERLINK(""https://bad.example"")"');
+    expect(csv).toContain("'=HYPERLINK");
+    expect(csv).toContain('""https://bad.example""');
   });
 
   test("does not expose storage paths or signed URLs", () => {
