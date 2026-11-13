@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { createFileRoute } from "@tanstack/react-router";
-import { Search, X, SlidersHorizontal } from "lucide-react";
+import { Download, Search, SlidersHorizontal, X } from "lucide-react";
 
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -69,6 +69,10 @@ function VaultPage() {
   const org = useActiveOrganization(session, sessionLoading);
   const documentsQuery = useDocuments(session, org.activeOrgId);
   const companiesQuery = useCompanies(session, org.activeOrgId);
+  const companyNames = useMemo(
+    () => new Map((companiesQuery.data ?? []).map((company) => [company.id, company.legal_name])),
+    [companiesQuery.data],
+  );
   const deletedQuery = useDeletedDocuments(session, org.activeOrgId);
   const documents = useMemo(() => documentsQuery.data ?? [], [documentsQuery.data]);
 
@@ -195,6 +199,18 @@ function VaultPage() {
                 </SelectContent>
               </Select>
             </div>
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              className="rounded-xl"
+              onClick={() => downloadVaultRegisterCsv(filtered, companyNames)}
+              disabled={filtered.length === 0}
+              title="Export only the documents in the current filtered view."
+            >
+              <Download className="mr-2 size-4" />
+              Export register
+            </Button>
             <BinDialog documents={deletedQuery.data ?? []} companies={companiesQuery.data ?? []} />
             {org.activeOrgId ? <UploadDialog organizationId={org.activeOrgId} /> : null}
           </div>
