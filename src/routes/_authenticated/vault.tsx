@@ -4,7 +4,13 @@ import { Search, X, SlidersHorizontal } from "lucide-react";
 
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { CompanySelect } from "@/components/company-select";
 import { CompanyVaultGroups } from "@/components/vault/company-vault-groups";
 import { BinDialog } from "@/components/vault/bin-dialog";
@@ -12,7 +18,11 @@ import { UploadDialog } from "@/components/vault/upload-dialog";
 import { useDeletedDocuments, useDocuments, useSession } from "@/hooks/use-vault";
 import { useCompanies } from "@/hooks/use-companies";
 import { useActiveOrganization } from "@/hooks/use-active-organization";
-import { isVaultDocumentFilter, matchesVaultDocumentFilter, type VaultDocumentFilter } from "@/lib/vault-filters";
+import {
+  isVaultDocumentFilter,
+  matchesVaultDocumentFilter,
+  type VaultDocumentFilter,
+} from "@/lib/vault-filters";
 import { cn } from "@/lib/utils";
 
 export const Route = createFileRoute("/_authenticated/vault")({
@@ -60,7 +70,7 @@ function VaultPage() {
   const documentsQuery = useDocuments(session, org.activeOrgId);
   const companiesQuery = useCompanies(session, org.activeOrgId);
   const deletedQuery = useDeletedDocuments(session, org.activeOrgId);
-  const documents = documentsQuery.data ?? [];
+  const documents = useMemo(() => documentsQuery.data ?? [], [documentsQuery.data]);
 
   const categories = useMemo(() => {
     const found = new Set<string>();
@@ -137,9 +147,22 @@ function VaultPage() {
         <div className="mt-6 flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
           <div className="relative w-full lg:max-w-sm">
             <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
-            <Input value={searchInput} onChange={(event) => setSearchInput(event.target.value)} placeholder="Search documents" className="rounded-xl border-white/70 bg-white/55 pl-9 pr-9 shadow-[0_12px_28px_-20px_rgba(15,23,42,0.28),inset_0_1px_0_rgba(255,255,255,0.8)] backdrop-blur-xl dark:border-white/10 dark:bg-white/[0.04]" aria-label="Search documents" />
+            <Input
+              value={searchInput}
+              onChange={(event) => setSearchInput(event.target.value)}
+              placeholder="Search documents"
+              className="rounded-xl border-white/70 bg-white/55 pl-9 pr-9 shadow-[0_12px_28px_-20px_rgba(15,23,42,0.28),inset_0_1px_0_rgba(255,255,255,0.8)] backdrop-blur-xl dark:border-white/10 dark:bg-white/[0.04]"
+              aria-label="Search documents"
+            />
             {searchInput ? (
-              <Button type="button" variant="ghost" size="icon" className="absolute right-1 top-1/2 size-7 -translate-y-1/2 rounded-lg" onClick={() => setSearchInput("")} aria-label="Clear document search">
+              <Button
+                type="button"
+                variant="ghost"
+                size="icon"
+                className="absolute right-1 top-1/2 size-7 -translate-y-1/2 rounded-lg"
+                onClick={() => setSearchInput("")}
+                aria-label="Clear document search"
+              >
                 <X className="size-4" />
               </Button>
             ) : null}
@@ -147,8 +170,14 @@ function VaultPage() {
           <div className="flex flex-wrap items-center gap-2">
             <div className="flex min-w-0 items-center gap-2">
               <SlidersHorizontal className="size-4 text-muted-foreground" />
-              <Select value={status} onValueChange={(value) => setStatus(value as VaultDocumentFilter)}>
-                <SelectTrigger className="w-[210px] rounded-xl border-white/70 bg-white/55 dark:border-white/10 dark:bg-white/[0.04]" aria-label="Filter documents by status">
+              <Select
+                value={status}
+                onValueChange={(value) => setStatus(value as VaultDocumentFilter)}
+              >
+                <SelectTrigger
+                  className="w-[210px] rounded-xl border-white/70 bg-white/55 dark:border-white/10 dark:bg-white/[0.04]"
+                  aria-label="Filter documents by status"
+                >
                   <SelectValue placeholder="All statuses" />
                 </SelectTrigger>
                 <SelectContent>
@@ -174,7 +203,18 @@ function VaultPage() {
         {categories.length > 1 ? (
           <div className="mt-4 flex flex-wrap gap-2">
             {["all", ...categories].map((value) => (
-              <button key={value} type="button" onClick={() => setCategory(value)} aria-pressed={category === value} className={cn("rounded-full border px-3 py-1 text-xs font-medium capitalize transition-colors", category === value ? "border-primary/30 bg-primary/10 text-primary shadow-[0_8px_20px_-14px_rgba(37,99,235,0.5)]" : "border-border/60 bg-white/25 text-muted-foreground hover:bg-white/50 hover:text-foreground dark:bg-white/[0.02] dark:hover:bg-white/[0.06]")}>
+              <button
+                key={value}
+                type="button"
+                onClick={() => setCategory(value)}
+                aria-pressed={category === value}
+                className={cn(
+                  "rounded-full border px-3 py-1 text-xs font-medium capitalize transition-colors",
+                  category === value
+                    ? "border-primary/30 bg-primary/10 text-primary shadow-[0_8px_20px_-14px_rgba(37,99,235,0.5)]"
+                    : "border-border/60 bg-white/25 text-muted-foreground hover:bg-white/50 hover:text-foreground dark:bg-white/[0.02] dark:hover:bg-white/[0.06]",
+                )}
+              >
                 {value === "all" ? "All documents" : value.replace(/_/g, " ")}
               </button>
             ))}
@@ -183,8 +223,18 @@ function VaultPage() {
 
         {isFiltered ? (
           <div className="mt-3 flex items-center justify-between gap-3">
-            <p className="text-xs text-muted-foreground">Showing {filtered.length} matching documents</p>
-            <Button type="button" variant="ghost" size="sm" className="h-8 rounded-lg text-xs" onClick={clearFilters}>Clear filters</Button>
+            <p className="text-xs text-muted-foreground">
+              Showing {filtered.length} matching documents
+            </p>
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
+              className="h-8 rounded-lg text-xs"
+              onClick={clearFilters}
+            >
+              Clear filters
+            </Button>
           </div>
         ) : null}
       </div>
