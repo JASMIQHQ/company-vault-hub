@@ -4,8 +4,10 @@ import { VerifyDocumentAction } from "@/components/vault/verify-document-action"
 import type { CompanyDocument } from "@/lib/vault";
 
 function isPdf(document: CompanyDocument) {
-  return document.mime_type === "application/pdf" ||
-    (document.original_filename ?? document.document_name).toLowerCase().endsWith(".pdf");
+  return (
+    document.mime_type === "application/pdf" ||
+    (document.original_filename ?? document.document_name).toLowerCase().endsWith(".pdf")
+  );
 }
 
 export function VerificationQueue({ documents }: { documents: CompanyDocument[] }) {
@@ -27,7 +29,9 @@ export function VerificationQueue({ documents }: { documents: CompanyDocument[] 
             </p>
           </div>
         </div>
-        <span className="text-xs text-muted-foreground">{pdfs.length} PDF {pdfs.length === 1 ? "document" : "documents"}</span>
+        <span className="text-xs text-muted-foreground">
+          {pdfs.length} PDF {pdfs.length === 1 ? "document" : "documents"}
+        </span>
       </div>
 
       <div className="mt-4 grid gap-2 md:grid-cols-2">
