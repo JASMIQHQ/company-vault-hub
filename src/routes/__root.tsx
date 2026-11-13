@@ -77,7 +77,6 @@ function RootShell({ children }: { children: ReactNode }) {
     <html lang="en">
       <head>
         <HeadContent />
-        <script dangerouslySetInnerHTML={{ __html: `(() => { try { const t = localStorage.getItem('jasmiq-theme'); const d = t === 'dark' || (t !== 'light' && window.matchMedia('(prefers-color-scheme: dark)').matches); document.documentElement.classList.toggle('dark', d); } catch (_) {} })()` }} />
       </head>
       <body>
         {children}
