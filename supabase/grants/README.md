@@ -27,6 +27,8 @@ The production catalog was queried without modifying it:
 - The same 51 public tables showed those four privileges for `authenticated`.
 - The `public` default ACLs include entries owned by both `postgres` and `supabase_admin`. The `postgres` table defaults include `TRUNCATE`, `REFERENCES`, `TRIGGER`, and `MAINTAIN` for client roles; the `supabase_admin` table defaults are broader and include DML privileges as well.
 - Sequence and function default ACLs also exist and require separate review; table-only revocation is insufficient.
+- Supabase Security Advisor reported 16 RLS-enabled tables with no policies, 19 SECURITY DEFINER functions callable by authenticated users, and 2 extensions installed in the public schema. These need object-by-object review before copying any function grants or deciding which tables should be exposed.
+- Supabase Auth's leaked-password protection is disabled (one advisor warning). This is outside the schema restore scope and is not changed here.
 
 These are observations about the current production catalog, **not instructions to change production**. Production was read-only during this audit. Do not copy these broad ACLs into staging.
 
