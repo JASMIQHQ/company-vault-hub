@@ -504,7 +504,11 @@ jobs:
                 (has_table_privilege('anon',c.oid,'TRUNCATE') OR has_table_privilege('authenticated',c.oid,'TRUNCATE')
                  OR has_table_privilege('service_role',c.oid,'TRUNCATE') OR
                  has_table_privilege('anon',c.oid,'MAINTAIN') OR has_table_privilege('authenticated',c.oid,'MAINTAIN')
-                 OR has_table_privilege('service_role',c.oid,'MAINTAIN'));
+                 OR has_table_privilege('service_role',c.oid,'MAINTAIN')
+                 OR has_table_privilege('anon',c.oid,'REFERENCES') OR has_table_privilege('authenticated',c.oid,'REFERENCES')
+                 OR has_table_privilege('service_role',c.oid,'REFERENCES')
+                 OR has_table_privilege('anon',c.oid,'TRIGGER') OR has_table_privilege('authenticated',c.oid,'TRIGGER')
+                 OR has_table_privilege('service_role',c.oid,'TRIGGER'));
             SELECT count(*) INTO bad_definer_execute FROM pg_proc p JOIN pg_namespace n ON n.oid=p.pronamespace
               WHERE n.nspname IN ('public','private') AND p.proowner=(SELECT oid FROM pg_roles WHERE rolname='postgres')
                 AND p.prosecdef AND has_function_privilege('anon',p.oid,'EXECUTE');
