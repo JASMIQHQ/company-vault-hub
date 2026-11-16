@@ -175,8 +175,21 @@ jobs:
             WHERE n.nspname IN ('public','private') AND c.relkind IN ('r','p','v','m','S');")"
           migration_count="$(psql -XAt -v ON_ERROR_STOP=1 -c "
             SELECT count(*) FROM supabase_migrations.schema_migrations;")"
+          private_schema_count="$(psql -XAt -v ON_ERROR_STOP=1 -c "
+            SELECT count(*) FROM pg_namespace WHERE nspname='private';")"
+          auth_uid_count="$(psql -XAt -v ON_ERROR_STOP=1 -c "
+            SELECT count(*) FROM pg_proc p JOIN pg_namespace n ON n.oid=p.pronamespace
+            WHERE n.nspname='auth' AND p.proname='uid';")"
+          psql -XAt -v ON_ERROR_STOP=1 -c "
+            SELECT e.extname || '=' || e.extversion || '@' || n.nspname
+            FROM pg_extension e JOIN pg_namespace n ON n.oid=e.extnamespace
+            WHERE e.extname IN ('citext','vector','uuid-ossp','pgcrypto')
+            ORDER BY e.extname;" > staging-extensions.txt
+          diff -u restore-inputs/required-extensions.txt staging-extensions.txt
           test "$relation_count" -eq 0
           test "$migration_count" -eq 0
+          test "$private_schema_count" -eq 0
+          test "$auth_uid_count" -eq 1
 
       - name: Apply schema and hardened ACLs atomically to staging
         shell: bash
@@ -231,6 +244,10 @@ jobs:
             bad_truncate integer;
             bad_definer_execute integer;
             bad_definer_path integer;
+            bad_function_path integer;
+            bad_view_access integer;
+            bad_default_acl integer;
+            extension_count integer;
             auth_select integer;
             auth_insert integer;
             auth_update integer;
@@ -272,7 +289,29 @@ jobs:
             SELECT count(*) INTO bad_definer_path FROM pg_proc p JOIN pg_namespace n ON n.oid=p.pronamespace
               WHERE n.nspname IN ('public','private') AND p.proowner=(SELECT oid FROM pg_roles WHERE rolname='postgres')
                 AND p.prosecdef AND NOT EXISTS
-                  (SELECT 1 FROM unnest(coalesce(p.proconfig,ARRAY[]::text[])) cfg WHERE cfg LIKE 'search_path=%');
+                  (SELECT 1 FROM unnest(coalesce(p.proconfig,ARRAY[]::text[])) AS cfg(setting) WHERE cfg.setting LIKE 'search_path=%');
+            SELECT count(*) INTO bad_function_path FROM pg_proc p JOIN pg_namespace n ON n.oid=p.pronamespace
+              WHERE n.nspname IN ('public','private') AND p.proowner=(SELECT oid FROM pg_roles WHERE rolname='postgres')
+                AND NOT EXISTS
+                  (SELECT 1 FROM unnest(coalesce(p.proconfig,ARRAY[]::text[])) AS cfg(setting) WHERE cfg.setting LIKE 'search_path=%');
+            SELECT count(*) INTO bad_view_access FROM pg_class c JOIN pg_namespace n ON n.oid=c.relnamespace
+              WHERE n.nspname='public' AND c.relkind='v'
+                AND (has_table_privilege('anon',c.oid,'SELECT')
+                  OR has_table_privilege('authenticated',c.oid,'SELECT')
+                  OR has_table_privilege('service_role',c.oid,'SELECT'));
+            SELECT count(*) INTO bad_default_acl
+            FROM pg_default_acl d JOIN pg_roles owner_role ON owner_role.oid=d.defaclrole
+            CROSS JOIN LATERAL aclexplode(d.defaclacl) a
+            LEFT JOIN pg_roles grantee_role ON grantee_role.oid=a.grantee
+            WHERE owner_role.rolname='postgres'
+              AND ((d.defaclobjtype='r' AND d.defaclnamespace=(SELECT oid FROM pg_namespace WHERE nspname='public')
+                    AND (a.grantee=0 OR grantee_role.rolname IN ('anon','authenticated','service_role')))
+                OR (d.defaclobjtype='f' AND d.defaclnamespace=0
+                    AND (a.grantee=0 OR grantee_role.rolname IN ('anon','authenticated','service_role')))
+                OR (d.defaclobjtype='f' AND d.defaclnamespace=(SELECT oid FROM pg_namespace WHERE nspname='public')
+                    AND (a.grantee=0 OR grantee_role.rolname IN ('anon','authenticated','service_role'))));
+            SELECT count(*) INTO extension_count FROM pg_extension
+              WHERE extname IN ('citext','vector','uuid-ossp','pgcrypto');
 
             SELECT count(*) INTO auth_select FROM pg_class c JOIN pg_namespace n ON n.oid=c.relnamespace
               WHERE n.nspname='public' AND c.relkind IN ('r','p') AND has_table_privilege('authenticated',c.oid,'SELECT');
@@ -294,6 +333,7 @@ jobs:
             IF tables_count<>57 OR views_count<>18 OR functions_count<>46 OR definer_count<>30
               OR triggers_count<>18 OR policies_count<>43 OR rls_count<>57 OR force_rls_count<>0
               OR bad_anon_dml<>0 OR bad_truncate<>0 OR bad_definer_execute<>0 OR bad_definer_path<>0
+              OR bad_function_path<>0 OR bad_view_access<>0 OR bad_default_acl<>0 OR extension_count<>4
               OR auth_select<>24 OR auth_insert<>7 OR auth_update<>7 OR auth_delete<>6
               OR service_select<>11 OR service_insert<>3 OR service_update<>5 OR service_delete<>2
               OR NOT has_schema_privilege('authenticated','private','USAGE')
@@ -460,7 +500,7 @@ jobs:
             SELECT count(*) INTO bad_definer_path FROM pg_proc p JOIN pg_namespace n ON n.oid=p.pronamespace
               WHERE n.nspname IN ('public','private') AND p.proowner=(SELECT oid FROM pg_roles WHERE rolname='postgres')
                 AND p.prosecdef AND NOT EXISTS
-                  (SELECT 1 FROM unnest(coalesce(p.proconfig,ARRAY[]::text[])) cfg WHERE cfg LIKE 'search_path=%');
+                  (SELECT 1 FROM unnest(coalesce(p.proconfig,ARRAY[]::text[])) AS cfg(setting) WHERE cfg.setting LIKE 'search_path=%');
 
             SELECT count(*) INTO auth_select FROM pg_class c JOIN pg_namespace n ON n.oid=c.relnamespace
               WHERE n.nspname='public' AND c.relkind IN ('r','p') AND has_table_privilege('authenticated',c.oid,'SELECT');
