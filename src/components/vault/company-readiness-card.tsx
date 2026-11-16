@@ -6,7 +6,7 @@ import { deriveCompanyReadiness } from "@/lib/company-readiness";
 import { canonicalCategory } from "@/lib/document-order";
 import type { CompanyDocument } from "@/lib/vault";
 
-function normalized(value: string | null | undefined) {
+function currentEvidence(documents: CompanyDocument[]) {\n  return documents.filter((document) => document.document_status === "active");\n}\n\nfunction normalized(value: string | null | undefined) {
   return (value ?? "").toUpperCase().replace(/[^A-Z0-9]/g, "");
 }
 
