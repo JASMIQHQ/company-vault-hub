@@ -4,9 +4,14 @@ import { AlertCircle, CheckCircle2, Clock3, FileWarning, X } from "lucide-react"
 import { COMPANY_READINESS_CONDITIONAL, COMPANY_READINESS_CORE, COMPANY_READINESS_SUPPORTING } from "@/lib/company-readiness-baseline";
 import { deriveCompanyReadiness } from "@/lib/company-readiness";
 import { canonicalCategory } from "@/lib/document-order";
-import type { CompanyDocument } from "@/lib/vault";\nimport { isCurrentEvidenceStatus } from "@/lib/document-lifecycle";
+import type { CompanyDocument } from "@/lib/vault";
+import { isCurrentEvidenceStatus } from "@/lib/document-lifecycle";
 
-function currentEvidence(documents: CompanyDocument[]) {\n  return documents.filter((document) => isCurrentEvidenceStatus(document.document_status));\n}\n\nfunction normalized(value: string | null | undefined) {
+function currentEvidence(documents: CompanyDocument[]) {
+  return documents.filter((document) => isCurrentEvidenceStatus(document.document_status));
+}
+
+function normalized(value: string | null | undefined) {
   return (value ?? "").toUpperCase().replace(/[^A-Z0-9]/g, "");
 }
 
