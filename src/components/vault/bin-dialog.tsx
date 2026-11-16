@@ -90,7 +90,7 @@ function BinRow({ document, companyName }: { document: CompanyDocument; companyN
             size="sm"
             className="rounded-lg"
             onClick={onRestore}
-            disabled={restore.isPending}
+            disabled={restore.isPending || purge.isPending}
           >
             {restore.isPending ? (
               <Loader2 className="size-4 animate-spin" />
@@ -104,6 +104,7 @@ function BinRow({ document, companyName }: { document: CompanyDocument; companyN
             size="sm"
             className="rounded-lg text-destructive hover:text-destructive"
             onClick={() => setConfirm(true)}
+            disabled={restore.isPending || purge.isPending}
           >
             <Trash2 className="size-4" />
             <span className="ml-1.5 hidden sm:inline">Delete forever</span>
@@ -113,7 +114,7 @@ function BinRow({ document, companyName }: { document: CompanyDocument; companyN
         <AlertDialog
           open={confirm}
           onOpenChange={(open) => {
-            if (purge.isPending) return;
+            if (purge.isPending || restore.isPending) return;
             setConfirm(open);
             if (!open) setConfirmationText("");
           }}
@@ -148,7 +149,7 @@ function BinRow({ document, companyName }: { document: CompanyDocument; companyN
                   event.preventDefault();
                   void onPurge();
                 }}
-                disabled={purge.isPending || !canPermanentlyDeleteDocument(document.document_name, confirmationText)}
+                disabled={purge.isPending || restore.isPending || !canPermanentlyDeleteDocument(document.document_name, confirmationText)}
               >
                 {purge.isPending && <Loader2 className="mr-2 size-4 animate-spin" />}
                 Permanently delete
