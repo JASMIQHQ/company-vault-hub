@@ -24,7 +24,7 @@ function matches(document: CompanyDocument, type: string) {
 }
 
 function statusFor(documents: CompanyDocument[], type: string) {
-  const matchesForType = documents
+  const matchesForType = currentEvidence(documents)
     .filter((document) => matches(document, type))
     .sort((a, b) => (b.created_at ?? "").localeCompare(a.created_at ?? ""));
   const document = matchesForType[0];
@@ -65,7 +65,7 @@ function StatusList({ title, items, documents }: { title: string; items: typeof 
 }
 
 export function calculateCompanyReadiness(documents: CompanyDocument[]) {
-  const engineDocuments = documents
+  const engineDocuments = currentEvidence(documents)
     .map((document) => ({
       id: document.id,
       document_type: canonicalCategory(document),
