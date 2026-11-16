@@ -404,7 +404,7 @@ jobs:
             -f restore-inputs/20260902133301_add_federal_tender_document_taxonomy.sql \
             -f restore-inputs/staging-acl.sql
 
-      - name: Mark the exact 66 production migrations as applied on staging
+      - name: Mark the 61 non-Storage production migrations as applied on staging
         shell: bash
         env:
           PGPASSWORD: ${{ secrets.STAGING_DB_PASSWORD }}
