@@ -529,8 +529,14 @@ jobs:
               OR service_select<>11 OR service_insert<>3 OR service_update<>5 OR service_delete<>2
               OR NOT has_schema_privilege('authenticated','private','USAGE')
               OR has_schema_privilege('anon','private','USAGE')
-              OR has_schema_privilege('service_role','private','USAGE') THEN
-              RAISE EXCEPTION 'Staging baseline verification failed. tables %, views %, funcs %, definers %, triggers %, policies %, RLS %, FORCE %, anon DML %, unsafe truncate %, definer anon exec %, definer path %, auth DML %/%/%/%, service DML %/%/%/%.',
+              OR has_schema_privilege('service_role','private','USAGE')
+              OR NOT has_schema_privilege('anon','public','USAGE')
+              OR NOT has_schema_privilege('authenticated','public','USAGE')
+              OR NOT has_schema_privilege('service_role','public','USAGE')
+              OR NOT has_function_privilege('authenticated','private.is_company_member(uuid)','EXECUTE')
+              OR has_function_privilege('anon','private.is_company_member(uuid)','EXECUTE')
+              OR has_function_privilege('service_role','private.is_company_member(uuid)','EXECUTE') THEN
+              RAISE EXCEPTION 'Staging baseline verification failed. tables %, views %, funcs %, definers %, triggers %, policies %, RLS %, FORCE %, anon DML %, unsafe table privileges %, definer anon exec %, definer path %, auth DML %/%/%/%, service DML %/%/%/%.',
                 tables_count,views_count,functions_count,definer_count,triggers_count,policies_count,rls_count,
                 force_rls_count,bad_anon_dml,bad_truncate,bad_definer_execute,bad_definer_path,
                 auth_select,auth_insert,auth_update,auth_delete,service_select,service_insert,service_update,service_delete;
