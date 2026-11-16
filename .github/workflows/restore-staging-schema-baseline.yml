@@ -576,6 +576,7 @@ jobs:
             END IF;
           END
           $verify$;
+          SQL
 
           psql -XAt -v ON_ERROR_STOP=1 -c "SELECT version FROM supabase_migrations.schema_migrations ORDER BY version" > actual-ledger.txt
           diff -u restore-inputs/staging-ledger-versions.txt actual-ledger.txt
