@@ -327,6 +327,19 @@ jobs:
           relation_count="$(psql -XAt -v ON_ERROR_STOP=1 -c "
             SELECT count(*) FROM pg_class c JOIN pg_namespace n ON n.oid=c.relnamespace
             WHERE n.nspname IN ('public','private') AND c.relkind IN ('r','p','v','m','S');")"
+          table_count="$(psql -XAt -v ON_ERROR_STOP=1 -c "
+            SELECT count(*) FROM pg_class c JOIN pg_namespace n ON n.oid=c.relnamespace
+            WHERE n.nspname='public' AND c.relkind IN ('r','p');")"
+          view_count="$(psql -XAt -v ON_ERROR_STOP=1 -c "
+            SELECT count(*) FROM pg_class c JOIN pg_namespace n ON n.oid=c.relnamespace
+            WHERE n.nspname='public' AND c.relkind='v';")"
+          function_count="$(psql -XAt -v ON_ERROR_STOP=1 -c "
+            SELECT count(*) FROM pg_proc p JOIN pg_namespace n ON n.oid=p.pronamespace
+            WHERE n.nspname IN ('public','private') AND p.proowner=(SELECT oid FROM pg_roles WHERE rolname='postgres');")"
+          policy_count="$(psql -XAt -v ON_ERROR_STOP=1 -c "SELECT count(*) FROM pg_policies WHERE schemaname='public';")"
+          rls_count="$(psql -XAt -v ON_ERROR_STOP=1 -c "
+            SELECT count(*) FROM pg_class c JOIN pg_namespace n ON n.oid=c.relnamespace
+            WHERE n.nspname='public' AND c.relkind IN ('r','p') AND c.relrowsecurity;")"
           migration_count="$(psql -XAt -v ON_ERROR_STOP=1 -c "
             SELECT count(*) FROM supabase_migrations.schema_migrations;")"
           private_schema_count="$(psql -XAt -v ON_ERROR_STOP=1 -c "
@@ -340,12 +353,27 @@ jobs:
             WHERE e.extname IN ('citext','vector','uuid-ossp','pgcrypto')
             ORDER BY e.extname;" > staging-extensions.txt
           diff -u restore-inputs/required-extensions.txt staging-extensions.txt
-          test "$relation_count" -eq 0
-          test "$migration_count" -eq 0
-          test "$private_schema_count" -eq 0
           test "$auth_uid_count" -eq 1
 
+          psql -XAt -v ON_ERROR_STOP=1 -c "SELECT version FROM supabase_migrations.schema_migrations ORDER BY version" > existing-ledger.txt
+          if comm -23 <(sort existing-ledger.txt) <(sort restore-inputs/expected-ledger.txt) | grep -q .; then
+            echo "::error::Staging contains migration versions outside the reviewed production ledger."
+            exit 1
+          fi
+
+          if [ "$relation_count" -eq 0 ] && [ "$migration_count" -eq 0 ] && [ "$private_schema_count" -eq 0 ]; then
+            echo "RESTORE_SCHEMA=true" >> "$GITHUB_ENV"
+          elif [ "$relation_count" -eq 75 ] && [ "$table_count" -eq 57 ] && [ "$view_count" -eq 18 ] \
+            && [ "$function_count" -eq 46 ] && [ "$policy_count" -eq 43 ] && [ "$rls_count" -eq 57 ] \
+            && [ "$private_schema_count" -eq 1 ] && [ "$migration_count" -le 66 ]; then
+            echo "RESTORE_SCHEMA=false" >> "$GITHUB_ENV"
+          else
+            echo "::error::Staging is neither empty nor an already restored baseline; refusing to continue."
+            exit 1
+          fi
+
       - name: Apply schema and hardened ACLs atomically to staging
+        if: ${{ env.RESTORE_SCHEMA == 'true' }}
         shell: bash
         env:
           PGPASSWORD: ${{ secrets.STAGING_DB_PASSWORD }}
@@ -365,9 +393,13 @@ jobs:
         run: |
           set -euo pipefail
           supabase link --project-ref "$STAGING_REF" --password "$STAGING_DB_PASSWORD"
+          psql -XAt -v ON_ERROR_STOP=1 -c "SELECT version FROM supabase_migrations.schema_migrations ORDER BY version" > existing-ledger.txt
           while IFS= read -r version; do
             [[ "$version" =~ ^[0-9]{14}$ ]]
-            supabase migration repair --status applied "$version" --password "$STAGING_DB_PASSWORD"
+            if ! grep -qx "$version" existing-ledger.txt; then
+              supabase migration repair --status applied "$version" --password "$STAGING_DB_PASSWORD"
+              echo "$version" >> existing-ledger.txt
+            fi
           done < restore-inputs/live-ledger-versions.txt
 
       - name: Verify restored schema, RLS, ACLs and migration ledger
