@@ -162,6 +162,19 @@ jobs:
           diff -u expected-ledger.txt live-ledger-versions.txt
           test "$(wc -l < live-ledger-versions.txt)" -eq 66
 
+          cat > deferred-storage-migrations.txt <<'VERSIONS'
+          20260729140358
+          20260730124656
+          20260925150643
+          20260928124639
+          20260928124650
+          VERSIONS
+          while IFS= read -r version; do
+            grep -qx "$version" live-ledger-versions.txt
+          done < deferred-storage-migrations.txt
+          grep -Fvx -f deferred-storage-migrations.txt live-ledger-versions.txt > staging-ledger-versions.txt
+          test "$(wc -l < staging-ledger-versions.txt)" -eq 61
+
           psql "$PRODUCTION_DB_URL" -XAt -v ON_ERROR_STOP=1 -c "
             SELECT e.extname || '=' || e.extversion || '@' || n.nspname
             FROM pg_extension e JOIN pg_namespace n ON n.oid=e.extnamespace
@@ -240,7 +253,8 @@ jobs:
           cp exported/production-schema.sql restore-inputs/production-schema.sql
           cp exported/production-schema.sha256 restore-inputs/
           cp exported/production-schema-manifest.txt restore-inputs/
-          cp staging-acl.sql live-ledger-versions.txt expected-ledger.txt required-extensions.txt restore-inputs/
+          cp staging-acl.sql live-ledger-versions.txt staging-ledger-versions.txt deferred-storage-migrations.txt expected-ledger.txt required-extensions.txt restore-inputs/
+          cp supabase/migrations/20260902133301_add_federal_tender_document_taxonomy.sql restore-inputs/
           cp schema-artifact.zip restore-inputs/
           printf '%s\n' "$(jq -r '.head_sha' export-run.json)" > restore-inputs/source-commit.txt
 
@@ -357,7 +371,7 @@ jobs:
           test "$auth_uid_count" -eq 1
 
           psql -XAt -v ON_ERROR_STOP=1 -c "SELECT version FROM supabase_migrations.schema_migrations ORDER BY version" > existing-ledger.txt
-          if comm -23 <(sort existing-ledger.txt) <(sort restore-inputs/expected-ledger.txt) | grep -q .; then
+          if comm -23 <(sort existing-ledger.txt) <(sort restore-inputs/staging-ledger-versions.txt) | grep -q .; then
             echo "::error::Staging contains migration versions outside the reviewed production ledger."
             exit 1
           fi
@@ -366,7 +380,7 @@ jobs:
             echo "RESTORE_SCHEMA=true" >> "$GITHUB_ENV"
           elif [ "$relation_count" -eq 75 ] && [ "$table_count" -eq 57 ] && [ "$view_count" -eq 18 ] \
             && [ "$function_count" -eq 46 ] && [ "$policy_count" -eq 43 ] && [ "$rls_count" -eq 57 ] \
-            && [ "$private_schema_count" -eq 1 ] && [ "$migration_count" -le 66 ]; then
+            && [ "$private_schema_count" -eq 1 ] && [ "$migration_count" -le 61 ]; then
             echo "RESTORE_SCHEMA=false" >> "$GITHUB_ENV"
           else
             echo "::error::Staging is neither empty nor an already restored baseline; refusing to continue."
@@ -387,6 +401,7 @@ jobs:
           export PGSSLMODE=require
           psql -X -v ON_ERROR_STOP=1 --single-transaction \
             -f restore-inputs/production-schema.sql \
+            -f restore-inputs/20260902133301_add_federal_tender_document_taxonomy.sql \
             -f restore-inputs/staging-acl.sql
 
       - name: Mark the exact 66 production migrations as applied on staging
@@ -408,7 +423,7 @@ jobs:
               supabase migration repair --status applied "$version" --password "$STAGING_DB_PASSWORD"
               echo "$version" >> existing-ledger.txt
             fi
-          done < restore-inputs/live-ledger-versions.txt
+          done < restore-inputs/staging-ledger-versions.txt
 
       - name: Verify restored schema, RLS, ACLs and migration ledger
         shell: bash
@@ -546,8 +561,14 @@ jobs:
           $verify$;
 
           psql -XAt -v ON_ERROR_STOP=1 -c "SELECT version FROM supabase_migrations.schema_migrations ORDER BY version" > actual-ledger.txt
-          diff -u restore-inputs/live-ledger-versions.txt actual-ledger.txt
-          test "$(wc -l < actual-ledger.txt)" -eq 66
+          diff -u restore-inputs/staging-ledger-versions.txt actual-ledger.txt
+          test "$(wc -l < actual-ledger.txt)" -eq 61
+          while IFS= read -r version; do
+            if grep -qx "$version" actual-ledger.txt; then
+              echo "::error::Storage migration $version must remain pending for the Storage phase."
+              exit 1
+            fi
+          done < restore-inputs/deferred-storage-migrations.txt
 
       - name: Upload staging restore evidence
         if: always()
@@ -572,6 +593,7 @@ jobs:
             echo "- Source commit: ${{ needs.prepare.outputs.source_commit }}"
             echo "- Schema SHA-256: ${{ inputs.sql_sha256 }}"
             echo "- Production was queried read-only; no production writes were performed."
+            echo "- 61 schema/data migrations are recorded as applied; 5 Storage policy migrations remain pending for the Storage phase."
             echo "- No Edge Functions or Storage buckets were deployed or created."
             echo "- Restore is complete only if all verification steps pass."
           } >> "$GITHUB_STEP_SUMMARY"
