@@ -63,6 +63,7 @@ jobs:
           [[ "$EXPECTED_ARTIFACT_SHA" =~ ^[a-f0-9]{64}$ ]]
           [[ "$EXPECTED_SQL_SHA" =~ ^[a-f0-9]{64}$ ]]
           test -n "$PRODUCTION_DB_URL"
+          [[ "$PRODUCTION_DB_URL" == *itqepknvdiedldcyunig* ]]
           sudo apt-get update
           sudo apt-get install -y postgresql-client
 
