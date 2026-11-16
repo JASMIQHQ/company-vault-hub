@@ -24,6 +24,7 @@ import {
   type VaultDocumentFilter,
 } from "@/lib/vault-filters";
 import { cn } from "@/lib/utils";
+import { summarizeVaultHealth } from "@/lib/vault-health";
 
 export const Route = createFileRoute("/_authenticated/vault")({
   validateSearch: (search: Record<string, unknown>) => ({
@@ -119,6 +120,7 @@ function VaultPage() {
   const bootstrapping = org.bootstrapping;
   const orgMissing = !bootstrapping && !org.error && Boolean(session) && !org.activeOrgId;
   const isFiltered = Boolean(q) || category !== "all" || status !== "all";
+  const health = useMemo(() => summarizeVaultHealth(documents), [documents]);
 
   return (
     <div className="relative mx-auto max-w-6xl px-4 py-8 sm:px-6 sm:py-12">
@@ -146,6 +148,34 @@ function VaultPage() {
             <p className="text-[9px] font-bold uppercase tracking-[0.16em] text-muted-foreground">Evidence control</p>
             <p className="mt-1 text-xs font-semibold text-foreground">Procurement-grade vault</p>
           </div>
+        </div>
+
+        <div className="mt-6 grid grid-cols-2 gap-2 sm:grid-cols-4">
+          {([
+            { label: "Expiring soon", value: health.expiringSoon, filter: "expiring_soon" as const, hint: "Active evidence due within 30 days" },
+            { label: "Expired", value: health.expired, filter: "expired" as const, hint: "Evidence that needs renewal" },
+            { label: "Needs review", value: health.needsReview, filter: "needs_review" as const, hint: "Documents awaiting human review" },
+            { label: "Analysis failed", value: health.failed, filter: "failed" as const, hint: "Documents whose analysis failed" },
+          ]).map((item) => (
+            <button
+              key={item.filter}
+              type="button"
+              onClick={() => setStatus(item.filter)}
+              aria-label={`Show ${item.value} documents: ${item.label}`}
+              aria-pressed={status === item.filter}
+              title={item.hint}
+              className={cn(
+                "min-w-0 rounded-2xl border px-3 py-3 text-left transition-colors",
+                status === item.filter
+                  ? "border-primary/35 bg-primary/[0.09] shadow-[inset_0_1px_0_rgba(255,255,255,0.12)]"
+                  : "border-white/60 bg-white/[0.28] hover:border-primary/25 hover:bg-white/[0.42] dark:border-white/10 dark:bg-white/[0.025] dark:hover:bg-white/[0.05]",
+              )}
+            >
+              <span className="block truncate text-[10px] font-semibold uppercase tracking-[0.12em] text-muted-foreground">{item.label}</span>
+              <span className="mt-1 block text-xl font-bold tabular-nums tracking-tight">{item.value}</span>
+              <span className="mt-0.5 block truncate text-[10px] text-muted-foreground">{item.hint}</span>
+            </button>
+          ))}
         </div>
 
         <div className="mt-6 flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
