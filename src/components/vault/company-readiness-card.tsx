@@ -24,13 +24,15 @@ function matches(document: CompanyDocument, type: string) {
 }
 
 function statusFor(documents: CompanyDocument[], type: string) {
-  const matchesForType = currentEvidence(documents)
-    .filter((document) => matches(document, type))
+  const matchesForType = documents
+    .filter((document) => isReadinessEvidenceStatus(document.document_status) && matches(document, type))
     .sort((a, b) => (b.created_at ?? "").localeCompare(a.created_at ?? ""));
-  const document = matchesForType[0];
-  if (!document) return "Missing";
-  if (document.expiry_date && document.expiry_date < new Date().toISOString().slice(0, 10)) return "Expired";
-  return "Present";
+  const current = matchesForType.find((document) => isCurrentEvidenceStatus(document.document_status));
+  if (current) {
+    if (current.expiry_date && current.expiry_date < new Date().toISOString().slice(0, 10)) return "Expired";
+    return "Present";
+  }
+  return matchesForType.some((document) => document.document_status === "expired") ? "Expired" : "Missing";
 }
 
 function StatusIcon({ status }: { status: string }) {
