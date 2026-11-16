@@ -125,16 +125,55 @@ export function useSoftDeleteDocument() {
 
 export function useRestoreDocument() {
   return useDocumentMutation<{ id: string }>(async ({ id }) => {
-    const { error } = await supabase.from("company_documents").update({ deleted_at: null }).eq("id", id);
+    const { data, error } = await supabase
+      .from("company_documents")
+      .update({ deleted_at: null })
+      .eq("id", id)
+      .not("deleted_at", "is", null)
+      .select("id")
+      .maybeSingle();
     if (error) throw error;
+    if (!data) throw new Error("This document is no longer in the Bin.");
   });
 }
 
+export interface PermanentDeleteResult {
+  storageDeleted: boolean;
+  cleanupError?: string;
+}
+
+/**
+ * Permanently remove only soft-deleted rows. The storage path is read from the
+ * deleted row rather than accepted from the browser, and storage cleanup
+ * failures are returned explicitly because the database delete has completed.
+ */
 export function usePermanentDeleteDocument() {
-  return useDocumentMutation<{ id: string; storagePath: string }>(async ({ id, storagePath }) => {
-    const { error } = await supabase.from("company_documents").delete().eq("id", id);
-    if (error) throw error;
-    await supabase.storage.from(BUCKET).remove([storagePath]);
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async ({ id }: { id: string }): Promise<PermanentDeleteResult> => {
+      const { data, error } = await supabase
+        .from("company_documents")
+        .delete()
+        .eq("id", id)
+        .not("deleted_at", "is", null)
+        .select("storage_path")
+        .maybeSingle();
+      if (error) throw error;
+      if (!data) throw new Error("Only documents already in the Bin can be permanently deleted.");
+
+      const { error: storageError } = await supabase.storage
+        .from(BUCKET)
+        .remove([data.storage_path]);
+
+      if (storageError) {
+        return { storageDeleted: false, cleanupError: storageError.message };
+      }
+      return { storageDeleted: true };
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["company-documents"] });
+      queryClient.invalidateQueries({ queryKey: ["company-documents-deleted"] });
+    },
   });
 }
 
