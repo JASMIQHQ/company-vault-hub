@@ -7,10 +7,6 @@ import { canonicalCategory } from "@/lib/document-order";
 import type { CompanyDocument } from "@/lib/vault";
 import { isCurrentEvidenceStatus, isReadinessEvidenceStatus } from "@/lib/document-lifecycle";
 
-function currentEvidence(documents: CompanyDocument[]) {
-  return documents.filter((document) => isCurrentEvidenceStatus(document.document_status));
-}
-
 function normalized(value: string | null | undefined) {
   return (value ?? "").toUpperCase().replace(/[^A-Z0-9]/g, "");
 }
