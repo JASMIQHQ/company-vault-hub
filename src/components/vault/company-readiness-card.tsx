@@ -5,6 +5,7 @@ import { COMPANY_READINESS_CONDITIONAL, COMPANY_READINESS_CORE, COMPANY_READINES
 import { deriveCompanyReadiness } from "@/lib/company-readiness";
 import { canonicalCategory } from "@/lib/document-order";
 import type { CompanyDocument } from "@/lib/vault";
+import { isCurrentEvidenceStatus, isReadinessEvidenceStatus } from "@/lib/document-lifecycle";
 
 function normalized(value: string | null | undefined) {
   return (value ?? "").toUpperCase().replace(/[^A-Z0-9]/g, "");
@@ -20,12 +21,14 @@ function matches(document: CompanyDocument, type: string) {
 
 function statusFor(documents: CompanyDocument[], type: string) {
   const matchesForType = documents
-    .filter((document) => matches(document, type))
+    .filter((document) => isReadinessEvidenceStatus(document.document_status) && matches(document, type))
     .sort((a, b) => (b.created_at ?? "").localeCompare(a.created_at ?? ""));
-  const document = matchesForType[0];
-  if (!document) return "Missing";
-  if (document.expiry_date && document.expiry_date < new Date().toISOString().slice(0, 10)) return "Expired";
-  return "Present";
+  const current = matchesForType.find((document) => isCurrentEvidenceStatus(document.document_status));
+  if (current) {
+    if (current.expiry_date && current.expiry_date < new Date().toISOString().slice(0, 10)) return "Expired";
+    return "Present";
+  }
+  return matchesForType.some((document) => document.document_status === "expired") ? "Expired" : "Missing";
 }
 
 function StatusIcon({ status }: { status: string }) {
@@ -61,10 +64,12 @@ function StatusList({ title, items, documents }: { title: string; items: typeof 
 
 export function calculateCompanyReadiness(documents: CompanyDocument[]) {
   const engineDocuments = documents
+    .filter((document) => isReadinessEvidenceStatus(document.document_status))
     .map((document) => ({
       id: document.id,
       document_type: canonicalCategory(document),
       expiry_date: document.expiry_date,
+      document_status: document.document_status,
       created_at: document.created_at ?? "",
     }))
     .sort((a, b) => b.created_at.localeCompare(a.created_at));

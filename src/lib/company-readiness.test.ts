@@ -87,6 +87,40 @@ describe("deriveCompanyReadiness", () => {
     });
   });
 
+  test("keeps explicitly expired lifecycle evidence visible as expired, not missing", () => {
+    expect(
+      deriveCompanyReadiness({
+        required: [{ type: "TCC" }],
+        documents: [{ id: "tcc-expired", document_type: "TCC", expiry_date: null, document_status: "expired" }],
+        asOf: "2026-09-11",
+      }),
+    ).toEqual({
+      present: [],
+      missing: [],
+      expired: ["TCC"],
+      score: 0,
+      total: 1,
+    });
+  });
+
+  test("does not allow superseded or archived records to satisfy readiness", () => {
+    expect(
+      deriveCompanyReadiness({
+        required: [{ type: "TCC" }],
+        documents: [
+          { id: "tcc-superseded", document_type: "TCC", expiry_date: "2027-01-01", document_status: "superseded" },
+        ],
+        asOf: "2026-09-11",
+      }),
+    ).toEqual({
+      present: [],
+      missing: ["TCC"],
+      expired: [],
+      score: 0,
+      total: 1,
+    });
+  });
+
   test("returns zero for an empty required set", () => {
     expect(
       deriveCompanyReadiness({
