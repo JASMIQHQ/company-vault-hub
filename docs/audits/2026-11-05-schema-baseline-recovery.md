@@ -47,3 +47,43 @@ This process creates an empty-data staging schema that matches the current produ
 - No fresh export artifact or checksum has been produced in this recovery run. Do not create `supabase/baseline/schema.sha256` from an assumed or copied value.
 - No staging restore, grants, migration replay, Storage bucket creation, or Edge Function deployment has been performed as part of this recovery.
 - Do not run a production schema restore, production migration, production bucket change, or production Edge Function deployment as part of this recovery. The production export is read-only. All restore and apply operations target `rmtoaaxnuwsecmajhwjx` only and remain blocked pending verified access and review.
+
+
+## 2026-11-16 verified recovery status
+
+The following evidence supersedes the earlier connection/export blockers above.
+
+### Production export
+
+- Export workflow run #11 completed successfully from main (run ID 43885665656).
+- Artifact: jasmiq-production-schema-baseline-43885665656 (artifact ID 14234138047).
+- ZIP SHA-256: fd4a5c746e54a0c556c3942c2c2f393101163b86578b345de1e6a67852f38c0f.
+- SQL SHA-256: 6bf83ec93fc2ae9a9325fea2a6a82593b1d1ea91c4bacbb7373e2d9e8734bbc0.
+- Source commit: 99563254c1b2d2ef2c56f5bcf010fe97d31f71a8.
+- The export is schema-only for public/private, excludes privileges and ownership, and its workflow checked the custom archive TOC for table data, sequence values, and large objects. No production writes were performed.
+
+### Staging preflight
+
+- Staging project ref: rmtoaaxnuwsecmajhwjx; status ACTIVE_HEALTHY.
+- A staging SQL connection test succeeded after the database password was reset in Supabase; no password was shared in chat.
+- Staging PostgreSQL is 17.11. The required citext, vector, uuid-ossp, and pgcrypto extension versions match production.
+- The public/private application schema has zero relations and staging has zero recorded migrations. Supabase platform schemas/tables remain present; the entire database is not empty.
+- No schema restore, grants, migration repair, Storage policy/bucket changes, or Edge Function deployments have yet been performed.
+
+### Schema and migration review
+
+- The exported schema contains 57 tables, 18 views, 46 application functions (30 SECURITY DEFINER), 18 triggers, and 43 RLS policies. All 57 tables have RLS enabled; none uses FORCE ROW LEVEL SECURITY. All 46 functions have an explicit search_path.
+- The production migration ledger contains 66 versions and matches the checked-in migration-version manifest.
+- Migration review found one static seed migration for document taxonomy: 11 canonical rows and 16 aliases. The staging restore workflow replays this idempotent seed migration.
+- Historical verification and company-membership backfills are not replayed because the staging application tables are empty. Post-restore verification checks that every public application table other than the two taxonomy tables contains zero rows.
+- Five migrations exclusively create/revise policies on storage.objects. They are intentionally left pending for the dedicated Storage phase: 20260729140358, 20260730124656, 20260925150643, 20260928124639, and 20260928124650. The restore workflow therefore marks 61 migrations as applied, not all 66.
+
+### ACL finding and staging hardening
+
+A read-only production catalog audit found TRUNCATE and MAINTAIN privileges on 51 public tables for anon and authenticated, and on all 57 public tables for service_role. RLS does not restrict TRUNCATE. These grants are not copied to staging. The staging allowlist recreates only the source-confirmed SELECT, INSERT, UPDATE, and DELETE grants for authenticated/service_role, grants no table DML to anon, applies per-function EXECUTE ACLs, and hardens default privileges. Production remains frozen; any production ACL remediation requires a separate review and approval.
+
+### Restore workflow gate
+
+PR #92 adds a manual staging-only restore workflow with exact project-ref guards, export-run/artifact provenance checks, both SHA-256 checks, a read-only production ACL/ledger query, an atomic schema + taxonomy seed + ACL transaction, resumable migration-ledger repair, and post-restore verification. It requires the exact confirmation phrase RESTORE JASMIQ SCHEMA TO STAGING ONLY. It does not deploy Edge Functions or create Storage buckets/objects. The workflow is not executable from the PR branch until merged to main; merging can trigger the production deployment pipeline and therefore requires separate approval.
+
+**Current state: export verified; staging preflight passed; restore workflow prepared in PR #92; staging schema restoration has not started.**
