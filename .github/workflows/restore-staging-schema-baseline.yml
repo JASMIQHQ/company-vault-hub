@@ -390,8 +390,15 @@ jobs:
 
       - name: Mark the exact 66 production migrations as applied on staging
         shell: bash
+        env:
+          PGPASSWORD: ${{ secrets.STAGING_DB_PASSWORD }}
         run: |
           set -euo pipefail
+          export PGHOST="db.$STAGING_REF.supabase.co"
+          export PGPORT=5432
+          export PGUSER=postgres
+          export PGDATABASE=postgres
+          export PGSSLMODE=require
           supabase link --project-ref "$STAGING_REF" --password "$STAGING_DB_PASSWORD"
           psql -XAt -v ON_ERROR_STOP=1 -c "SELECT version FROM supabase_migrations.schema_migrations ORDER BY version" > existing-ledger.txt
           while IFS= read -r version; do
