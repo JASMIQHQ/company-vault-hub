@@ -5,7 +5,7 @@ import { COMPANY_READINESS_CONDITIONAL, COMPANY_READINESS_CORE, COMPANY_READINES
 import { deriveCompanyReadiness } from "@/lib/company-readiness";
 import { canonicalCategory } from "@/lib/document-order";
 import type { CompanyDocument } from "@/lib/vault";
-import { isCurrentEvidenceStatus } from "@/lib/document-lifecycle";
+import { isCurrentEvidenceStatus, isReadinessEvidenceStatus } from "@/lib/document-lifecycle";
 
 function currentEvidence(documents: CompanyDocument[]) {
   return documents.filter((document) => isCurrentEvidenceStatus(document.document_status));
@@ -65,11 +65,13 @@ function StatusList({ title, items, documents }: { title: string; items: typeof 
 }
 
 export function calculateCompanyReadiness(documents: CompanyDocument[]) {
-  const engineDocuments = currentEvidence(documents)
+  const engineDocuments = documents
+    .filter((document) => isReadinessEvidenceStatus(document.document_status))
     .map((document) => ({
       id: document.id,
       document_type: canonicalCategory(document),
       expiry_date: document.expiry_date,
+      document_status: document.document_status,
       created_at: document.created_at ?? "",
     }))
     .sort((a, b) => b.created_at.localeCompare(a.created_at));
