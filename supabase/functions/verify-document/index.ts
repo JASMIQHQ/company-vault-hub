@@ -40,6 +40,10 @@ Deno.serve(async req=>{
     const {data:memberships}=await admin.from("organization_members").select("organization_id").eq("profile_id",profile.id); const orgs=(memberships??[]).map(x=>x.organization_id).filter(Boolean);
     const {data:d,error:de}=await admin.from("company_documents").select("id,organization_id,company_id,document_name,original_filename,document_type,category,storage_path,mime_type").eq("id",body.document_id).maybeSingle(); if(de)throw de; doc=d;
     if(!doc||!orgs.includes(doc.organization_id))return json({error:"Document not found or not accessible."},404);
+    // Service-role queries bypass RLS, so enforce the canonical active-company boundary explicitly.
+    const {data:company,error:companyError}=await admin.from("companies").select("id,organization_id,is_active").eq("id",doc.company_id).maybeSingle();
+    if(companyError)throw companyError;
+    if(!company||company.is_active!==true||company.organization_id!==doc.organization_id)return json({error:"Document not found or not accessible."},404);
     const {data:companyMembership}=await admin.from("company_members").select("company_id").eq("company_id",doc.company_id).eq("profile_id",profile.id).maybeSingle();
     if(!companyMembership)return json({error:"Document not found or not accessible."},404);
     const {data:blob,error:dl}=await admin.storage.from("company-documents").download(doc.storage_path);
