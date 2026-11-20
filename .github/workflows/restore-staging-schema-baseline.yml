@@ -334,9 +334,9 @@ jobs:
           PGPASSWORD: ${{ secrets.STAGING_DB_PASSWORD }}
         run: |
           set -euo pipefail
-          export PGHOST="db.$STAGING_REF.supabase.co"
+          export PGHOST="aws-0-eu-west-1.pooler.supabase.com"
           export PGPORT=5432
-          export PGUSER=postgres
+          export PGUSER="postgres.$STAGING_REF"
           export PGDATABASE=postgres
           export PGSSLMODE=require
           relation_count="$(psql -XAt -v ON_ERROR_STOP=1 -c "
@@ -394,9 +394,9 @@ jobs:
           PGPASSWORD: ${{ secrets.STAGING_DB_PASSWORD }}
         run: |
           set -euo pipefail
-          export PGHOST="db.$STAGING_REF.supabase.co"
+          export PGHOST="aws-0-eu-west-1.pooler.supabase.com"
           export PGPORT=5432
-          export PGUSER=postgres
+          export PGUSER="postgres.$STAGING_REF"
           export PGDATABASE=postgres
           export PGSSLMODE=require
           psql -X -v ON_ERROR_STOP=1 --single-transaction \
@@ -410,9 +410,9 @@ jobs:
           PGPASSWORD: ${{ secrets.STAGING_DB_PASSWORD }}
         run: |
           set -euo pipefail
-          export PGHOST="db.$STAGING_REF.supabase.co"
+          export PGHOST="aws-0-eu-west-1.pooler.supabase.com"
           export PGPORT=5432
-          export PGUSER=postgres
+          export PGUSER="postgres.$STAGING_REF"
           export PGDATABASE=postgres
           export PGSSLMODE=require
           supabase link --project-ref "$STAGING_REF" --password "$STAGING_DB_PASSWORD"
@@ -431,9 +431,9 @@ jobs:
           PGPASSWORD: ${{ secrets.STAGING_DB_PASSWORD }}
         run: |
           set -euo pipefail
-          export PGHOST="db.$STAGING_REF.supabase.co"
+          export PGHOST="aws-0-eu-west-1.pooler.supabase.com"
           export PGPORT=5432
-          export PGUSER=postgres
+          export PGUSER="postgres.$STAGING_REF"
           export PGDATABASE=postgres
           export PGSSLMODE=require
           psql -X -v ON_ERROR_STOP=1 <<'SQL'
