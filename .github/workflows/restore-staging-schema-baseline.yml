@@ -415,12 +415,13 @@ jobs:
           export PGUSER="postgres.$STAGING_REF"
           export PGDATABASE=postgres
           export PGSSLMODE=require
-          supabase link --project-ref "$STAGING_REF" --password "$STAGING_DB_PASSWORD"
+          STAGING_DB_URL="$(python3 -c 'import os, urllib.parse; print("postgresql://postgres." + os.environ["STAGING_REF"] + ":" + urllib.parse.quote(os.environ["STAGING_DB_PASSWORD"], safe="") + "@aws-0-eu-west-1.pooler.supabase.com:5432/postgres")')"
+          echo "::add-mask::$STAGING_DB_URL"
           psql -XAt -v ON_ERROR_STOP=1 -c "SELECT version FROM supabase_migrations.schema_migrations ORDER BY version" > existing-ledger.txt
           while IFS= read -r version; do
             [[ "$version" =~ ^[0-9]{14}$ ]]
             if ! grep -qx "$version" existing-ledger.txt; then
-              supabase migration repair --status applied "$version" --password "$STAGING_DB_PASSWORD"
+              supabase migration repair "$version" --status applied --db-url "$STAGING_DB_URL" --yes
               echo "$version" >> existing-ledger.txt
             fi
           done < restore-inputs/staging-ledger-versions.txt
