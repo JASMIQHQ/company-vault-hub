@@ -355,8 +355,14 @@ jobs:
           rls_count="$(psql -XAt -v ON_ERROR_STOP=1 -c "
             SELECT count(*) FROM pg_class c JOIN pg_namespace n ON n.oid=c.relnamespace
             WHERE n.nspname='public' AND c.relkind IN ('r','p') AND c.relrowsecurity;")"
-          migration_count="$(psql -XAt -v ON_ERROR_STOP=1 -c "
-            SELECT count(*) FROM supabase_migrations.schema_migrations;")"
+          migration_table_exists="$(psql -XAt -v ON_ERROR_STOP=1 -c "SELECT to_regclass('supabase_migrations.schema_migrations') IS NOT NULL;")"
+          if [ "$migration_table_exists" = "t" ]; then
+            migration_count="$(psql -XAt -v ON_ERROR_STOP=1 -c "SELECT count(*) FROM supabase_migrations.schema_migrations;")"
+            psql -XAt -v ON_ERROR_STOP=1 -c "SELECT version FROM supabase_migrations.schema_migrations ORDER BY version" > existing-ledger.txt
+          else
+            migration_count=0
+            : > existing-ledger.txt
+          fi
           private_schema_count="$(psql -XAt -v ON_ERROR_STOP=1 -c "
             SELECT count(*) FROM pg_namespace WHERE nspname='private';")"
           auth_uid_count="$(psql -XAt -v ON_ERROR_STOP=1 -c "
@@ -370,7 +376,6 @@ jobs:
           diff -u restore-inputs/required-extensions.txt staging-extensions.txt
           test "$auth_uid_count" -eq 1
 
-          psql -XAt -v ON_ERROR_STOP=1 -c "SELECT version FROM supabase_migrations.schema_migrations ORDER BY version" > existing-ledger.txt
           if comm -23 <(sort existing-ledger.txt) <(sort restore-inputs/staging-ledger-versions.txt) | grep -q .; then
             echo "::error::Staging contains migration versions outside the reviewed production ledger."
             exit 1
