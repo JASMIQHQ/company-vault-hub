@@ -86,7 +86,6 @@ export function TenderDetailsDialog({ tender, organizationId }: { tender: Tender
           requires_bid_security: form.requires_bid_security,
           requires_bank_reference: form.requires_bank_reference,
           requires_affidavit: form.requires_affidavit,
-          notes: tender.notes ?? null,
         },
       });
       toast.success("Tender details updated.");
