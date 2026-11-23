@@ -4,7 +4,7 @@ import { PencilLine, Loader2, RotateCcw } from "lucide-react";
 import { toast } from "sonner";
 import type { TenderListItem } from "@/lib/tenders";
 import { useUpdateTenderDetails, TenderEditConflictError } from "@/hooks/use-tenders";
-import { TenderDetailsSchema, type TenderDetails } from "@/lib/tender-details-schema";
+import { TenderDetailsSchema, type TenderDetails, type TenderDetailsPatch } from "@/lib/tender-details-schema";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -89,6 +89,7 @@ export function TenderDetailsDialog({
   const [open, setOpen] = useState(false);
   const [form, setForm] = useState<FormState>(() => initialForm(tender));
   const [validationError, setValidationError] = useState<string | null>(null);
+  const [validationField, setValidationField] = useState<keyof FormState | null>(null);
   const [conflict, setConflict] = useState(false);
   const update = useUpdateTenderDetails();
   const queryClient = useQueryClient();
@@ -98,6 +99,7 @@ export function TenderDetailsDialog({
     if (open) {
       setForm(initialForm(tender));
       setValidationError(null);
+      setValidationField(null);
       setConflict(false);
     }
   }, [open, tender]);
@@ -105,6 +107,7 @@ export function TenderDetailsDialog({
   const set = <K extends keyof FormState>(key: K, value: FormState[K]) => {
     setForm((current) => ({ ...current, [key]: value }));
     setValidationError(null);
+    setValidationField(null);
   };
 
   const reloadLatest = async () => {
@@ -119,6 +122,7 @@ export function TenderDetailsDialog({
   const save = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     setValidationError(null);
+    setValidationField(null);
 
     const parsed = TenderDetailsSchema.safeParse({
       title: form.title,
@@ -137,16 +141,18 @@ export function TenderDetailsDialog({
     if (!parsed.success) {
       const issue = parsed.error.issues[0];
       setValidationError(issue.message);
+      setValidationField(issue.path[0] as keyof FormState);
       toast.error(issue.message);
       return;
     }
 
     const original = toPayload(initialForm(tender));
-    const patch = Object.fromEntries(
-      Object.entries(parsed.data).filter(([key, value]) => {
-        return value !== original[key as keyof TenderDetails];
-      }),
-    );
+    const patch: TenderDetailsPatch = {};
+    for (const key of Object.keys(parsed.data) as (keyof TenderDetails)[]) {
+      if (parsed.data[key] !== original[key]) {
+        Object.assign(patch, { [key]: parsed.data[key] });
+      }
+    }
 
     if (Object.keys(patch).length === 0) {
       toast.info("There are no changes to save.");
@@ -192,7 +198,11 @@ export function TenderDetailsDialog({
         onChange={(event) => set(key, event.target.value)}
         className="rounded-xl"
         maxLength={key === "title" ? 300 : key === "procuring_entity" ? 500 : 160}
+        aria-invalid={validationField === key}
       />
+      {validationField === key && validationError ? (
+        <p className="text-xs text-destructive" role="alert">{validationError}</p>
+      ) : null}
     </div>
   );
 
@@ -206,7 +216,7 @@ export function TenderDetailsDialog({
         onChange={(event) => set(key, event.target.value)}
         className="rounded-xl"
       />
-      {key === "opening_date" && validationError ? (
+      {validationField === key && validationError ? (
         <p className="text-xs text-destructive" role="alert">{validationError}</p>
       ) : null}
     </div>
