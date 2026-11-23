@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { TenderDetailsSchema } from "./tender-details-schema";
+import { TenderDetailsPatchSchema, TenderDetailsSchema } from "./tender-details-schema";
 
 const validDetails = {
   title: "Supply of ICT equipment",
@@ -35,6 +35,14 @@ describe("TenderDetailsSchema", () => {
     expect(
       TenderDetailsSchema.safeParse({ ...validDetails, submission_deadline: null }).success,
     ).toBe(true);
+  });
+
+  test("accepts a patch that explicitly clears a deadline", () => {
+    expect(TenderDetailsPatchSchema.safeParse({ submission_deadline: null }).success).toBe(true);
+  });
+
+  test("rejects unsupported patch field types", () => {
+    expect(TenderDetailsPatchSchema.safeParse({ requires_affidavit: "yes" }).success).toBe(false);
   });
 
   test("rejects a blank title", () => {
