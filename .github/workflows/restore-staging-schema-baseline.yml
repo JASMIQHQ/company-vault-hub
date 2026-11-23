@@ -422,6 +422,17 @@ jobs:
           export PGSSLMODE=require
           STAGING_DB_URL="$(python3 -c 'import os, urllib.parse; print("postgresql://postgres." + os.environ["STAGING_REF"] + ":" + urllib.parse.quote(os.environ["STAGING_DB_PASSWORD"], safe="") + "@aws-0-eu-west-1.pooler.supabase.com:5432/postgres")')"
           echo "::add-mask::$STAGING_DB_URL"
+          # A schema-only pg_dump intentionally excludes Supabase's migration history.
+          # Create the standard empty ledger on staging before using the CLI repair command.
+          psql -X -v ON_ERROR_STOP=1 <<'SQL'
+          CREATE SCHEMA IF NOT EXISTS supabase_migrations;
+          CREATE TABLE IF NOT EXISTS supabase_migrations.schema_migrations (
+            version varchar(255) NOT NULL PRIMARY KEY,
+            statements text[]
+          );
+          REVOKE ALL ON SCHEMA supabase_migrations FROM PUBLIC, anon, authenticated, service_role;
+          REVOKE ALL ON TABLE supabase_migrations.schema_migrations FROM PUBLIC, anon, authenticated, service_role;
+          SQL
           psql -XAt -v ON_ERROR_STOP=1 -c "SELECT version FROM supabase_migrations.schema_migrations ORDER BY version" > existing-ledger.txt
           while IFS= read -r version; do
             [[ "$version" =~ ^[0-9]{14}$ ]]
