@@ -3,7 +3,7 @@ import { FunctionsFetchError, FunctionsHttpError, FunctionsRelayError, type Sess
 import { supabase } from "@/integrations/supabase/client";
 import { TENDER_BUCKET, buildTenderStoragePath, type TenderListItem, type TenderRequirementItem } from "@/lib/tenders";
 import { sha256Hex } from "@/lib/vault";
-import { TenderDetailsSchema, type TenderDetailsPatch } from "@/lib/tender-details-schema";
+import { TenderDetailsPatchSchema, type TenderDetailsPatch } from "@/lib/tender-details-schema";
 
 const TENDER_LIST_PROJECTION = "id, organization_id, company_id, title, created_at, updated_at, analysis_status, matching_status, analysis_error, procuring_entity, submission_deadline, compliance_percentage, requires_bid_security, requires_bank_reference, requires_affidavit, opening_date, reference_number, procurement_method, tender_type, industry, lot_number, lot_description, tender_files(storage_path, created_at)";
 const TENDER_DETAIL_PROJECTION = `${TENDER_LIST_PROJECTION}, analysis_json`;
@@ -36,7 +36,7 @@ export function useUpdateTenderDetails() {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: async ({ tenderId, organizationId, expectedUpdatedAt, patch }: UpdateTenderDetailsInput) => {
-      const validatedPatch = TenderDetailsSchema.partial().parse(patch);
+      const validatedPatch = TenderDetailsPatchSchema.parse(patch);
       const { data, error } = await supabase.rpc("update_tender_details", {
         p_tender_id: tenderId,
         p_organization_id: organizationId,
