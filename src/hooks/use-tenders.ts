@@ -32,7 +32,6 @@ export interface UpdateTenderDetailsInput {
     requires_bid_security: boolean;
     requires_bank_reference: boolean;
     requires_affidavit: boolean;
-    notes: string | null;
   };
 }
 
