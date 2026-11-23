@@ -17,6 +17,47 @@ export function useOrganizationRequirements(session: Session | null, organizatio
 export type TenderRequirementWithLot = TenderRequirementItem & { lot_id: string | null };
 export function useTenderRequirements(session: Session | null, tenderId: string | null, enabled = true) { return useQuery({ queryKey: ["tender_requirements", tenderId], enabled: Boolean(session) && Boolean(tenderId) && enabled, queryFn: async (): Promise<TenderRequirementWithLot[]> => { const { data, error } = await supabase.from("tender_requirements").select("id, category, requirement_name, requirement_text, display_order, status, confidence_score, explanation, matched_document_id, lot_id").eq("tender_id", tenderId!).order("display_order", { ascending: true, nullsFirst: false }); if (error) throw error; return (data ?? []).map((row) => ({ ...row, status: row.status as string | null })) as TenderRequirementWithLot[]; } }); }
 export function useAssignRequirementLot() { const queryClient = useQueryClient(); return useMutation({ mutationFn: async ({ requirementId, lotId }: { requirementId: string; lotId: string | null }) => { const { error } = await supabase.from("tender_requirements").update({ lot_id: lotId } as never).eq("id", requirementId); if (error) throw error; }, onSuccess: () => queryClient.invalidateQueries({ queryKey: ["tender_requirements"] }) }); }
+export interface UpdateTenderDetailsInput {
+  tenderId: string;
+  organizationId: string;
+  details: {
+    title: string;
+    procuring_entity: string | null;
+    reference_number: string | null;
+    procurement_method: string | null;
+    tender_type: string | null;
+    industry: string | null;
+    submission_deadline: string | null;
+    opening_date: string | null;
+    requires_bid_security: boolean;
+    requires_bank_reference: boolean;
+    requires_affidavit: boolean;
+    notes: string | null;
+  };
+}
+
+export function useUpdateTenderDetails() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async ({ tenderId, organizationId, details }: UpdateTenderDetailsInput) => {
+      const { data, error } = await supabase
+        .from("tenders")
+        .update(details)
+        .eq("id", tenderId)
+        .eq("organization_id", organizationId)
+        .select("id")
+        .maybeSingle();
+      if (error) throw error;
+      if (!data) throw new Error("Tender was not updated. Refresh and confirm you still have access.");
+      return data.id;
+    },
+    onSuccess: (_, variables) => {
+      queryClient.invalidateQueries({ queryKey: ["tender", variables.organizationId, variables.tenderId] });
+      queryClient.invalidateQueries({ queryKey: ["tenders", variables.organizationId] });
+    },
+  });
+}
+
 export function useUpdateTenderCompany() { const queryClient = useQueryClient(); return useMutation({ mutationFn: async ({ tenderId, organizationId, companyId }: { tenderId: string; organizationId: string; companyId: string }) => { const { error } = await supabase.from("tenders").update({ company_id: companyId }).eq("id", tenderId).eq("organization_id", organizationId); if (error) throw error; }, onSuccess: (_, variables) => { queryClient.invalidateQueries({ queryKey: ["tender", variables.organizationId, variables.tenderId] }); queryClient.invalidateQueries({ queryKey: ["tenders", variables.organizationId] }); } }); }
 
 export function useMatchTenderEvidence() { const queryClient = useQueryClient(); return useMutation({ mutationFn: async (tenderId: string) => { const { data, error } = await supabase.functions.invoke("match-tender-evidence", { body: { tender_id: tenderId } }); if (error) throw error; return data; }, onSuccess: (_, tenderId) => { queryClient.invalidateQueries({ queryKey: ["tenders"] }); queryClient.invalidateQueries({ queryKey: ["tender"] }); queryClient.invalidateQueries({ queryKey: ["tender_requirements", tenderId] }); } }); }
