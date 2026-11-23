@@ -64,7 +64,7 @@ function initialForm(tender: TenderListItem): FormState {
 }
 
 function toPayload(form: FormState): TenderDetails {
-  return TenderDetailsSchema.parse({
+  return {
     title: form.title,
     procuring_entity: form.procuring_entity.trim() || null,
     reference_number: form.reference_number.trim() || null,
@@ -76,7 +76,7 @@ function toPayload(form: FormState): TenderDetails {
     requires_bid_security: form.requires_bid_security,
     requires_bank_reference: form.requires_bank_reference,
     requires_affidavit: form.requires_affidavit,
-  });
+  };
 }
 
 export function TenderDetailsDialog({
