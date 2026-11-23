@@ -246,16 +246,5 @@ grant execute on function public.update_tender_details(uuid, uuid, timestamptz, 
 
 -- Remove direct browser writes only for the metadata fields owned by this RPC.
 -- Preserve existing grants for unrelated tender workflows (company assignment, status, analysis, etc.).
-revoke update (
-  title,
-  procuring_entity,
-  reference_number,
-  procurement_method,
-  tender_type,
-  industry,
-  submission_deadline,
-  opening_date,
-  requires_bid_security,
-  requires_bank_reference,
-  requires_affidavit
-) on public.tenders from authenticated;
+revoke update on public.tenders from authenticated;
+grant update (company_id) on public.tenders to authenticated;
