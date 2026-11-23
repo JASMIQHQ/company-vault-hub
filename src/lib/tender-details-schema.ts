@@ -5,8 +5,7 @@ const nullableText = (max: number) =>
 
 const nullableDate = z.string().datetime({ offset: true }).nullable();
 
-export const TenderDetailsSchema = z
-  .object({
+const TenderDetailsObjectSchema = z.object({
     title: z.string().trim().min(1, "Tender title is required.").max(300),
     procuring_entity: nullableText(500),
     reference_number: nullableText(160),
@@ -18,8 +17,11 @@ export const TenderDetailsSchema = z
     requires_bid_security: z.boolean(),
     requires_bank_reference: z.boolean(),
     requires_affidavit: z.boolean(),
-  })
-  .superRefine((details, context) => {
+  });
+
+export const TenderDetailsPatchSchema = TenderDetailsObjectSchema.partial();
+
+export const TenderDetailsSchema = TenderDetailsObjectSchema.superRefine((details, context) => {
     if (
       details.opening_date &&
       details.submission_deadline &&
