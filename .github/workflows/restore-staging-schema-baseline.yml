@@ -621,7 +621,13 @@ jobs:
             echo "- Source commit: ${{ needs.prepare.outputs.source_commit }}"
             echo "- Schema SHA-256: ${{ inputs.sql_sha256 }}"
             echo "- Production was queried read-only; no production writes were performed."
-            echo "- 61 schema/data migrations are recorded as applied; 5 Storage policy migrations remain pending for the Storage phase."
-            echo "- No Edge Functions or Storage buckets were deployed or created."
-            echo "- Restore is complete only if all verification steps pass."
+            if [[ "${{ job.status }}" == "success" ]]; then
+              echo "- RESULT: SUCCESS — all staging restore and verification steps passed."
+              echo "- 61 non-Storage migrations are recorded as applied; 5 Storage migrations remain pending."
+              echo "- No Edge Functions or Storage buckets were deployed or created."
+            else
+              echo "- RESULT: FAILED — do not treat staging as restored or ready."
+              echo "- Migration-ledger and schema completion must be confirmed from the step logs; this summary does not claim migrations were applied."
+              echo "- Inspect the failed step and uploaded evidence before any retry."
+            fi
           } >> "$GITHUB_STEP_SUMMARY"
