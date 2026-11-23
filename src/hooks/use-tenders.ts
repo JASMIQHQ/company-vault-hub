@@ -3,8 +3,9 @@ import { FunctionsFetchError, FunctionsHttpError, FunctionsRelayError, type Sess
 import { supabase } from "@/integrations/supabase/client";
 import { TENDER_BUCKET, buildTenderStoragePath, type TenderListItem, type TenderRequirementItem } from "@/lib/tenders";
 import { sha256Hex } from "@/lib/vault";
+import { TenderDetailsSchema, type TenderDetailsPatch } from "@/lib/tender-details-schema";
 
-const TENDER_LIST_PROJECTION = "id, organization_id, company_id, title, created_at, analysis_status, matching_status, analysis_error, procuring_entity, submission_deadline, compliance_percentage, requires_bid_security, requires_bank_reference, requires_affidavit, opening_date, reference_number, procurement_method, tender_type, industry, lot_number, lot_description, tender_files(storage_path, created_at)";
+const TENDER_LIST_PROJECTION = "id, organization_id, company_id, title, created_at, updated_at, analysis_status, matching_status, analysis_error, procuring_entity, submission_deadline, compliance_percentage, requires_bid_security, requires_bank_reference, requires_affidavit, opening_date, reference_number, procurement_method, tender_type, industry, lot_number, lot_description, tender_files(storage_path, created_at)";
 const TENDER_DETAIL_PROJECTION = `${TENDER_LIST_PROJECTION}, analysis_json`;
 
 function mapTender(tender: any): TenderListItem { return { ...tender, storage_path: tender.tender_files?.[0]?.storage_path ?? null }; }
@@ -20,39 +21,41 @@ export function useAssignRequirementLot() { const queryClient = useQueryClient()
 export interface UpdateTenderDetailsInput {
   tenderId: string;
   organizationId: string;
-  details: {
-    title: string;
-    procuring_entity: string | null;
-    reference_number: string | null;
-    procurement_method: string | null;
-    tender_type: string | null;
-    industry: string | null;
-    submission_deadline: string | null;
-    opening_date: string | null;
-    requires_bid_security: boolean;
-    requires_bank_reference: boolean;
-    requires_affidavit: boolean;
-  };
+  expectedUpdatedAt: string | null;
+  patch: TenderDetailsPatch;
+}
+
+export class TenderEditConflictError extends Error {
+  constructor() {
+    super("This tender was changed in another session. Reload the latest version before saving again.");
+    this.name = "TenderEditConflictError";
+  }
 }
 
 export function useUpdateTenderDetails() {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: async ({ tenderId, organizationId, details }: UpdateTenderDetailsInput) => {
-      const { data, error } = await supabase
-        .from("tenders")
-        .update(details)
-        .eq("id", tenderId)
-        .eq("organization_id", organizationId)
-        .select("id")
-        .maybeSingle();
-      if (error) throw error;
-      if (!data) throw new Error("Tender was not updated. Refresh and confirm you still have access.");
-      return data.id;
+    mutationFn: async ({ tenderId, organizationId, expectedUpdatedAt, patch }: UpdateTenderDetailsInput) => {
+      const validatedPatch = TenderDetailsSchema.partial().parse(patch);
+      const { data, error } = await supabase.rpc("update_tender_details", {
+        p_tender_id: tenderId,
+        p_organization_id: organizationId,
+        p_expected_updated_at: expectedUpdatedAt,
+        p_patch: validatedPatch,
+      } as never);
+      if (error) {
+        if (error.code === "P0001" && error.message.includes("TENDER_EDIT_CONFLICT")) {
+          throw new TenderEditConflictError();
+        }
+        throw error;
+      }
+      if (!data) throw new Error("Tender update returned no result.");
+      return data;
     },
     onSuccess: (_, variables) => {
       queryClient.invalidateQueries({ queryKey: ["tender", variables.organizationId, variables.tenderId] });
       queryClient.invalidateQueries({ queryKey: ["tenders", variables.organizationId] });
+      queryClient.invalidateQueries({ queryKey: ["tenders", "dashboard", variables.organizationId] });
     },
   });
 }
