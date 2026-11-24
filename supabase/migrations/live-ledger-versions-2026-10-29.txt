@@ -1,4 +1,4 @@
-# Read-only snapshot of the live Supabase migration ledger on 2026-10-29.
+# Read-only snapshot of the live Supabase migration ledger on 2026-11-24.
 # Source project: itqepknvdiedldcyunig. Versions only; never use this file as SQL.
 20260729140358
 20260730124656
@@ -66,3 +66,5 @@
 20260928125214
 20260928125333
 20260928125509
+20261124155808
+20261124155809
