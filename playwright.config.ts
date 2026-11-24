@@ -13,8 +13,4 @@ export default defineConfig({
     trace: "retain-on-failure",
     ...devices["Desktop Chrome"],
   },
-  projects: [
-    { name: "owner", use: { storageState: "playwright/.auth/owner.json" } },
-    { name: "viewer", use: { storageState: "playwright/.auth/viewer.json" } },
-  ],
 });
