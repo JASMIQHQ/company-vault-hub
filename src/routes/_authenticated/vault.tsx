@@ -1,20 +1,36 @@
 import { useEffect, useMemo, useState } from "react";
 import { createFileRoute } from "@tanstack/react-router";
-import { Search, X } from "lucide-react";
+import { Search, X, SlidersHorizontal } from "lucide-react";
 
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { CompanySelect } from "@/components/company-select";
 import { CompanyVaultGroups } from "@/components/vault/company-vault-groups";
 import { BinDialog } from "@/components/vault/bin-dialog";
 import { UploadDialog } from "@/components/vault/upload-dialog";
 import { useDeletedDocuments, useDocuments, useSession } from "@/hooks/use-vault";
-
 import { useCompanies } from "@/hooks/use-companies";
 import { useActiveOrganization } from "@/hooks/use-active-organization";
+import {
+  isVaultDocumentFilter,
+  matchesVaultDocumentFilter,
+  type VaultDocumentFilter,
+} from "@/lib/vault-filters";
 import { cn } from "@/lib/utils";
 
 export const Route = createFileRoute("/_authenticated/vault")({
+  validateSearch: (search: Record<string, unknown>) => ({
+    q: typeof search.q === "string" ? search.q : "",
+    category: typeof search.category === "string" ? search.category : "all",
+    status: isVaultDocumentFilter(search.status) ? search.status : "all",
+  }),
   head: () => ({
     meta: [
       { title: "Company Vault | Jasmiq Procurement AI" },
@@ -29,21 +45,32 @@ export const Route = createFileRoute("/_authenticated/vault")({
 });
 
 function VaultPage() {
-  const [search, setSearch] = useState("");
-  const [debouncedSearch, setDebouncedSearch] = useState("");
-  const [category, setCategory] = useState<string>("all");
+  const { q, category, status } = Route.useSearch();
+  const navigate = Route.useNavigate();
+  const [searchInput, setSearchInput] = useState(q);
 
   useEffect(() => {
-    const timer = window.setTimeout(() => setDebouncedSearch(search.trim()), 300);
+    setSearchInput(q);
+  }, [q]);
+
+  useEffect(() => {
+    const timer = window.setTimeout(() => {
+      if (searchInput !== q) {
+        void navigate({
+          search: (previous) => ({ ...previous, q: searchInput || undefined }),
+          replace: true,
+        });
+      }
+    }, 300);
     return () => window.clearTimeout(timer);
-  }, [search]);
+  }, [searchInput, q, navigate]);
 
   const { session, isLoading: sessionLoading } = useSession();
   const org = useActiveOrganization(session, sessionLoading);
   const documentsQuery = useDocuments(session, org.activeOrgId);
   const companiesQuery = useCompanies(session, org.activeOrgId);
   const deletedQuery = useDeletedDocuments(session, org.activeOrgId);
-  const documents = documentsQuery.data ?? [];
+  const documents = useMemo(() => documentsQuery.data ?? [], [documentsQuery.data]);
 
   const categories = useMemo(() => {
     const found = new Set<string>();
@@ -54,19 +81,40 @@ function VaultPage() {
   }, [documents]);
 
   const filtered = useMemo(() => {
-    const term = debouncedSearch.toLowerCase();
+    const term = q.trim().toLowerCase();
     return documents.filter((document) => {
       if (category !== "all" && document.category !== category) return false;
+      if (!matchesVaultDocumentFilter(document, status)) return false;
       if (!term) return true;
       return document.document_name.toLowerCase().includes(term) ||
         (document.document_type ?? "").toLowerCase().includes(term) ||
+        (document.original_filename ?? "").toLowerCase().includes(term) ||
         (document.category ?? "").toLowerCase().replace(/_/g, " ").includes(term);
     });
-  }, [documents, debouncedSearch, category]);
+  }, [documents, q, category, status]);
+
+  const setCategory = (value: string) => {
+    void navigate({
+      search: (previous) => ({ ...previous, category: value === "all" ? undefined : value }),
+      replace: true,
+    });
+  };
+
+  const setStatus = (value: VaultDocumentFilter) => {
+    void navigate({
+      search: (previous) => ({ ...previous, status: value === "all" ? undefined : value }),
+      replace: true,
+    });
+  };
+
+  const clearFilters = () => {
+    setSearchInput("");
+    void navigate({ search: {}, replace: true });
+  };
 
   const bootstrapping = org.bootstrapping;
   const orgMissing = !bootstrapping && !org.error && Boolean(session) && !org.activeOrgId;
-  const isFiltered = Boolean(debouncedSearch) || category !== "all";
+  const isFiltered = Boolean(q) || category !== "all" || status !== "all";
 
   return (
     <div className="relative mx-auto max-w-6xl px-4 py-8 sm:px-6 sm:py-12">
@@ -96,17 +144,57 @@ function VaultPage() {
           </div>
         </div>
 
-        <div className="mt-6 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-          <div className="relative w-full sm:max-w-sm">
+        <div className="mt-6 flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+          <div className="relative w-full lg:max-w-sm">
             <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
-            <Input value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Search documents" className="rounded-xl border-white/70 bg-white/55 pl-9 pr-9 shadow-[0_12px_28px_-20px_rgba(15,23,42,0.28),inset_0_1px_0_rgba(255,255,255,0.8)] backdrop-blur-xl dark:border-white/10 dark:bg-white/[0.04]" aria-label="Search documents" />
-            {search ? (
-              <Button type="button" variant="ghost" size="icon" className="absolute right-1 top-1/2 size-7 -translate-y-1/2 rounded-lg" onClick={() => setSearch("")} aria-label="Clear document search">
+            <Input
+              value={searchInput}
+              onChange={(event) => setSearchInput(event.target.value)}
+              placeholder="Search documents"
+              className="rounded-xl border-white/70 bg-white/55 pl-9 pr-9 shadow-[0_12px_28px_-20px_rgba(15,23,42,0.28),inset_0_1px_0_rgba(255,255,255,0.8)] backdrop-blur-xl dark:border-white/10 dark:bg-white/[0.04]"
+              aria-label="Search documents"
+            />
+            {searchInput ? (
+              <Button
+                type="button"
+                variant="ghost"
+                size="icon"
+                className="absolute right-1 top-1/2 size-7 -translate-y-1/2 rounded-lg"
+                onClick={() => setSearchInput("")}
+                aria-label="Clear document search"
+              >
                 <X className="size-4" />
               </Button>
             ) : null}
           </div>
-          <div className="flex items-center gap-1">
+          <div className="flex flex-wrap items-center gap-2">
+            <div className="flex min-w-0 items-center gap-2">
+              <SlidersHorizontal className="size-4 text-muted-foreground" />
+              <Select
+                value={status}
+                onValueChange={(value) => setStatus(value as VaultDocumentFilter)}
+              >
+                <SelectTrigger
+                  className="w-[210px] rounded-xl border-white/70 bg-white/55 dark:border-white/10 dark:bg-white/[0.04]"
+                  aria-label="Filter documents by status"
+                >
+                  <SelectValue placeholder="All statuses" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All statuses</SelectItem>
+                  <SelectItem value="active">Active documents</SelectItem>
+                  <SelectItem value="verified">AI verified</SelectItem>
+                  <SelectItem value="needs_review">Needs review</SelectItem>
+                  <SelectItem value="processing">Processing</SelectItem>
+                  <SelectItem value="failed">Analysis failed</SelectItem>
+                  <SelectItem value="expired">Expired</SelectItem>
+                  <SelectItem value="expiring_soon">Expiring within 30 days</SelectItem>
+                  <SelectItem value="no_expiry">No expiry date</SelectItem>
+                  <SelectItem value="superseded">Superseded</SelectItem>
+                  <SelectItem value="archived">Archived</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
             <BinDialog documents={deletedQuery.data ?? []} companies={companiesQuery.data ?? []} />
             {org.activeOrgId ? <UploadDialog organizationId={org.activeOrgId} /> : null}
           </div>
@@ -115,10 +203,38 @@ function VaultPage() {
         {categories.length > 1 ? (
           <div className="mt-4 flex flex-wrap gap-2">
             {["all", ...categories].map((value) => (
-              <button key={value} type="button" onClick={() => setCategory(value)} className={cn("rounded-full border px-3 py-1 text-xs font-medium capitalize transition-colors", category === value ? "border-primary/30 bg-primary/10 text-primary shadow-[0_8px_20px_-14px_rgba(37,99,235,0.5)]" : "border-border/60 bg-white/25 text-muted-foreground hover:bg-white/50 hover:text-foreground dark:bg-white/[0.02] dark:hover:bg-white/[0.06]") }>
+              <button
+                key={value}
+                type="button"
+                onClick={() => setCategory(value)}
+                aria-pressed={category === value}
+                className={cn(
+                  "rounded-full border px-3 py-1 text-xs font-medium capitalize transition-colors",
+                  category === value
+                    ? "border-primary/30 bg-primary/10 text-primary shadow-[0_8px_20px_-14px_rgba(37,99,235,0.5)]"
+                    : "border-border/60 bg-white/25 text-muted-foreground hover:bg-white/50 hover:text-foreground dark:bg-white/[0.02] dark:hover:bg-white/[0.06]",
+                )}
+              >
                 {value === "all" ? "All documents" : value.replace(/_/g, " ")}
               </button>
             ))}
+          </div>
+        ) : null}
+
+        {isFiltered ? (
+          <div className="mt-3 flex items-center justify-between gap-3">
+            <p className="text-xs text-muted-foreground">
+              Showing {filtered.length} matching documents
+            </p>
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
+              className="h-8 rounded-lg text-xs"
+              onClick={clearFilters}
+            >
+              Clear filters
+            </Button>
           </div>
         ) : null}
       </div>

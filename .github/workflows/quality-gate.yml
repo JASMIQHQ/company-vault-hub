@@ -2,8 +2,8 @@
 name: Quality Gate
 
 on:
+  # Run the same quality gate for every PR in the stacked feature chain.
   pull_request:
-    branches: [main]
   push:
     branches: [main]
 
