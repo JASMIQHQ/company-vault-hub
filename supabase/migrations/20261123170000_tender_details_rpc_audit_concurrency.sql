@@ -1,5 +1,5 @@
 -- Tender details editing: one authenticated owner RPC, optimistic concurrency, and an append-only audit event.
--- This migration is intentionally committed to the feature branch only. It is not applied to staging or production.
+-- Validated in staging under migration version 20261123151050. Production rollout is applied separately after code integration.
 
 create or replace function public.audit_tender_details_update()
 returns trigger
