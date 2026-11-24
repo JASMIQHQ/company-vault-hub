@@ -32,9 +32,7 @@ describe("summarizeUploadQueue", () => {
   });
 
   test("does not report hashing or uploading files as completed", () => {
-    expect(
-      summarizeUploadQueue([{ status: "hashing" }, { status: "uploading" }]),
-    ).toMatchObject({
+    expect(summarizeUploadQueue([{ status: "hashing" }, { status: "uploading" }])).toMatchObject({
       total: 2,
       processed: 0,
       hashing: 1,

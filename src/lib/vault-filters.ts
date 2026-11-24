@@ -58,8 +58,10 @@ export function matchesVaultDocumentFilter(
     case "failed":
       return document.analysis_status === "failed";
     case "expired":
-      return document.document_status === "expired" ||
-        (document.document_status === "active" && validity === "expired");
+      return (
+        document.document_status === "expired" ||
+        (document.document_status === "active" && validity === "expired")
+      );
     case "expiring_soon":
       return document.document_status === "active" && validity === "expiring_soon";
     case "no_expiry":

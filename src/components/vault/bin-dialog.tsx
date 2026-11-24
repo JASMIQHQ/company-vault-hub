@@ -123,8 +123,8 @@ function BinRow({ document, companyName }: { document: CompanyDocument; companyN
             <AlertDialogHeader>
               <AlertDialogTitle>Permanently delete document?</AlertDialogTitle>
               <AlertDialogDescription>
-                This action cannot be undone. It permanently removes this Bin record and attempts
-                to remove its stored file. To prevent accidental deletion, type the document name
+                This action cannot be undone. It permanently removes this Bin record and attempts to
+                remove its stored file. To prevent accidental deletion, type the document name
                 exactly as shown below.
               </AlertDialogDescription>
               <div className="space-y-2">
@@ -149,7 +149,11 @@ function BinRow({ document, companyName }: { document: CompanyDocument; companyN
                   event.preventDefault();
                   void onPurge();
                 }}
-                disabled={purge.isPending || restore.isPending || !canPermanentlyDeleteDocument(document.document_name, confirmationText)}
+                disabled={
+                  purge.isPending ||
+                  restore.isPending ||
+                  !canPermanentlyDeleteDocument(document.document_name, confirmationText)
+                }
               >
                 {purge.isPending && <Loader2 className="mr-2 size-4 animate-spin" />}
                 Permanently delete

@@ -4,7 +4,11 @@ import { PencilLine, Loader2, RotateCcw } from "lucide-react";
 import { toast } from "sonner";
 import type { TenderListItem } from "@/lib/tenders";
 import { useUpdateTenderDetails, TenderEditConflictError } from "@/hooks/use-tenders";
-import { TenderDetailsSchema, type TenderDetails, type TenderDetailsPatch } from "@/lib/tender-details-schema";
+import {
+  TenderDetailsSchema,
+  type TenderDetails,
+  type TenderDetailsPatch,
+} from "@/lib/tender-details-schema";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -201,7 +205,9 @@ export function TenderDetailsDialog({
         aria-invalid={validationField === key}
       />
       {validationField === key && validationError ? (
-        <p className="text-xs text-destructive" role="alert">{validationError}</p>
+        <p className="text-xs text-destructive" role="alert">
+          {validationError}
+        </p>
       ) : null}
     </div>
   );
@@ -217,7 +223,9 @@ export function TenderDetailsDialog({
         className="rounded-xl"
       />
       {validationField === key && validationError ? (
-        <p className="text-xs text-destructive" role="alert">{validationError}</p>
+        <p className="text-xs text-destructive" role="alert">
+          {validationError}
+        </p>
       ) : null}
     </div>
   );
@@ -234,14 +242,18 @@ export function TenderDetailsDialog({
         <DialogHeader>
           <DialogTitle>Edit tender details</DialogTitle>
           <DialogDescription>
-            Update the tender record. Requirement extraction and the tender evidence ledger are not changed here.
+            Update the tender record. Requirement extraction and the tender evidence ledger are not
+            changed here.
           </DialogDescription>
         </DialogHeader>
 
         {conflict ? (
           <Alert variant="destructive">
             <AlertDescription className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-              <span>This tender was updated elsewhere. Your unsaved changes are paused to prevent overwriting the newer version.</span>
+              <span>
+                This tender was updated elsewhere. Your unsaved changes are paused to prevent
+                overwriting the newer version.
+              </span>
               <Button type="button" size="sm" variant="outline" onClick={reloadLatest}>
                 <RotateCcw className="mr-2 size-4" />
                 Reload latest version
@@ -264,11 +276,13 @@ export function TenderDetailsDialog({
 
           <fieldset className="space-y-3 rounded-xl border border-border/60 p-4">
             <legend className="px-1 text-sm font-medium">Tender requirements</legend>
-            {([
-              ["requires_bid_security", "Bid security required"],
-              ["requires_bank_reference", "Bank reference required"],
-              ["requires_affidavit", "Affidavit required"],
-            ] as const).map(([key, label]) => (
+            {(
+              [
+                ["requires_bid_security", "Bid security required"],
+                ["requires_bank_reference", "Bank reference required"],
+                ["requires_affidavit", "Affidavit required"],
+              ] as const
+            ).map(([key, label]) => (
               <label key={key} className="flex items-center gap-3 text-sm">
                 <input
                   type="checkbox"
@@ -282,7 +296,12 @@ export function TenderDetailsDialog({
           </fieldset>
 
           <DialogFooter>
-            <Button type="button" variant="outline" className="rounded-xl" onClick={() => setOpen(false)}>
+            <Button
+              type="button"
+              variant="outline"
+              className="rounded-xl"
+              onClick={() => setOpen(false)}
+            >
               Cancel
             </Button>
             <Button type="submit" className="rounded-xl" disabled={update.isPending || conflict}>

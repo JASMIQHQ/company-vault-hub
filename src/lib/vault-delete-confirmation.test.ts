@@ -7,7 +7,9 @@ describe("canPermanentlyDeleteDocument", () => {
   });
 
   test("ignores accidental surrounding whitespace", () => {
-    expect(canPermanentlyDeleteDocument("CAC Certificate.pdf", "  CAC Certificate.pdf  ")).toBe(true);
+    expect(canPermanentlyDeleteDocument("CAC Certificate.pdf", "  CAC Certificate.pdf  ")).toBe(
+      true,
+    );
   });
 
   test("rejects partial, different-case, and empty confirmations", () => {

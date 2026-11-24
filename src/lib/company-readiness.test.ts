@@ -2,11 +2,7 @@ import { describe, expect, test } from "bun:test";
 
 import { deriveCompanyReadiness } from "./company-readiness";
 
-const required = [
-  { type: "CAC" },
-  { type: "TCC" },
-  { type: "PENCOM" },
-];
+const required = [{ type: "CAC" }, { type: "TCC" }, { type: "PENCOM" }];
 
 const allPresent = [
   { id: "cac-2026", document_type: "CAC", expiry_date: "2027-01-01" },
@@ -52,9 +48,7 @@ describe("deriveCompanyReadiness", () => {
       deriveCompanyReadiness({
         required,
         documents: allPresent.map((document) =>
-          document.document_type === "TCC"
-            ? { ...document, expiry_date: "2026-09-10" }
-            : document,
+          document.document_type === "TCC" ? { ...document, expiry_date: "2026-09-10" } : document,
         ),
         asOf: "2026-09-11",
       }),
@@ -72,9 +66,7 @@ describe("deriveCompanyReadiness", () => {
       deriveCompanyReadiness({
         required,
         documents: allPresent.map((document) =>
-          document.document_type === "TCC"
-            ? { ...document, expiry_date: "2026-09-11" }
-            : document,
+          document.document_type === "TCC" ? { ...document, expiry_date: "2026-09-11" } : document,
         ),
         asOf: "2026-09-11",
       }),
@@ -91,7 +83,14 @@ describe("deriveCompanyReadiness", () => {
     expect(
       deriveCompanyReadiness({
         required: [{ type: "TCC" }],
-        documents: [{ id: "tcc-expired", document_type: "TCC", expiry_date: null, document_status: "expired" }],
+        documents: [
+          {
+            id: "tcc-expired",
+            document_type: "TCC",
+            expiry_date: null,
+            document_status: "expired",
+          },
+        ],
         asOf: "2026-09-11",
       }),
     ).toEqual({
@@ -108,7 +107,12 @@ describe("deriveCompanyReadiness", () => {
       deriveCompanyReadiness({
         required: [{ type: "TCC" }],
         documents: [
-          { id: "tcc-superseded", document_type: "TCC", expiry_date: "2027-01-01", document_status: "superseded" },
+          {
+            id: "tcc-superseded",
+            document_type: "TCC",
+            expiry_date: "2027-01-01",
+            document_status: "superseded",
+          },
         ],
         asOf: "2026-09-11",
       }),

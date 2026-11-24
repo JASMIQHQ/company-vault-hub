@@ -55,7 +55,10 @@ export function useDocuments(session: Session | null, organizationId: string | n
   });
 }
 
-export function useDashboardDocuments(session: Session | null, organizationId: string | null | undefined) {
+export function useDashboardDocuments(
+  session: Session | null,
+  organizationId: string | null | undefined,
+) {
   return useQuery({
     queryKey: ["company-documents", "dashboard", organizationId],
     enabled: Boolean(session) && Boolean(organizationId),
@@ -72,7 +75,10 @@ export function useDashboardDocuments(session: Session | null, organizationId: s
   });
 }
 
-export function useDeletedDocuments(session: Session | null, organizationId: string | null | undefined) {
+export function useDeletedDocuments(
+  session: Session | null,
+  organizationId: string | null | undefined,
+) {
   return useQuery({
     queryKey: ["company-documents-deleted", organizationId],
     enabled: Boolean(session) && Boolean(organizationId),
@@ -104,21 +110,32 @@ export function useRenameDocument() {
   return useDocumentMutation<{ id: string; documentName: string }>(async ({ id, documentName }) => {
     const name = documentName.trim();
     if (!name) throw new Error("Document name cannot be empty.");
-    const { error } = await supabase.from("company_documents").update({ document_name: name }).eq("id", id);
+    const { error } = await supabase
+      .from("company_documents")
+      .update({ document_name: name })
+      .eq("id", id);
     if (error) throw error;
   });
 }
 
 export function useUpdateDocumentValidity() {
-  return useDocumentMutation<{ id: string; expiryDate: string | null }>(async ({ id, expiryDate }) => {
-    const { error } = await supabase.from("company_documents").update({ expiry_date: expiryDate }).eq("id", id);
-    if (error) throw error;
-  });
+  return useDocumentMutation<{ id: string; expiryDate: string | null }>(
+    async ({ id, expiryDate }) => {
+      const { error } = await supabase
+        .from("company_documents")
+        .update({ expiry_date: expiryDate })
+        .eq("id", id);
+      if (error) throw error;
+    },
+  );
 }
 
 export function useSoftDeleteDocument() {
   return useDocumentMutation<{ id: string }>(async ({ id }) => {
-    const { error } = await supabase.from("company_documents").update({ deleted_at: new Date().toISOString() }).eq("id", id);
+    const { error } = await supabase
+      .from("company_documents")
+      .update({ deleted_at: new Date().toISOString() })
+      .eq("id", id);
     if (error) throw error;
   });
 }
@@ -190,29 +207,43 @@ export interface UploadInput {
 export function useUploadDocument() {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: async ({ file, documentName, documentType, category, organizationId, companyId, expiryDate }: UploadInput) => {
+    mutationFn: async ({
+      file,
+      documentName,
+      documentType,
+      category,
+      organizationId,
+      companyId,
+      expiryDate,
+    }: UploadInput) => {
       const hash = await sha256Hex(file);
       const storagePath = buildStoragePath(organizationId, category, file.name);
-      const { error: uploadError } = await supabase.storage.from(BUCKET).upload(storagePath, file, { contentType: file.type, upsert: false });
+      const { error: uploadError } = await supabase.storage
+        .from(BUCKET)
+        .upload(storagePath, file, { contentType: file.type, upsert: false });
       if (uploadError) throw uploadError;
       const { data: profileId } = await supabase.rpc("current_profile_id");
-      const { data, error } = await supabase.from("company_documents").insert({
-        organization_id: organizationId,
-        company_id: companyId,
-        uploaded_by: (profileId as string | null) ?? null,
-        category,
-        document_type: documentType,
-        document_name: documentName,
-        original_filename: file.name,
-        storage_path: storagePath,
-        mime_type: file.type,
-        file_size: file.size,
-        sha256_hash: hash,
-        expiry_date: expiryDate,
-        analysis_status: "pending",
-        document_status: "active",
-        version: 1,
-      }).select("id").single();
+      const { data, error } = await supabase
+        .from("company_documents")
+        .insert({
+          organization_id: organizationId,
+          company_id: companyId,
+          uploaded_by: (profileId as string | null) ?? null,
+          category,
+          document_type: documentType,
+          document_name: documentName,
+          original_filename: file.name,
+          storage_path: storagePath,
+          mime_type: file.type,
+          file_size: file.size,
+          sha256_hash: hash,
+          expiry_date: expiryDate,
+          analysis_status: "pending",
+          document_status: "active",
+          version: 1,
+        })
+        .select("id")
+        .single();
       if (error) {
         await supabase.storage.from(BUCKET).remove([storagePath]);
         throw error;
@@ -224,7 +255,9 @@ export function useUploadDocument() {
 }
 
 export async function createSignedUrl(storagePath: string, download = false) {
-  const { data, error } = await supabase.storage.from(BUCKET).createSignedUrl(storagePath, 60, download ? { download: true } : undefined);
+  const { data, error } = await supabase.storage
+    .from(BUCKET)
+    .createSignedUrl(storagePath, 60, download ? { download: true } : undefined);
   if (error) throw error;
   return data.signedUrl;
 }

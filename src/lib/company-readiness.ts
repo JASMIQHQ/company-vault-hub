@@ -34,10 +34,15 @@ function validity(document: VaultDocumentSummary | undefined, asOf: string): Doc
   return "valid";
 }
 
-export function deriveCompanyReadiness({ required, documents, asOf = new Date().toISOString().slice(0, 10) }: CompanyReadinessInput): CompanyReadinessResult {
+export function deriveCompanyReadiness({
+  required,
+  documents,
+  asOf = new Date().toISOString().slice(0, 10),
+}: CompanyReadinessInput): CompanyReadinessResult {
   const latestByType = new Map<string, VaultDocumentSummary>();
   for (const document of documents) {
-    if (!latestByType.has(document.document_type)) latestByType.set(document.document_type, document);
+    if (!latestByType.has(document.document_type))
+      latestByType.set(document.document_type, document);
   }
 
   const present: string[] = [];

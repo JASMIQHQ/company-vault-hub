@@ -8,7 +8,10 @@ type OriginalDetails = {
 };
 const originalDetailsByTest = new Map<string, OriginalDetails>();
 
-test.skip(!process.env.PLAYWRIGHT_BASE_URL || !tenderId, "Configure a staging preview URL and dedicated staging tender ID.");
+test.skip(
+  !process.env.PLAYWRIGHT_BASE_URL || !tenderId,
+  "Configure a staging preview URL and dedicated staging tender ID.",
+);
 
 async function openEditor(page: Page) {
   await page.goto(`/tenders/${tenderId}`);
@@ -45,7 +48,10 @@ test.describe("owner tender editor", () => {
     await expect(page.getByRole("heading", { name: updated })).toBeVisible();
   });
 
-  test("a stale second tab is rejected and can reload the latest version", async ({ page, context }) => {
+  test("a stale second tab is rejected and can reload the latest version", async ({
+    page,
+    context,
+  }) => {
     await openEditor(page);
     const original = await captureOriginalDetails(page);
     originalDetailsByTest.set(test.info().testId, original);
@@ -74,7 +80,9 @@ test.describe("owner tender editor", () => {
     await page.getByLabel("Opening date").fill("2099-12-29T10:00");
     await page.getByRole("button", { name: "Save changes" }).click();
 
-    await expect(page.getByText("Opening date cannot be earlier than the submission deadline.")).toBeVisible();
+    await expect(
+      page.getByText("Opening date cannot be earlier than the submission deadline."),
+    ).toBeVisible();
     await expect(page.getByRole("heading", { name: "Edit tender details" })).toBeVisible();
   });
 
@@ -83,7 +91,10 @@ test.describe("owner tender editor", () => {
     const original = await captureOriginalDetails(page);
     originalDetailsByTest.set(test.info().testId, original);
 
-    test.skip(!original.submissionDeadline, "The dedicated staging tender must start with a submission deadline.");
+    test.skip(
+      !original.submissionDeadline,
+      "The dedicated staging tender must start with a submission deadline.",
+    );
 
     await page.getByLabel("Submission deadline").fill("");
     await page.getByRole("button", { name: "Save changes" }).click();
@@ -113,7 +124,9 @@ test.describe("owner tender editor", () => {
         await page.getByLabel("Submission deadline").fill(original.submissionDeadline);
         await page.getByLabel("Opening date").fill(original.openingDate);
         await page.getByRole("button", { name: "Save changes" }).click();
-        await expect(page.getByRole("heading", { name: original.title, exact: true })).toBeVisible();
+        await expect(
+          page.getByRole("heading", { name: original.title, exact: true }),
+        ).toBeVisible();
       } else {
         await page.getByRole("button", { name: "Cancel" }).click();
       }

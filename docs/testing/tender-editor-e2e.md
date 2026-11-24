@@ -16,6 +16,7 @@ The storage states must be created from dedicated staging test accounts. Never u
 ## Staging fixture requirements
 
 Before dispatching the workflow, ensure the dedicated tender:
+
 - belongs to the staging organization and company shared by the owner and viewer;
 - is readable by both test accounts;
 - is editable by the owner through `update_tender_details`;
