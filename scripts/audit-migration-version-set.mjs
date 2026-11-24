@@ -41,7 +41,7 @@ if (duplicates.length) console.error(`Duplicate version prefixes: ${duplicates.j
 if (invalidNames.length) console.error(`Invalid migration filenames: ${invalidNames.join(", ")}`);
 
 if (
-  expected.length !== 66 ||
+  expected.length !== 68 ||
   actual.length !== expected.length ||
   actualSet.size !== expectedSet.size ||
   missing.length > 0 ||
