@@ -77,7 +77,8 @@ test.describe("viewer tender editor permissions", () => {
     const original = await page.getByLabel("Tender title").inputValue();
     await saveTitle(page, `${original} — forbidden ${Date.now()}`);
     await expect(page.getByRole("heading", { name: "Edit tender details" })).toBeVisible();
-    await expect(page.getByRole("heading", { name: new RegExp(original.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")) })).toBeVisible();
+    await page.getByRole("button", { name: "Cancel" }).click();
+    await expect(page.getByRole("heading", { name: original, exact: true })).toBeVisible();
     await page.reload();
     await expect(page.getByRole("heading", { name: original })).toBeVisible();
   });
