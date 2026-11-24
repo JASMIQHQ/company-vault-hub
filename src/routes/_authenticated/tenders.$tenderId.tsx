@@ -111,10 +111,7 @@ function TenderWorkspacePage() {
   const renderCount = ++renderCountRef.current;
   const [companyChangePending, setCompanyChangePending] = useState(false);
 
-  const requirements = useMemo(
-    () => requirementsQuery.data ?? [],
-    [requirementsQuery.data],
-  );
+  const requirements = useMemo(() => requirementsQuery.data ?? [], [requirementsQuery.data]);
   const hasSavedRequirements = requirements.length > 0;
   const isProcessing = status === "processing" || analysisSubmitting || analyze.isPending;
   let readActionLabel = "Read Tender";
