@@ -7,7 +7,7 @@ test.skip(!process.env.PLAYWRIGHT_BASE_URL || !tenderId, "Configure a staging pr
 
 async function openEditor(page: Page) {
   await page.goto(`/tenders/${tenderId}`);
-  await expect(page.getByRole("heading", { name: "Tender workspace" })).toBeVisible();
+  await expect(page.getByText("Tender workspace", { exact: true })).toBeVisible();
   await page.getByRole("button", { name: "Edit details" }).click();
   await expect(page.getByRole("heading", { name: "Edit tender details" })).toBeVisible();
 }
@@ -56,16 +56,14 @@ test.describe("owner tender editor", () => {
 
   test.afterEach(async ({ page }) => {
     const original = originalTitleByTest.get(test.info().testId);
-    if (!original || !page.isClosed()) {
-      if (original) {
-        try {
-          await openEditor(page);
-          await saveTitle(page, original);
-          await expect(page.getByRole("heading", { name: original })).toBeVisible();
-        } catch {
-          // Preserve the original test failure; cleanup failure is surfaced in CI logs.
-          console.error("Could not restore the staging E2E tender title.");
-        }
+    if (original && !page.isClosed()) {
+      try {
+        await openEditor(page);
+        await saveTitle(page, original);
+        await expect(page.getByRole("heading", { name: original, exact: true })).toBeVisible();
+      } catch {
+        // Preserve the original test failure; cleanup failure is surfaced in CI logs.
+        console.error("Could not restore the staging E2E tender title.");
       }
     }
   });
