@@ -13,6 +13,7 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import {
   Dialog,
   DialogContent,
@@ -31,6 +32,7 @@ import {
 } from "@/components/ui/table";
 import { usePermanentDeleteDocument, useRestoreDocument } from "@/hooks/use-vault";
 import type { Company } from "@/hooks/use-companies";
+import { canPermanentlyDeleteDocument } from "@/lib/vault-delete-confirmation";
 import { formatDate, type CompanyDocument } from "@/lib/vault";
 
 interface BinDialogProps {
@@ -42,6 +44,7 @@ function BinRow({ document, companyName }: { document: CompanyDocument; companyN
   const restore = useRestoreDocument();
   const purge = usePermanentDeleteDocument();
   const [confirm, setConfirm] = useState(false);
+  const [confirmationText, setConfirmationText] = useState("");
 
   const onRestore = async () => {
     try {
@@ -54,9 +57,17 @@ function BinRow({ document, companyName }: { document: CompanyDocument; companyN
 
   const onPurge = async () => {
     try {
-      await purge.mutateAsync({ id: document.id, storagePath: document.storage_path });
-      toast.success("Document permanently deleted.");
+      const result = await purge.mutateAsync({ id: document.id });
+      if (result.storageDeleted) {
+        toast.success("Document permanently deleted.");
+      } else {
+        toast.error("The document record was deleted, but its stored file could not be removed.", {
+          description: result.cleanupError ?? "An administrator must complete storage cleanup.",
+          duration: 9000,
+        });
+      }
       setConfirm(false);
+      setConfirmationText("");
     } catch (error) {
       toast.error(error instanceof Error ? error.message : "Could not delete the document");
     }
@@ -79,7 +90,7 @@ function BinRow({ document, companyName }: { document: CompanyDocument; companyN
             size="sm"
             className="rounded-lg"
             onClick={onRestore}
-            disabled={restore.isPending}
+            disabled={restore.isPending || purge.isPending}
           >
             {restore.isPending ? (
               <Loader2 className="size-4 animate-spin" />
@@ -93,20 +104,42 @@ function BinRow({ document, companyName }: { document: CompanyDocument; companyN
             size="sm"
             className="rounded-lg text-destructive hover:text-destructive"
             onClick={() => setConfirm(true)}
+            disabled={restore.isPending || purge.isPending}
           >
             <Trash2 className="size-4" />
             <span className="ml-1.5 hidden sm:inline">Delete forever</span>
           </Button>
         </div>
 
-        <AlertDialog open={confirm} onOpenChange={setConfirm}>
+        <AlertDialog
+          open={confirm}
+          onOpenChange={(open) => {
+            if (purge.isPending || restore.isPending) return;
+            setConfirm(open);
+            if (!open) setConfirmationText("");
+          }}
+        >
           <AlertDialogContent className="glass-panel">
             <AlertDialogHeader>
               <AlertDialogTitle>Permanently delete document?</AlertDialogTitle>
               <AlertDialogDescription>
-                This action cannot be undone. This will permanently remove the document record and
-                its stored file.
+                This action cannot be undone. It permanently removes this Bin record and attempts to
+                remove its stored file. To prevent accidental deletion, type the document name
+                exactly as shown below.
               </AlertDialogDescription>
+              <div className="space-y-2">
+                <p className="rounded-lg border border-border/60 bg-muted/35 px-3 py-2 text-sm font-semibold text-foreground">
+                  {document.document_name}
+                </p>
+                <Input
+                  autoComplete="off"
+                  aria-label="Type the document name to confirm permanent deletion"
+                  placeholder="Type document name to confirm"
+                  value={confirmationText}
+                  onChange={(event) => setConfirmationText(event.target.value)}
+                  disabled={purge.isPending}
+                />
+              </div>
             </AlertDialogHeader>
             <AlertDialogFooter>
               <AlertDialogCancel className="rounded-xl">Cancel</AlertDialogCancel>
@@ -116,7 +149,11 @@ function BinRow({ document, companyName }: { document: CompanyDocument; companyN
                   event.preventDefault();
                   void onPurge();
                 }}
-                disabled={purge.isPending}
+                disabled={
+                  purge.isPending ||
+                  restore.isPending ||
+                  !canPermanentlyDeleteDocument(document.document_name, confirmationText)
+                }
               >
                 {purge.isPending && <Loader2 className="mr-2 size-4 animate-spin" />}
                 Permanently delete

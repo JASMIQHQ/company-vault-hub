@@ -7,6 +7,8 @@ on:
       - "feat/a5-4-readiness-slice-1"
       - "feat/a5-4-requirement-diagnostics-slice-3"
     paths:
+      - "src/lib/tender-details-schema.ts"
+      - "src/lib/tender-details-schema.test.ts"
       - "src/lib/tender-readiness.ts"
       - "src/lib/tender-readiness.test.ts"
       - "src/lib/requirement-diagnostics.ts"
@@ -18,6 +20,19 @@ on:
       - "src/lib/company-readiness-baseline.ts"
       - "src/lib/vault-filters.ts"
       - "src/lib/vault-filters.test.ts"
+      - "src/lib/vault-health.ts"
+      - "src/lib/vault-health.test.ts"
+      - "src/lib/vault-export.ts"
+      - "src/lib/vault-export.test.ts"
+      - "src/lib/vault-duplicates.ts"
+      - "src/lib/vault-duplicates.test.ts"
+      - "src/lib/upload-queue.ts"
+      - "src/lib/upload-queue.test.ts"
+      - "src/lib/vault-delete-confirmation.ts"
+      - "src/lib/vault-delete-confirmation.test.ts"
+      - "src/hooks/use-vault.ts"
+      - "src/components/vault/bin-dialog.tsx"
+      - "src/components/vault/upload-dialog.tsx"
       - "src/components/vault/company-readiness-card.tsx"
       - "src/components/vault/company-vault-groups.tsx"
       - "src/routes/_authenticated/vault.tsx"
@@ -42,4 +57,4 @@ jobs:
         run: bun install --frozen-lockfile
 
       - name: Run readiness and diagnostics tests
-        run: bun test src/lib/tender-readiness.test.ts src/lib/requirement-diagnostics.test.ts src/lib/requirement-diagnostics-parser.test.ts src/lib/company-readiness.test.ts src/lib/vault-filters.test.ts
+        run: bun test src/lib/tender-details-schema.test.ts src/lib/tender-readiness.test.ts src/lib/requirement-diagnostics.test.ts src/lib/requirement-diagnostics-parser.test.ts src/lib/company-readiness.test.ts src/lib/vault-filters.test.ts src/lib/vault-health.test.ts src/lib/vault-export.test.ts src/lib/vault-duplicates.test.ts src/lib/upload-queue.test.ts src/lib/vault-delete-confirmation.test.ts

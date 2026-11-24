@@ -41,6 +41,27 @@ describe("matchesVaultDocumentFilter", () => {
     expect(matches({ ...base, expiry_date: "2026-12-01" }, "expiring_soon")).toBe(true);
   });
 
+  test("does not classify superseded or archived records as expired by date", () => {
+    expect(
+      matches({ ...base, document_status: "superseded", expiry_date: "2026-11-12" }, "expired"),
+    ).toBe(false);
+    expect(
+      matches({ ...base, document_status: "archived", expiry_date: "2026-11-12" }, "expired"),
+    ).toBe(false);
+  });
+
+  test("limits expiring-soon filter to active lifecycle evidence", () => {
+    expect(
+      matches(
+        { ...base, document_status: "superseded", expiry_date: "2026-12-01" },
+        "expiring_soon",
+      ),
+    ).toBe(false);
+    expect(
+      matches({ ...base, document_status: "archived", expiry_date: "2026-12-01" }, "expiring_soon"),
+    ).toBe(false);
+  });
+
   test("identifies documents without an expiry date", () => {
     expect(matches({ ...base, expiry_date: null }, "no_expiry")).toBe(true);
   });

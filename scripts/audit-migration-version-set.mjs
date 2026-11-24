@@ -3,7 +3,7 @@ import { readdirSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 
 const migrationDir = "supabase/migrations";
-const manifestPath = join(migrationDir, "live-ledger-versions-2026-10-29.txt");
+const manifestPath = join(migrationDir, "live-ledger-versions-2026-11-24.txt");
 const expected = readFileSync(manifestPath, "utf8")
   .split(/\r?\n/)
   .map((line) => line.trim())
@@ -41,7 +41,7 @@ if (duplicates.length) console.error(`Duplicate version prefixes: ${duplicates.j
 if (invalidNames.length) console.error(`Invalid migration filenames: ${invalidNames.join(", ")}`);
 
 if (
-  expected.length !== 66 ||
+  expected.length !== 68 ||
   actual.length !== expected.length ||
   actualSet.size !== expectedSet.size ||
   missing.length > 0 ||

@@ -55,7 +55,10 @@ export function useDocuments(session: Session | null, organizationId: string | n
   });
 }
 
-export function useDashboardDocuments(session: Session | null, organizationId: string | null | undefined) {
+export function useDashboardDocuments(
+  session: Session | null,
+  organizationId: string | null | undefined,
+) {
   return useQuery({
     queryKey: ["company-documents", "dashboard", organizationId],
     enabled: Boolean(session) && Boolean(organizationId),
@@ -72,7 +75,10 @@ export function useDashboardDocuments(session: Session | null, organizationId: s
   });
 }
 
-export function useDeletedDocuments(session: Session | null, organizationId: string | null | undefined) {
+export function useDeletedDocuments(
+  session: Session | null,
+  organizationId: string | null | undefined,
+) {
   return useQuery({
     queryKey: ["company-documents-deleted", organizationId],
     enabled: Boolean(session) && Boolean(organizationId),
@@ -104,37 +110,87 @@ export function useRenameDocument() {
   return useDocumentMutation<{ id: string; documentName: string }>(async ({ id, documentName }) => {
     const name = documentName.trim();
     if (!name) throw new Error("Document name cannot be empty.");
-    const { error } = await supabase.from("company_documents").update({ document_name: name }).eq("id", id);
+    const { error } = await supabase
+      .from("company_documents")
+      .update({ document_name: name })
+      .eq("id", id);
     if (error) throw error;
   });
 }
 
 export function useUpdateDocumentValidity() {
-  return useDocumentMutation<{ id: string; expiryDate: string | null }>(async ({ id, expiryDate }) => {
-    const { error } = await supabase.from("company_documents").update({ expiry_date: expiryDate }).eq("id", id);
-    if (error) throw error;
-  });
+  return useDocumentMutation<{ id: string; expiryDate: string | null }>(
+    async ({ id, expiryDate }) => {
+      const { error } = await supabase
+        .from("company_documents")
+        .update({ expiry_date: expiryDate })
+        .eq("id", id);
+      if (error) throw error;
+    },
+  );
 }
 
 export function useSoftDeleteDocument() {
   return useDocumentMutation<{ id: string }>(async ({ id }) => {
-    const { error } = await supabase.from("company_documents").update({ deleted_at: new Date().toISOString() }).eq("id", id);
+    const { error } = await supabase
+      .from("company_documents")
+      .update({ deleted_at: new Date().toISOString() })
+      .eq("id", id);
     if (error) throw error;
   });
 }
 
 export function useRestoreDocument() {
   return useDocumentMutation<{ id: string }>(async ({ id }) => {
-    const { error } = await supabase.from("company_documents").update({ deleted_at: null }).eq("id", id);
+    const { data, error } = await supabase
+      .from("company_documents")
+      .update({ deleted_at: null })
+      .eq("id", id)
+      .not("deleted_at", "is", null)
+      .select("id")
+      .maybeSingle();
     if (error) throw error;
+    if (!data) throw new Error("This document is no longer in the Bin.");
   });
 }
 
+export interface PermanentDeleteResult {
+  storageDeleted: boolean;
+  cleanupError?: string;
+}
+
+/**
+ * Permanently remove only soft-deleted rows. The storage path is read from the
+ * deleted row rather than accepted from the browser, and storage cleanup
+ * failures are returned explicitly because the database delete has completed.
+ */
 export function usePermanentDeleteDocument() {
-  return useDocumentMutation<{ id: string; storagePath: string }>(async ({ id, storagePath }) => {
-    const { error } = await supabase.from("company_documents").delete().eq("id", id);
-    if (error) throw error;
-    await supabase.storage.from(BUCKET).remove([storagePath]);
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async ({ id }: { id: string }): Promise<PermanentDeleteResult> => {
+      const { data, error } = await supabase
+        .from("company_documents")
+        .delete()
+        .eq("id", id)
+        .not("deleted_at", "is", null)
+        .select("storage_path")
+        .maybeSingle();
+      if (error) throw error;
+      if (!data) throw new Error("Only documents already in the Bin can be permanently deleted.");
+
+      const { error: storageError } = await supabase.storage
+        .from(BUCKET)
+        .remove([data.storage_path]);
+
+      if (storageError) {
+        return { storageDeleted: false, cleanupError: storageError.message };
+      }
+      return { storageDeleted: true };
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["company-documents"] });
+      queryClient.invalidateQueries({ queryKey: ["company-documents-deleted"] });
+    },
   });
 }
 
@@ -151,29 +207,43 @@ export interface UploadInput {
 export function useUploadDocument() {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: async ({ file, documentName, documentType, category, organizationId, companyId, expiryDate }: UploadInput) => {
+    mutationFn: async ({
+      file,
+      documentName,
+      documentType,
+      category,
+      organizationId,
+      companyId,
+      expiryDate,
+    }: UploadInput) => {
       const hash = await sha256Hex(file);
       const storagePath = buildStoragePath(organizationId, category, file.name);
-      const { error: uploadError } = await supabase.storage.from(BUCKET).upload(storagePath, file, { contentType: file.type, upsert: false });
+      const { error: uploadError } = await supabase.storage
+        .from(BUCKET)
+        .upload(storagePath, file, { contentType: file.type, upsert: false });
       if (uploadError) throw uploadError;
       const { data: profileId } = await supabase.rpc("current_profile_id");
-      const { data, error } = await supabase.from("company_documents").insert({
-        organization_id: organizationId,
-        company_id: companyId,
-        uploaded_by: (profileId as string | null) ?? null,
-        category,
-        document_type: documentType,
-        document_name: documentName,
-        original_filename: file.name,
-        storage_path: storagePath,
-        mime_type: file.type,
-        file_size: file.size,
-        sha256_hash: hash,
-        expiry_date: expiryDate,
-        analysis_status: "pending",
-        document_status: "active",
-        version: 1,
-      }).select("id").single();
+      const { data, error } = await supabase
+        .from("company_documents")
+        .insert({
+          organization_id: organizationId,
+          company_id: companyId,
+          uploaded_by: (profileId as string | null) ?? null,
+          category,
+          document_type: documentType,
+          document_name: documentName,
+          original_filename: file.name,
+          storage_path: storagePath,
+          mime_type: file.type,
+          file_size: file.size,
+          sha256_hash: hash,
+          expiry_date: expiryDate,
+          analysis_status: "pending",
+          document_status: "active",
+          version: 1,
+        })
+        .select("id")
+        .single();
       if (error) {
         await supabase.storage.from(BUCKET).remove([storagePath]);
         throw error;
@@ -185,7 +255,9 @@ export function useUploadDocument() {
 }
 
 export async function createSignedUrl(storagePath: string, download = false) {
-  const { data, error } = await supabase.storage.from(BUCKET).createSignedUrl(storagePath, 60, download ? { download: true } : undefined);
+  const { data, error } = await supabase.storage
+    .from(BUCKET)
+    .createSignedUrl(storagePath, 60, download ? { download: true } : undefined);
   if (error) throw error;
   return data.signedUrl;
 }

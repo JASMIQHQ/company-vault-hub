@@ -10,6 +10,7 @@ export interface TenderListItem {
   company_id: string;
   title: string;
   created_at: string | null;
+  updated_at: string | null;
   storage_path: string | null;
   analysis_status: string | null;
   matching_status: string | null;

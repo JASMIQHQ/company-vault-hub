@@ -1,0 +1,48 @@
+name: Tender editor browser acceptance
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  tender-editor-e2e:
+    name: Staging tender editor browser tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Install Playwright without changing the application lockfile
+        run: npm install --no-save --package-lock=false @playwright/test
+
+      - name: Install Chromium
+        run: npx playwright install --with-deps chromium
+
+      - name: Prepare isolated staging auth states
+        env:
+          OWNER_STATE_B64: ${{ secrets.PLAYWRIGHT_OWNER_STORAGE_STATE_B64 }}
+          VIEWER_STATE_B64: ${{ secrets.PLAYWRIGHT_VIEWER_STORAGE_STATE_B64 }}
+        run: |
+          test -n "$OWNER_STATE_B64" || (echo "Missing PLAYWRIGHT_OWNER_STORAGE_STATE_B64" && exit 1)
+          test -n "$VIEWER_STATE_B64" || (echo "Missing PLAYWRIGHT_VIEWER_STORAGE_STATE_B64" && exit 1)
+          mkdir -p playwright/.auth
+          printf '%s' "$OWNER_STATE_B64" | base64 --decode > playwright/.auth/owner.json
+          printf '%s' "$VIEWER_STATE_B64" | base64 --decode > playwright/.auth/viewer.json
+          chmod 600 playwright/.auth/*.json
+
+      - name: Run owner, stale-tab, and viewer acceptance tests
+        env:
+          PLAYWRIGHT_BASE_URL: ${{ secrets.PLAYWRIGHT_BASE_URL }}
+          PLAYWRIGHT_TENDER_ID: ${{ secrets.PLAYWRIGHT_TENDER_ID }}
+        run: |
+          test -n "$PLAYWRIGHT_BASE_URL" || (echo "Missing PLAYWRIGHT_BASE_URL" && exit 1)
+          test -n "$PLAYWRIGHT_TENDER_ID" || (echo "Missing PLAYWRIGHT_TENDER_ID" && exit 1)
+          npx playwright test

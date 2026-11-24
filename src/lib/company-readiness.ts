@@ -9,6 +9,7 @@ export type VaultDocumentSummary = {
   id: string;
   document_type: string;
   expiry_date: string | null;
+  document_status?: "active" | "expired" | "superseded" | "archived" | null;
 };
 
 export type CompanyReadinessInput = {
@@ -27,14 +28,21 @@ export type CompanyReadinessResult = {
 
 function validity(document: VaultDocumentSummary | undefined, asOf: string): DocumentValidity {
   if (!document) return "missing";
+  if (document.document_status === "expired") return "expired";
+  if (document.document_status && document.document_status !== "active") return "missing";
   if (document.expiry_date && document.expiry_date < asOf) return "expired";
   return "valid";
 }
 
-export function deriveCompanyReadiness({ required, documents, asOf = new Date().toISOString().slice(0, 10) }: CompanyReadinessInput): CompanyReadinessResult {
+export function deriveCompanyReadiness({
+  required,
+  documents,
+  asOf = new Date().toISOString().slice(0, 10),
+}: CompanyReadinessInput): CompanyReadinessResult {
   const latestByType = new Map<string, VaultDocumentSummary>();
   for (const document of documents) {
-    if (!latestByType.has(document.document_type)) latestByType.set(document.document_type, document);
+    if (!latestByType.has(document.document_type))
+      latestByType.set(document.document_type, document);
   }
 
   const present: string[] = [];
