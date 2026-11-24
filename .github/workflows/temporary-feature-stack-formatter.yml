@@ -24,7 +24,7 @@ jobs:
         shell: bash
         run: |
           git diff --name-only --diff-filter=ACMR origin/main...HEAD \
-            | grep -E '\\.(ts|tsx|js|jsx|mjs|cjs|json|md|yml|yaml)$' \
+            | grep -E '\.(ts|tsx|js|jsx|mjs|cjs|json|md|yml|yaml)$' \
             > /tmp/format-files.txt || true
           if [ -s /tmp/format-files.txt ]; then
             xargs -r bunx prettier --write < /tmp/format-files.txt
