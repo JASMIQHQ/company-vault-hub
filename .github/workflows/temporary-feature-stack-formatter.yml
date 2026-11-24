@@ -1,0 +1,43 @@
+name: Temporary feature-stack formatter
+
+on:
+  push:
+    branches:
+      - feat/tender-command-completion-20261123
+
+permissions:
+  contents: write
+
+jobs:
+  format:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+      - name: Install locked dependencies
+        run: bun install --frozen-lockfile
+      - name: Format files changed from main
+        shell: bash
+        run: |
+          git diff --name-only --diff-filter=ACMR origin/main...HEAD \
+            | grep -E '\\.(ts|tsx|js|jsx|mjs|cjs|json|md|yml|yaml)$' \
+            > /tmp/format-files.txt || true
+          if [ -s /tmp/format-files.txt ]; then
+            xargs -r bunx prettier --write < /tmp/format-files.txt
+          fi
+      - name: Commit formatting changes
+        shell: bash
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -u
+          if ! git diff --cached --quiet; then
+            git commit -m "style: format stacked feature release"
+            git push origin "HEAD:${GITHUB_REF_NAME}"
+          else
+            echo "No formatting changes required."
+          fi
