@@ -307,18 +307,16 @@ export function useUploadTender() {
         await supabase.storage.from(TENDER_BUCKET).remove([storagePath]);
         throw tenderError ?? new Error("Could not create the tender.");
       }
-      const { error: fileError } = await supabase
-        .from("tender_files")
-        .insert({
-          tender_id: tender.id,
-          organization_id: organizationId,
-          file_name: file.name,
-          file_type: "tender_document",
-          storage_path: storagePath,
-          mime_type: file.type,
-          file_size: file.size,
-          sha256_hash: hash,
-        });
+      const { error: fileError } = await supabase.from("tender_files").insert({
+        tender_id: tender.id,
+        organization_id: organizationId,
+        file_name: file.name,
+        file_type: "tender_document",
+        storage_path: storagePath,
+        mime_type: file.type,
+        file_size: file.size,
+        sha256_hash: hash,
+      });
       if (fileError) {
         await supabase.storage.from(TENDER_BUCKET).remove([storagePath]);
         await supabase.from("tenders").delete().eq("id", tender.id);
