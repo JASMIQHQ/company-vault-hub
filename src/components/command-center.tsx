@@ -22,63 +22,7 @@ function MissionRow({ mission }: { mission: Mission }) {
 interface CommandCenterProps { documents: DashboardDocument[]; tenders: TenderListItem[]; requirements: RequirementStatusCount[]; isLoading: boolean; hasError: boolean; onRetry: () => void; }
 
 export function CommandCenter({ documents, tenders, requirements, isLoading, hasError, onRetry }: CommandCenterProps) {
-    <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-      <Metric label="Active documents" value={String(readiness.activeDocuments)} hint={`${documents.length} total in vault`} />
-      <Metric
-        label="Expiring / expired"
-        value={`${readiness.expiringDocuments} / ${readiness.expiredDocuments}`}
-        hint="Next 30 days"
-        tone={
-          readiness.expiredDocuments > 0
-            ? "danger"
-            : readiness.expiringDocuments > 0
-              ? "warning"
-              : undefined
-        }
-      />
-      <Metric
-        label="Tenders in workspace"
-        value={String(readiness.tendersInWorkspace)}
-        hint="Includes drafts and analysed tenders"
-      />
-      <Metric
-        label="Tender readiness"
-        value={readiness.tenderReadiness === null ? "—" : `${readinessValue}%`}
-        hint={
-          total > 0
-            ? `${matched} of ${total} requirements matched`
-            : "Requirements not yet analyzed"
-        }
-      />
-    </div>
-      <Metric label="Active documents" value={String(readiness.activeDocuments)} hint={`${documents.length} total in vault`} />
-      <Metric
-        label="Expiring / expired"
-        value={`${readiness.expiringDocuments} / ${readiness.expiredDocuments}`}
-        hint="Next 30 days"
-        tone={
-          readiness.expiredDocuments > 0
-            ? "danger"
-            : readiness.expiringDocuments > 0
-              ? "warning"
-              : undefined
-        }
-      />
-      <Metric
-        label="Tenders in workspace"
-        value={String(readiness.tendersInWorkspace)}
-        hint="Includes drafts and analysed tenders"
-      />
-      <Metric
-        label="Tender readiness"
-        value={readiness.tenderReadiness === null ? "—" : `${readinessValue}%`}
-        hint={
-          total > 0
-            ? `${matched} of ${total} requirements matched`
-            : "Requirements not yet analyzed"
-        }
-      />
-    </div>
+  if (isLoading) return <section className="mb-6 space-y-4"><div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">{[0,1,2,3].map((cell) => <Skeleton key={cell} className="h-28 rounded-2xl" />)}</div><div className="grid gap-5 lg:grid-cols-[1.35fr_.65fr]"><Skeleton className="h-80 rounded-[2rem]" /><Skeleton className="h-80 rounded-[2rem]" /></div></section>;
   if (hasError) return <section className="glass-panel mb-6 flex flex-col items-center gap-3 p-10 text-center"><p className="text-sm font-medium">We couldn&apos;t load your intelligence center.</p><Button variant="outline" className="rounded-xl" onClick={onRetry}>Try again</Button></section>;
 
   const readiness = buildReadiness(documents, tenders, requirements);
@@ -94,7 +38,39 @@ export function CommandCenter({ documents, tenders, requirements, isLoading, has
 
   return <section className="mb-6 space-y-5">
     <div className="jasmiq-section-heading flex items-end justify-between gap-4 px-1"><div><div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.16em] text-primary"><Sparkles className="size-3.5" /> Live procurement posture</div><h2 className="mt-1 text-2xl font-semibold tracking-[-0.04em] sm:text-3xl">Your command center</h2><p className="mt-1 max-w-xl text-sm text-muted-foreground">A live view of evidence coverage, tender risk and the actions that move a bid forward.</p></div><div className="hidden items-center gap-2 rounded-full border border-success/20 bg-success/5 px-3 py-1.5 text-xs font-medium text-success shadow-sm backdrop-blur-xl sm:flex"><ShieldCheck className="size-3.5" /> Deterministic evidence</div></div>
-    <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4"><Metric label="Active documents" value={String(readiness.activeDocuments)} hint={`${documents.length} total in vault`} /><Metric label="Expiring / expired" value={`${readiness.expiringDocuments} / ${readiness.expiredDocuments}`} hint="Next 30 days" tone={readiness.expiredDocuments > 0 ? "danger" : readiness.expiringDocuments > 0 ? "warning" : undefined} /><Metric label="Tenders in workspace" value={String(readiness.activeTenders)} hint="Includes drafts and analysed tenders" /><Metric label="Tender readiness" value={readiness.tenderReadiness === null ? "—" : `${readinessValue}%`} hint={total > 0 ? `${matched} of ${total} requirements matched` : "Requirements not yet analyzed"} /></div>
+    <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+      <Metric
+        label="Active documents"
+        value={String(readiness.activeDocuments)}
+        hint={`${documents.length} total in vault`}
+      />
+      <Metric
+        label="Expiring / expired"
+        value={`${readiness.expiringDocuments} / ${readiness.expiredDocuments}`}
+        hint="Next 30 days"
+        tone={
+          readiness.expiredDocuments > 0
+            ? "danger"
+            : readiness.expiringDocuments > 0
+              ? "warning"
+              : undefined
+        }
+      />
+      <Metric
+        label="Tenders in workspace"
+        value={String(readiness.tendersInWorkspace)}
+        hint="Includes drafts and analysed tenders"
+      />
+      <Metric
+        label="Tender readiness"
+        value={readiness.tenderReadiness === null ? "—" : `${readinessValue}%`}
+        hint={
+          total > 0
+            ? `${matched} of ${total} requirements matched`
+            : "Requirements not yet analyzed"
+        }
+      />
+    </div>
 
     <div className="grid gap-5 lg:grid-cols-[1.35fr_.65fr]">
       <div className="jasmiq-glass-card glass-panel overflow-hidden rounded-[2rem] p-5 sm:p-6"><div className="flex flex-wrap items-start justify-between gap-4"><div><p className="text-xs font-semibold uppercase tracking-[0.15em] text-muted-foreground">Readiness signal</p><p className="mt-1 text-lg font-semibold tracking-tight">Evidence coverage for active tenders</p></div><div className="jasmiq-status-chip"><CircleDashed className="size-3.5" /> Deterministic evidence</div></div>
