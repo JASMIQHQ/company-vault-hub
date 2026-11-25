@@ -230,8 +230,7 @@ export function CompanyReadinessCard({ documents }: { documents: CompanyDocument
                   </p>
                   <h2 className="mt-1 text-xl font-semibold tracking-tight">{readinessLabel}</h2>
                   <p className="mt-1 max-w-lg text-xs leading-5 text-muted-foreground">
-                    Coverage of the six core company document categories. This is not a
-                    tender-specific compliance assessment.
+                    Coverage of the six core company document categories. This is not a tender-specific compliance assessment.
                   </p>
                 </div>
                 <button
@@ -265,8 +264,7 @@ export function CompanyReadinessCard({ documents }: { documents: CompanyDocument
                   <div>
                     <h3 className="text-sm font-semibold">Core documents</h3>
                     <p className="mt-0.5 text-[11px] text-muted-foreground">
-                      These six documents determine company baseline coverage. Tender-specific
-                      requirements are assessed separately.
+                      These six documents determine company baseline coverage. Tender-specific requirements are assessed separately.
                     </p>
                   </div>
                   <span className="rounded-full border border-white/10 bg-white/[0.04] px-2.5 py-1 text-[10px] font-medium text-muted-foreground">
