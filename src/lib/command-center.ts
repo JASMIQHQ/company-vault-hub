@@ -57,7 +57,7 @@ export interface ReadinessSummary {
   activeDocuments: number;
   expiringDocuments: number;
   expiredDocuments: number;
-  activeTenders: number;
+  tendersInWorkspace: number;
   tenderReadiness: number | null;
   requirementsVerified: number;
   requirementsTotal: number;
@@ -66,15 +66,15 @@ export interface ReadinessSummary {
 export function buildReadiness(documents: DashboardDocument[], tenders: TenderListItem[], requirements: RequirementStatusCount[]): ReadinessSummary {
   const expired = documents.filter((doc) => expiryState(doc) === "expired").length;
   const expiring = documents.filter((doc) => expiryState(doc) === "expiring").length;
-  const activeTenders = tenders.filter((tender) => tender.analysis_status !== "failed");
-  const activeTenderIds = new Set(activeTenders.map((tender) => tender.id));
+  const tendersInWorkspace = tenders.filter((tender) => tender.analysis_status !== "failed");
+  const activeTenderIds = new Set(tendersInWorkspace.map((tender) => tender.id));
   const activeRequirements = requirements.filter((row) => activeTenderIds.has(row.tender_id));
-  const scored = activeTenders.filter((tender) => tender.analysis_status === "analyzed").map((tender) => tender.compliance_percentage).filter((value): value is number => typeof value === "number");
+  const scored = tendersInWorkspace.filter((tender) => tender.analysis_status === "analyzed").map((tender) => tender.compliance_percentage).filter((value): value is number => typeof value === "number");
   return {
     activeDocuments: documents.length - expired,
     expiringDocuments: expiring,
     expiredDocuments: expired,
-    activeTenders: tenders.length,
+    tendersInWorkspace: tenders.length,
     tenderReadiness: scored.length ? Math.round(scored.reduce((sum, value) => sum + value, 0) / scored.length) : null,
     requirementsVerified: activeRequirements.filter((row) => row.status === "matched").length,
     requirementsTotal: activeRequirements.length,

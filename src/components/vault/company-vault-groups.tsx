@@ -48,7 +48,7 @@ function CompanyGroup({ company, documents, allCompanyDocuments, count, isLoadin
           <span className="hidden size-8 shrink-0 items-center justify-center rounded-xl border border-white/10 bg-white/[0.035] text-primary/80 sm:flex"><Building2 className="size-4" /></span>
           <span className="min-w-0">
             <span className="block truncate text-sm font-semibold tracking-[-0.01em] text-foreground">{company.legal_name}</span>
-            <span className="mt-0.5 block text-[10px] uppercase tracking-[0.12em] text-muted-foreground sm:hidden">{count} {count === 1 ? "document" : "documents"}</span>
+            <span className="mt-0.5 block text-[10px] text-muted-foreground">{company.registration_number?.trim() ? "RC recorded" : "RC missing"} · {company.tax_identification_number?.trim() ? "TIN recorded" : "TIN missing"}</span><span className="mt-0.5 block text-[10px] uppercase tracking-[0.12em] text-muted-foreground sm:hidden">{count} {count === 1 ? "document" : "documents"}</span>
           </span>
         </span>
 
