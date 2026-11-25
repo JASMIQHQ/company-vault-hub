@@ -51,6 +51,34 @@ export function CommandCenter({ documents, tenders, requirements, isLoading, has
         }
       />
     </div>
+      <Metric label="Active documents" value={String(readiness.activeDocuments)} hint={`${documents.length} total in vault`} />
+      <Metric
+        label="Expiring / expired"
+        value={`${readiness.expiringDocuments} / ${readiness.expiredDocuments}`}
+        hint="Next 30 days"
+        tone={
+          readiness.expiredDocuments > 0
+            ? "danger"
+            : readiness.expiringDocuments > 0
+              ? "warning"
+              : undefined
+        }
+      />
+      <Metric
+        label="Tenders in workspace"
+        value={String(readiness.tendersInWorkspace)}
+        hint="Includes drafts and analysed tenders"
+      />
+      <Metric
+        label="Tender readiness"
+        value={readiness.tenderReadiness === null ? "—" : `${readinessValue}%`}
+        hint={
+          total > 0
+            ? `${matched} of ${total} requirements matched`
+            : "Requirements not yet analyzed"
+        }
+      />
+    </div>
   if (hasError) return <section className="glass-panel mb-6 flex flex-col items-center gap-3 p-10 text-center"><p className="text-sm font-medium">We couldn&apos;t load your intelligence center.</p><Button variant="outline" className="rounded-xl" onClick={onRetry}>Try again</Button></section>;
 
   const readiness = buildReadiness(documents, tenders, requirements);
