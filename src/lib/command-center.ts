@@ -74,7 +74,7 @@ export function buildReadiness(documents: DashboardDocument[], tenders: TenderLi
     activeDocuments: documents.length - expired,
     expiringDocuments: expiring,
     expiredDocuments: expired,
-    activeTenders: tenders.length,
+    activeTenders: tenders.filter((tender) => tender.analysis_status !== "failed").length,
     tenderReadiness: scored.length ? Math.round(scored.reduce((sum, value) => sum + value, 0) / scored.length) : null,
     requirementsVerified: activeRequirements.filter((row) => row.status === "matched").length,
     requirementsTotal: activeRequirements.length,
