@@ -35,7 +35,14 @@ function CompanyGroup({ company, documents, allCompanyDocuments, count, isLoadin
   onToggle: () => void;
 }) {
   const readiness = calculateCompanyReadiness(allCompanyDocuments);
-  const analysisStatuses = ["pending", "processing", "analyzed", "requires_review", "verified", "failed"] as const;
+  const analysisStatuses = [
+    "pending",
+    "processing",
+    "analyzed",
+    "requires_review",
+    "verified",
+    "failed",
+  ] as const;
   const analysisStates = analysisStatuses
     .map((status) => ({
       status,
@@ -62,7 +69,8 @@ function CompanyGroup({ company, documents, allCompanyDocuments, count, isLoadin
           <span className="min-w-0">
             <span className="block truncate text-sm font-semibold tracking-[-0.01em] text-foreground">{company.legal_name}</span>
             <span className="mt-0.5 block text-[10px] text-muted-foreground">
-              {company.registration_number?.trim() ? "RC recorded" : "RC missing"}{" · "}
+              {company.registration_number?.trim() ? "RC recorded" : "RC missing"}
+              {" · "}
               {company.tax_identification_number?.trim() ? "TIN recorded" : "TIN missing"}
             </span>
             <span className="mt-0.5 block text-[10px] uppercase tracking-[0.12em] text-muted-foreground sm:hidden">
