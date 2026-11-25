@@ -35,14 +35,7 @@ function CompanyGroup({ company, documents, allCompanyDocuments, count, isLoadin
   onToggle: () => void;
 }) {
   const readiness = calculateCompanyReadiness(allCompanyDocuments);
-  const analysisStatuses = [
-    "pending",
-    "processing",
-    "analyzed",
-    "requires_review",
-    "verified",
-    "failed",
-  ] as const;
+  const analysisStatuses = ["pending", "processing", "analyzed", "requires_review", "verified", "failed"] as const;
   const analysisStates = analysisStatuses
     .map((status) => ({
       status,
