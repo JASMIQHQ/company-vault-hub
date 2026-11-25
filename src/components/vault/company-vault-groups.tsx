@@ -49,10 +49,6 @@ function CompanyGroup({ company, documents, allCompanyDocuments, count, isLoadin
       count: allCompanyDocuments.filter((document) => document.analysis_status === status).length,
     }))
     .filter((item) => item.count > 0);
-      status,
-      count: allCompanyDocuments.filter((document) => document.analysis_status === status).length,
-    }))
-    .filter((item) => item.count > 0);
   const readinessLabel =
     readiness.score === 100
       ? "BASELINE COMPLETE"
