@@ -152,7 +152,8 @@ function RowActions({ document }: { document: CompanyDocument }) {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
-  </div>;
+    </div>
+  );
 }
 
 interface DocumentListProps { documents: CompanyDocument[]; isLoading: boolean; error: Error | null; onRetry: () => void; isFiltered: boolean; }
