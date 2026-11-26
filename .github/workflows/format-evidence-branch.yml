@@ -23,7 +23,6 @@ jobs:
       - name: Format only PR 100 files
         run: |
           bunx prettier --write \
-          '.github/workflows/quality-gate.yml' \
           'src/components/tenders/tender-action-plan.tsx' \
           'src/components/tenders/tender-compliance-card.tsx' \
           'src/components/vault/company-readiness-card.tsx' \
@@ -44,7 +43,6 @@ jobs:
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add -- \
-          '.github/workflows/quality-gate.yml' \
           'src/components/tenders/tender-action-plan.tsx' \
           'src/components/tenders/tender-compliance-card.tsx' \
           'src/components/vault/company-readiness-card.tsx' \
