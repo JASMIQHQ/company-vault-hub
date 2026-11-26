@@ -12,7 +12,9 @@ as $$
 begin
   raise exception 'Verification audit records are append-only';
 end;
-$$;
+$;
+
+revoke all on function public.prevent_verification_audit_mutation() from public, anon, authenticated, service_role;
 
 create or replace function private.guard_verified_fact_provenance()
 returns trigger
@@ -188,7 +190,9 @@ begin
 
   return new;
 end;
-$$;
+$;
+
+revoke all on function public.audit_company_document_verification() from public, anon, authenticated, service_role;
 
 create or replace function private.write_document_verification(
   p_document_id uuid,
@@ -221,6 +225,10 @@ begin
     raise exception 'Verification actor and provider are required' using errcode = '22023';
   end if;
 
+  if p_provider not in ('gemini', 'anthropic', 'stub', 'human') then
+    raise exception 'Unsupported verification provider' using errcode = '22023';
+  end if;
+
   if p_confidence is not null and p_confidence not in ('high', 'low') then
     raise exception 'Unsupported confidence value' using errcode = '22023';
   end if;
@@ -229,8 +237,9 @@ begin
     raise exception 'A detected document type is required for verified or mismatch outcomes' using errcode = '22023';
   end if;
 
-  if p_outcome = 'verified' and p_confidence is null then
-    raise exception 'Verified outcomes require explicit confidence' using errcode = '22023';
+  if p_outcome = 'verified'
+     and (p_confidence is distinct from 'high' or p_detected_doc_type = 'OTHER') then
+    raise exception 'Verified outcomes require a high-confidence non-OTHER classification' using errcode = '22023';
   end if;
 
   select *
