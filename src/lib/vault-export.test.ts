@@ -42,7 +42,7 @@ describe("buildVaultRegisterCsv", () => {
 
   test("neutralizes spreadsheet formula injection", () => {
     const csv = buildVaultRegisterCsv(
-      [{ ...documentFixture, document_name: '=HYPERLINK("https://bad.example")' }],
+      [{ ...documentFixture, document_name: "=HYPERLINK(\"https://bad.example\")" }],
       new Map([["company-1", "Bosah Innovations Ltd"]]),
     );
 
