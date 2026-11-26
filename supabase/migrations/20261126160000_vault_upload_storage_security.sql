@@ -101,7 +101,7 @@ with check (
   and verified_expiry_date is null
   and verified_at is null
   and analysis_status = 'pending'
-  and analysis_json is null
+  and analysis_json = '{}'::jsonb
   and document_status = 'active'
   and storage_path is not null
   and file_size between 1 and 20971520
