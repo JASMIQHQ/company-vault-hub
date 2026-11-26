@@ -99,7 +99,9 @@ with check (
   and verified_doc_type is null
   and verified_year is null
   and verified_expiry_date is null
+  and verified_at is null
   and analysis_status = 'pending'
+  and analysis_json is null
 );
 
 create policy company_documents_member_update
