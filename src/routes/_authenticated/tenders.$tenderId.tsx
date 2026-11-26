@@ -562,10 +562,15 @@ function TenderWorkspacePage() {
                           : "rounded-full border-warning/25 bg-warning-soft text-warning"
                       }
                     >
-                      {requirement.match_basis === "VERIFIED_FACT" ? "Verified evidence" : "Candidate evidence"}
+                      {requirement.match_basis === "VERIFIED_FACT"
+                        ? "Verified evidence"
+                        : "Candidate evidence"}
                     </Badge>
                   ) : requirement.match_basis === "PROCEDURAL_DECLARATION" ? (
-                    <Badge variant="outline" className="rounded-full border-warning/25 bg-warning-soft text-warning">
+                    <Badge
+                      variant="outline"
+                      className="rounded-full border-warning/25 bg-warning-soft text-warning"
+                    >
                       Submission action
                     </Badge>
                   ) : null}

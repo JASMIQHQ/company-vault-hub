@@ -1,7 +1,4 @@
-import {
-  decideEvidenceMatch,
-  type EvidenceDocument,
-} from "./tender-evidence-match.ts";
+import { decideEvidenceMatch, type EvidenceDocument } from "./tender-evidence-match.ts";
 
 const document: EvidenceDocument = {
   id: "tcc-1",
@@ -14,12 +11,7 @@ const document: EvidenceDocument = {
   created_at: "2026-01-01T00:00:00Z",
 };
 
-const aliases = [
-  "tcc",
-  "tax clearance",
-  "tax clearance certificate",
-  "firs",
-];
+const aliases = ["tcc", "tax clearance", "tax clearance certificate", "firs"];
 
 Deno.test("procedural requirements never link Vault evidence", () => {
   const result = decideEvidenceMatch({

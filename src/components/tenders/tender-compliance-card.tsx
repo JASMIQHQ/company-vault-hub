@@ -1,13 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import {
-  ChevronDown,
-  ChevronUp,
-  Clock3,
-  FileCheck2,
-  FileWarning,
-  X,
-  XCircle,
-} from "lucide-react";
+import { ChevronDown, ChevronUp, Clock3, FileCheck2, FileWarning, X, XCircle } from "lucide-react";
 import { useRouterState } from "@tanstack/react-router";
 
 import { useActiveOrganization } from "@/hooks/use-active-organization";
@@ -70,7 +62,7 @@ export function TenderComplianceCard({
   );
   const documentsQuery = useDocuments(session, org.activeOrgId);
   const tender = tenderProp ?? fallbackTenderQuery.data;
-  const requirements = requirementsProp ?? (fallbackRequirementsQuery.data ?? []);
+  const requirements = requirementsProp ?? fallbackRequirementsQuery.data ?? [];
   const documents = documentsQuery.data ?? [];
   const [expanded, setExpanded] = useState<Status | null>(null);
   const [open, setOpen] = useState(false);
@@ -104,10 +96,7 @@ export function TenderComplianceCard({
 
   useEffect(() => {
     if (!tender || requirements.length === 0 || !storageKey) return;
-    if (
-      tender.matching_status !== "MATCHED" &&
-      tender.matching_status !== "MATCHING_REVIEW"
-    ) {
+    if (tender.matching_status !== "MATCHED" && tender.matching_status !== "MATCHING_REVIEW") {
       return;
     }
     if (sessionStorage.getItem(storageKey) === "seen") return;
@@ -131,11 +120,7 @@ export function TenderComplianceCard({
       className="fixed inset-0 z-50 flex items-center justify-center overflow-y-auto bg-background/45 p-4 backdrop-blur-md sm:p-6"
       role="presentation"
     >
-      <div
-        className="absolute inset-0"
-        onClick={dismiss}
-        aria-hidden="true"
-      />
+      <div className="absolute inset-0" onClick={dismiss} aria-hidden="true" />
       <section
         className="glass-panel relative z-10 w-full max-w-2xl overflow-hidden rounded-3xl border border-primary/20 bg-background/70 p-5 shadow-2xl shadow-primary/10 backdrop-blur-2xl sm:p-7"
         role="dialog"
@@ -165,8 +150,7 @@ export function TenderComplianceCard({
             </span>
           </h2>
           <p className="mt-2 text-sm text-muted-foreground">
-            Evidence intelligence for this tender, calculated from the stored
-            requirement ledger.
+            Evidence intelligence for this tender, calculated from the stored requirement ledger.
           </p>
         </div>
 
@@ -188,9 +172,7 @@ export function TenderComplianceCard({
                 }`}
                 aria-expanded={active}
               >
-                <span
-                  className={`flex items-center gap-1.5 text-xs font-medium ${meta.className}`}
-                >
+                <span className={`flex items-center gap-1.5 text-xs font-medium ${meta.className}`}>
                   <Icon className="size-3.5" />
                   {meta.label}
                 </span>
@@ -236,8 +218,7 @@ export function TenderComplianceCard({
                       <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
                         <div className="min-w-0">
                           <p className="text-sm font-medium text-foreground">
-                            {requirement.requirement_name ??
-                              requirement.requirement_text}
+                            {requirement.requirement_name ?? requirement.requirement_text}
                           </p>
                           <p className="mt-1 text-xs leading-5 text-muted-foreground">
                             {requirement.explanation ?? "No explanation recorded."}
@@ -258,8 +239,7 @@ export function TenderComplianceCard({
                               ? ` · expires ${formatDate(document.expiry_date)}`
                               : " · no expiry"}
                           </>
-                        ) : requirement.match_basis ===
-                          "PROCEDURAL_DECLARATION" ? (
+                        ) : requirement.match_basis === "PROCEDURAL_DECLARATION" ? (
                           "Submission action — not a Company Vault evidence item."
                         ) : (
                           "No Company Vault document matched"
@@ -269,9 +249,7 @@ export function TenderComplianceCard({
                   );
                 })}
               {counts[expanded] === 0 ? (
-                <p className="text-sm text-muted-foreground">
-                  No requirements in this category.
-                </p>
+                <p className="text-sm text-muted-foreground">No requirements in this category.</p>
               ) : null}
             </div>
           </div>
@@ -309,11 +287,7 @@ export function TenderComplianceCard({
               }
               className="inline-flex items-center justify-center gap-2 rounded-xl bg-primary px-4 py-2 text-sm font-medium text-primary-foreground transition-opacity hover:opacity-90"
             >
-              {expanded ? (
-                <ChevronUp className="size-4" />
-              ) : (
-                <ChevronDown className="size-4" />
-              )}
+              {expanded ? <ChevronUp className="size-4" /> : <ChevronDown className="size-4" />}
               View requirement breakdown
             </button>
           </div>

@@ -31,17 +31,10 @@ function norm(value: string): string {
     .trim();
 }
 
-function metadataCandidateScore(
-  document: EvidenceDocument,
-  aliases: string[],
-): number {
+function metadataCandidateScore(document: EvidenceDocument, aliases: string[]): number {
   const wanted = aliases.map(norm).filter(Boolean);
   const type = norm(document.document_type ?? "");
-  const name = norm(
-    [document.document_name, document.original_filename]
-      .filter(Boolean)
-      .join(" "),
-  );
+  const name = norm([document.document_name, document.original_filename].filter(Boolean).join(" "));
   const category = norm(document.category ?? "");
   let score = 0;
 
@@ -115,9 +108,7 @@ export function decideEvidenceMatch(input: {
         trustedDocumentIds.has(document.id) &&
         expectedTypes.includes(document.verified_doc_type as VerifiedDocType),
     )
-    .sort((a, b) =>
-      (b.created_at ?? "").localeCompare(a.created_at ?? ""),
-    )[0];
+    .sort((a, b) => (b.created_at ?? "").localeCompare(a.created_at ?? ""))[0];
 
   if (verified) {
     const expired =
@@ -136,19 +127,18 @@ export function decideEvidenceMatch(input: {
     };
   }
 
-  const metadataCandidate = documents
-    .map((document) => ({
-      document,
-      score: metadataCandidateScore(document, aliases),
-    }))
-    .filter((item) => item.score > 0)
-    .sort(
-      (a, b) =>
-        b.score - a.score ||
-        (b.document.created_at ?? "").localeCompare(
-          a.document.created_at ?? "",
-        ),
-    )[0]?.document ?? null;
+  const metadataCandidate =
+    documents
+      .map((document) => ({
+        document,
+        score: metadataCandidateScore(document, aliases),
+      }))
+      .filter((item) => item.score > 0)
+      .sort(
+        (a, b) =>
+          b.score - a.score ||
+          (b.document.created_at ?? "").localeCompare(a.document.created_at ?? ""),
+      )[0]?.document ?? null;
 
   if (metadataCandidate) {
     return {

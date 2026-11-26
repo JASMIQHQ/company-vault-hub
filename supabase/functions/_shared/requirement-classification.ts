@@ -1,8 +1,4 @@
-export type RequirementDisposition =
-  | "evidence"
-  | "eligibility"
-  | "procedural"
-  | "general";
+export type RequirementDisposition = "evidence" | "eligibility" | "procedural" | "general";
 
 export interface RequirementDescriptor {
   category?: string | null;
@@ -11,9 +7,7 @@ export interface RequirementDescriptor {
 }
 
 /** Conservative classification: unknown requirements stay in human review. */
-export function classifyRequirement(
-  requirement: RequirementDescriptor,
-): RequirementDisposition {
+export function classifyRequirement(requirement: RequirementDescriptor): RequirementDisposition {
   const text = [requirement.name, requirement.text]
     .filter(Boolean)
     .join(" ")
