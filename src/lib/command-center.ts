@@ -23,6 +23,7 @@ export interface Mission {
 export interface RequirementStatusCount {
   tender_id: string;
   status: string | null;
+  match_basis: string | null;
 }
 
 export const EXPIRY_WARNING_DAYS = 30;
@@ -108,12 +109,16 @@ export function buildMissions(documents: DashboardDocument[], tenders: TenderLis
     const rows = requirements.filter((row) => row.tender_id === tender.id);
     const missing = rows.filter((row) => row.status === "missing").length;
     const expiredReq = rows.filter((row) => row.status === "expired").length;
-    const review = rows.filter((row) => row.status === "manual_review" || row.status === "pending").length;
+    const review = rows.filter((row) => (row.status === "manual_review" || row.status === "pending") && row.match_basis !== "PROCEDURAL_DECLARATION").length;
+    const submissionActions = rows.filter((row) => row.match_basis === "PROCEDURAL_DECLARATION").length;
     if (missing + expiredReq > 0) {
       missions.push({ id: `tender-gaps-${tender.id}`, urgency: "high", title: "Close tender requirement gaps", detail: `${label} — ${missing} missing and ${expiredReq} expired requirement${missing + expiredReq === 1 ? "" : "s"}.`, deadline: tender.submission_deadline, action: { label: "Review Tender", to: "/tenders" } });
     }
     if (review > 0) {
       missions.push({ id: `tender-review-${tender.id}`, urgency: "medium", title: "Review tender requirements", detail: `${label} — ${review} requirement${review === 1 ? "" : "s"} need human verification.`, deadline: tender.submission_deadline, action: { label: "Review Tender", to: "/tenders" } });
+    }
+    if (submissionActions > 0) {
+      missions.push({ id: `tender-submission-actions-${tender.id}`, urgency: "medium", title: "Complete bid submission steps", detail: `${label} — ${submissionActions} submission instruction${submissionActions === 1 ? "" : "s"} must be completed in the bid package.`, deadline: tender.submission_deadline, action: { label: "Review Tender", to: "/tenders" } });
     }
     const specific: string[] = [];
     if (tender.requires_bank_reference) specific.push("Bank reference");

@@ -10,11 +10,13 @@ import { formatDate } from "@/lib/vault";
 const STATUS_META = {
   matched: { label: "Satisfied", icon: FileCheck2, className: "text-success" },
   manual_review: { label: "Needs Review", icon: FileWarning, className: "text-warning" },
+  submission_action: { label: "Submission Actions", icon: ClipboardList, className: "text-warning" },
   missing: { label: "Missing", icon: XCircle, className: "text-destructive" },
   expired: { label: "Expired", icon: Clock3, className: "text-warning" },
 } as const;
 
 type Status = keyof typeof STATUS_META;
+type RequirementStatus = Exclude<Status, "submission_action">;
 
 type TenderComplianceTender = {
   id: string;
@@ -77,18 +79,27 @@ export function TenderComplianceCard({
       ),
     [documentsQuery.data, tender?.company_id],
   );
-  const counts = useMemo(
-    () =>
-      requirements.reduce<Record<Status, number>>(
-        (summary, requirement) => {
-          const status = requirement.status as Status;
-          if (status in STATUS_META) summary[status] += 1;
-          return summary;
-        },
-        { matched: 0, manual_review: 0, missing: 0, expired: 0 },
-      ),
-    [requirements],
-  );
+  const counts = useMemo(() => {
+    const summary: Record<Status, number> = {
+      matched: 0,
+      manual_review: 0,
+      submission_action: 0,
+      missing: 0,
+      expired: 0,
+    };
+
+    for (const requirement of requirements) {
+      if (requirement.match_basis === "PROCEDURAL_DECLARATION") {
+        summary.submission_action += 1;
+        continue;
+      }
+
+      const status = requirement.status as RequirementStatus;
+      if (status in STATUS_META) summary[status] += 1;
+    }
+
+    return summary;
+  }, [requirements]);
   const percentage = Number.isFinite(Number(tender?.compliance_percentage))
     ? Math.round(Number(tender?.compliance_percentage))
     : 0;
@@ -159,7 +170,7 @@ export function TenderComplianceCard({
           </p>
         </div>
 
-        <div className="mt-6 grid gap-2 sm:grid-cols-4">
+        <div className="mt-6 grid gap-2 sm:grid-cols-5">
           {(Object.keys(STATUS_META) as Status[]).map((status) => {
             const meta = STATUS_META[status];
             const Icon = meta.icon;
@@ -209,7 +220,12 @@ export function TenderComplianceCard({
             </button>
             <div className="max-h-64 space-y-2 overflow-y-auto pr-1">
               {requirements
-                .filter((requirement) => requirement.status === expanded)
+                .filter((requirement) =>
+                  expanded === "submission_action"
+                    ? requirement.match_basis === "PROCEDURAL_DECLARATION"
+                    : requirement.status === expanded &&
+                      requirement.match_basis !== "PROCEDURAL_DECLARATION",
+                )
                 .map((requirement) => {
                   const document = companyDocuments.find(
                     (item) => item.id === requirement.matched_document_id,
@@ -287,7 +303,11 @@ export function TenderComplianceCard({
                       ? "missing"
                       : counts.manual_review > 0
                         ? "manual_review"
-                        : "matched"),
+                        : counts.submission_action > 0
+                          ? "submission_action"
+                          : counts.expired > 0
+                            ? "expired"
+                            : "matched"),
                 )
               }
               className="inline-flex items-center justify-center gap-2 rounded-xl bg-primary px-4 py-2 text-sm font-medium text-primary-foreground transition-opacity hover:opacity-90"

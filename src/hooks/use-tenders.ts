@@ -86,12 +86,13 @@ export function useOrganizationRequirements(
     queryFn: async () => {
       const { data, error } = await supabase
         .from("tender_requirements")
-        .select("tender_id, status")
+        .select("tender_id, status, match_basis")
         .eq("organization_id", organizationId!);
       if (error) throw error;
       return (data ?? []).map((row) => ({
         tender_id: row.tender_id,
         status: row.status as string | null,
+        match_basis: row.match_basis as string | null,
       }));
     },
   });
