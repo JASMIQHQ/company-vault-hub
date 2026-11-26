@@ -60,8 +60,7 @@ export function isCompanyAuthorizationValid(context: CompanyAuthorizationContext
   return (
     membership.membership_source === "owner" &&
     organizationMemberships.some(
-      (row) =>
-        row.organization_id === expectedOrganizationId && row.is_owner === true,
+      (row) => row.organization_id === expectedOrganizationId && row.is_owner === true,
     )
   );
 }
