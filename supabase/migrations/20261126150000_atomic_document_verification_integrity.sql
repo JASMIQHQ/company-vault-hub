@@ -12,7 +12,7 @@ as $$
 begin
   raise exception 'Verification audit records are append-only';
 end;
-$;
+$$;
 
 revoke all on function public.prevent_verification_audit_mutation() from public, anon, authenticated, service_role;
 
@@ -190,7 +190,7 @@ begin
 
   return new;
 end;
-$;
+$$;
 
 revoke all on function public.audit_company_document_verification() from public, anon, authenticated, service_role;
 
