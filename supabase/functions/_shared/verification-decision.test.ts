@@ -71,3 +71,9 @@ Deno.test("AI stub is allowed for staging Supabase URL", () => {
     throw new Error("staging Supabase URL rejected AI stub");
   }
 });
+
+Deno.test("AI stub is rejected for unknown Supabase projects", () => {
+  if (canUseAiStub("https://example.supabase.co")) {
+    throw new Error("unknown Supabase project accepted AI stub");
+  }
+});
