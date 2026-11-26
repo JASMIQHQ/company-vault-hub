@@ -68,7 +68,14 @@ Deno.test("inactive companies are denied", () => {
   );
 });
 
-Deno.test("cross-organization company and membership rows are denied", () => {
+Deno.test("cross-company and cross-organization evidence is denied", () => {
+  assert(
+    !isCompanyAuthorizationValid({
+      ...valid,
+      company: { ...valid.company!, id: "company-b" },
+    }),
+    "different company row was authorized",
+  );
   assert(
     !isCompanyAuthorizationValid({
       ...valid,
