@@ -83,7 +83,7 @@ function CompanyGroup({ company, documents, allCompanyDocuments, count, isLoadin
         <span className={`relative hidden shrink-0 rounded-full border px-2.5 py-1.5 text-center sm:inline-flex ${readiness.score === 100 ? "border-emerald-400/15 bg-emerald-400/[0.045] text-emerald-300" : "border-amber-300/15 bg-amber-300/[0.045] text-amber-200"}`}>
           <span className="block text-[9px] font-semibold uppercase tracking-[0.08em]">{readinessLabel}</span>
           <span className="mt-0.5 block text-[8px] font-medium text-current/70">
-            {readiness.score}% core coverage
+            {readiness.score}% · six-document core baseline
           </span>
         </span>
         <span className={`relative shrink-0 rounded-full border px-2.5 py-1.5 text-center sm:hidden ${readiness.score === 100 ? "border-emerald-400/15 bg-emerald-400/[0.045] text-emerald-300" : "border-amber-300/15 bg-amber-300/[0.045] text-amber-200"}`}>

@@ -41,6 +41,7 @@ export interface TenderRequirementItem {
   confidence_score: number | null;
   explanation: string | null;
   matched_document_id: string | null;
+  match_basis: string | null;
 }
 
 export function validateTenderFile(file: File): string | null {

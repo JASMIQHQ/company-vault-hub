@@ -43,7 +43,7 @@ function TendersPage() {
         {org.multiCompany ? (
           <CompanySelect
             id="tender-company"
-            label="Which company is preparing this tender?"
+            label="Which organization workspace are you viewing?"
             organizations={org.organizations}
             value={activeOrg}
             onChange={org.setActiveOrgId}

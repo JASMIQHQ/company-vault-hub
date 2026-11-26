@@ -110,7 +110,7 @@ export function useTenderRequirements(
       const { data, error } = await supabase
         .from("tender_requirements")
         .select(
-          "id, category, requirement_name, requirement_text, display_order, status, confidence_score, explanation, matched_document_id, lot_id",
+          "id, category, requirement_name, requirement_text, display_order, status, confidence_score, explanation, matched_document_id, match_basis, lot_id",
         )
         .eq("tender_id", tenderId!)
         .order("display_order", { ascending: true, nullsFirst: false });

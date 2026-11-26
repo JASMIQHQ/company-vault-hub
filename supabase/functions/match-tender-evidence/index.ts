@@ -1,5 +1,7 @@
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import { authorizeCompanyMembership } from "../_shared/company-authorization.ts";
+import { classifyRequirement } from "../_shared/requirement-classification.ts";
+import { decideEvidenceMatch, type EvidenceDocument } from "../_shared/tender-evidence-match.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.58.0";
 
 const CORS = {
@@ -12,8 +14,7 @@ const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 type Status = "matched" | "manual_review" | "missing" | "expired";
 interface Tender { id: string; company_id: string; organization_id: string; }
 interface Requirement { id: string; category: string | null; requirement_name: string | null; requirement_text: string | null; display_order: number | null; }
-interface Document { id: string; company_id: string; organization_id: string; document_name: string | null; original_filename: string | null; document_type: string | null; category: string | null; expiry_date: string | null; document_status: string | null; deleted_at: string | null; }
-interface Candidate { document: Document; score: number; basis: string[]; }
+interface Document extends EvidenceDocument { company_id: string; organization_id: string; document_status: string | null; deleted_at: string | null; verification_status: string | null; }
 
 const json = (body: unknown, status = 200) => new Response(JSON.stringify(body), { status, headers: { ...CORS, "Content-Type": "application/json" } });
 const norm = (value: string) => value.toLowerCase().replace(/[^a-z0-9]+/g, " ").replace(/\s+/g, " ").trim();
@@ -36,50 +37,6 @@ function requirementAliases(requirement: Requirement): string[] {
   const text = norm([requirement.requirement_name, requirement.requirement_text].filter(Boolean).join(" "));
   for (const [pattern, values] of aliases) if (pattern.test(text)) return values;
   return [];
-}
-
-function documentText(document: Document): string {
-  return norm([document.document_name, document.original_filename, document.document_type, document.category].filter(Boolean).join(" "));
-}
-
-function candidateScore(requirement: Requirement, document: Document, wanted: string[]): Candidate | null {
-  const text = documentText(document);
-  const type = norm(document.document_type ?? "");
-  const name = norm([document.document_name, document.original_filename].filter(Boolean).join(" "));
-  const category = norm(document.category ?? "");
-  const basis: string[] = [];
-  let score = 0;
-
-  if (wanted.length > 0) {
-    const exactType = wanted.some((alias) => type === norm(alias) || type.includes(norm(alias)));
-    const nameHit = wanted.some((alias) => name.includes(norm(alias)));
-    const categoryHit = wanted.some((alias) => category.includes(norm(alias)));
-    if (exactType) { score += 100; basis.push("document_type"); }
-    if (nameHit) { score += 50; basis.push("document_name"); }
-    if (categoryHit) { score += 10; basis.push("category"); }
-    if (score === 0) return null;
-  } else {
-    const requirementTokens = new Set(norm([requirement.requirement_name, requirement.requirement_text].filter(Boolean).join(" ")).split(" ").filter((token) => token.length >= 4));
-    const hits = [...requirementTokens].filter((token) => text.includes(token));
-    if (hits.length === 0) return null;
-    score = hits.length;
-    basis.push("document_name/category");
-  }
-
-  return { document, score, basis };
-}
-
-function classifyExpiry(expiry: string | null): "valid" | "expired" {
-  return expiry !== null && expiry < today() ? "expired" : "valid";
-}
-
-function explanation(status: Status, candidate: Candidate | null): string {
-  if (status === "missing") return "No suitable active Company Vault document matched this requirement for the tender company.";
-  if (!candidate) return "The requirement could not be matched to a Company Vault document.";
-  if (status === "expired") return `Matched ${candidate.document.document_name ?? candidate.document.original_filename ?? "document"}, but its expiry date ${candidate.document.expiry_date} is before today.`;
-  if (status === "manual_review") return `A Company Vault document matched, but the metadata match is ambiguous or weak and requires review.`;
-  const expiry = candidate.document.expiry_date ? `Expiry ${candidate.document.expiry_date}.` : "No expiry date recorded; treated as non-expiring.";
-  return `Matched ${candidate.document.document_name ?? candidate.document.original_filename ?? "document"} using ${candidate.basis.join(" + ")}. ${expiry}`;
 }
 
 Deno.serve(async (req) => {
@@ -123,51 +80,60 @@ Deno.serve(async (req) => {
 
     const { data: requirements, error: requirementsError } = await admin.from("tender_requirements").select("id, category, requirement_name, requirement_text, display_order").eq("tender_id", tenderRow.id).eq("organization_id", tenderRow.organization_id).order("display_order", { ascending: true, nullsFirst: false });
     if (requirementsError) throw requirementsError;
-    const { data: documents, error: documentsError } = await admin.from("company_documents").select("id, company_id, organization_id, document_name, original_filename, document_type, category, expiry_date, document_status, deleted_at").eq("organization_id", tenderRow.organization_id).eq("company_id", tenderRow.company_id).is("deleted_at", null);
+    const { data: documents, error: documentsError } = await admin
+      .from("company_documents")
+      .select("id, company_id, organization_id, document_name, original_filename, document_type, category, expiry_date, document_status, deleted_at, verification_status, verified_doc_type, created_at")
+      .eq("organization_id", tenderRow.organization_id)
+      .eq("company_id", tenderRow.company_id)
+      .is("deleted_at", null)
+      .order("created_at", { ascending: false });
     if (documentsError) throw documentsError;
 
-    const docs = (documents ?? []).filter((doc) => !doc.document_status || doc.document_status === "active") as Document[];
+    const { data: facts, error: factsError } = await admin
+      .from("document_verified_facts")
+      .select("document_id, doc_type, confidence, verification_attempt_id")
+      .eq("organization_id", tenderRow.organization_id)
+      .eq("company_id", tenderRow.company_id)
+      .eq("confidence", "high")
+      .not("verification_attempt_id", "is", null);
+    if (factsError) throw factsError;
+
+    const activeDocs = ((documents ?? []) as Document[]).filter((doc) => !doc.document_status || doc.document_status === "active");
+    const trustedDocumentIds = new Set(
+      (facts ?? [])
+        .filter((fact) => fact.doc_type && fact.doc_type !== "OTHER")
+        .filter((fact) => activeDocs.some((doc) => doc.id === fact.document_id && doc.verification_status === "verified" && doc.verified_doc_type === fact.doc_type))
+        .map((fact) => fact.document_id),
+    );
+
     await admin.from("compliance_matches").delete().eq("tender_id", tenderRow.id).eq("organization_id", tenderRow.organization_id);
 
-    const results: Array<{ requirement_id: string; status: Status; matched_document_id: string | null; confidence: number; explanation: string; match_basis: string }> = [];
+    const results: Array<{ requirement_id: string; status: Status; matched_document_id: string | null; confidence: number; explanation: string; match_basis: string | null }> = [];
     for (const requirement of (requirements ?? []) as Requirement[]) {
-      const wanted = requirementAliases(requirement);
-      const ranked = docs.map((doc) => candidateScore(requirement, doc, wanted)).filter((candidate): candidate is Candidate => candidate !== null).sort((a, b) => b.score - a.score);
-      const best = ranked[0] ?? null;
-      const tied = best ? ranked.filter((candidate) => candidate.score === best.score) : [];
-      let status: Status;
-      let confidence: number;
-      let matchBasis = "METADATA";
-
-      if (!best) {
-        status = "missing";
-        confidence = 0;
-      } else if (tied.length > 1 && best.score < 100) {
-        status = "manual_review";
-        confidence = 0.65;
-      } else if (classifyExpiry(best.document.expiry_date) === "expired") {
-        status = "expired";
-        confidence = Math.min(0.99, best.score >= 100 ? 0.99 : 0.9);
-      } else {
-        status = best.score >= 100 ? "matched" : "manual_review";
-        confidence = status === "matched" ? 0.99 : 0.65;
-      }
-
+      const aliasesForRequirement = requirementAliases(requirement);
+      const disposition = classifyRequirement({ category: requirement.category, name: requirement.requirement_name, text: requirement.requirement_text });
+      const decision = decideEvidenceMatch({ disposition, aliases: aliasesForRequirement, documents: activeDocs, trustedDocumentIds, asOf: today() });
+      const matchedDocumentId = decision.candidate?.id ?? null;
       const row = {
         organization_id: tenderRow.organization_id,
         tender_id: tenderRow.id,
-        document_id: best?.document.id ?? null,
+        document_id: matchedDocumentId,
         requirement: [requirement.requirement_name, requirement.requirement_text].filter(Boolean).join(". "),
         requirement_type: requirement.category ?? "general",
-        status,
-        confidence,
-        notes: JSON.stringify({ match_basis: matchBasis, document_expiry_date: best?.document.expiry_date ?? null, candidate_count: ranked.length, candidate_basis: best?.basis ?? [] }),
+        status: decision.status,
+        confidence: decision.confidence,
+        notes: JSON.stringify({ match_basis: decision.matchBasis, candidate_document_id: matchedDocumentId, verification_required: decision.status === "manual_review" && matchedDocumentId !== null }),
       };
       const { error: matchError } = await admin.from("compliance_matches").insert(row);
       if (matchError) throw matchError;
-      const { error: requirementError } = await admin.from("tender_requirements").update({ status, matched_document_id: best?.document.id ?? null, confidence_score: confidence, explanation: explanation(status, best), match_basis: matchBasis }).eq("id", requirement.id).eq("tender_id", tenderRow.id).eq("organization_id", tenderRow.organization_id);
+      const { error: requirementError } = await admin
+        .from("tender_requirements")
+        .update({ status: decision.status, matched_document_id: matchedDocumentId, confidence_score: decision.confidence, explanation: decision.explanation, match_basis: decision.matchBasis })
+        .eq("id", requirement.id)
+        .eq("tender_id", tenderRow.id)
+        .eq("organization_id", tenderRow.organization_id);
       if (requirementError) throw requirementError;
-      results.push({ requirement_id: requirement.id, status, matched_document_id: best?.document.id ?? null, confidence, explanation: explanation(status, best), match_basis: matchBasis });
+      results.push({ requirement_id: requirement.id, status: decision.status, matched_document_id: matchedDocumentId, confidence: decision.confidence, explanation: decision.explanation, match_basis: decision.matchBasis });
     }
 
     const total = results.length;
