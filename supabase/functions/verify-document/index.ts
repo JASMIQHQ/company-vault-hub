@@ -2,6 +2,7 @@ import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.58.0";
 import { DOCUMENT_TYPES, normalizeDocumentType, type VerifiedDocType } from "../_shared/document-classifier.ts";
 import { authorizeCompanyMembership } from "../_shared/company-authorization.ts";
+import { canUseAiStub, resolveVerificationOutcome } from "../_shared/verification-decision.ts";
 
 const C={"Access-Control-Allow-Origin":"*","Access-Control-Allow-Headers":"authorization, x-client-info, apikey, content-type","Access-Control-Allow-Methods":"POST, OPTIONS"};
 const MAX=20*1024*1024;
@@ -12,11 +13,10 @@ const validType=(v:unknown):v is VerifiedDocType=>typeof v==="string"&&(DOCUMENT
 const provider=():Provider=>{const configured=Deno.env.get("AI_PROVIDER")?.toLowerCase();return configured==="stub"?"stub":configured==="anthropic"?"anthropic":"gemini";};
 const prompt=()=>`You are JASMIQ's document verification engine for Nigerian procurement compliance. Inspect the supplied PDF itself. Classify it conservatively using ONLY this enum: ${DOCUMENT_TYPES.join(", ")}. Extract the document year when explicitly present, otherwise null. Extract an explicit expiry date as YYYY-MM-DD when present, otherwise null. Return JSON only with exactly: {"doc_type":"ENUM","year":integer|null,"expiry_date":"YYYY-MM-DD"|null,"confidence":"high"|"low"}. Do not infer a year from today's date or filename alone. If ambiguous or unrelated, use OTHER and low confidence.`;
 
-const PROD_REF="itqepknvdiedldcyunig";
 async function aiCall(p:Provider,key:string|null,base64:string,filename:string,documentId:string){
   if(p==="stub"){
     const supabaseUrl=Deno.env.get("SUPABASE_URL")??"";
-    if(supabaseUrl.includes(PROD_REF))return {ok:false as const,provider:p,model:"stub",stage:"STUB_FORBIDDEN_PRODUCTION",message:"The AI stub is forbidden in production.",diagnostics:null};
+    if(!canUseAiStub(supabaseUrl))return {ok:false as const,provider:p,model:"stub",stage:"STUB_FORBIDDEN_PRODUCTION",message:"The AI stub is forbidden in production.",diagnostics:null};
     const fixture=Deno.env.get("AI_STUB_RESPONSE");
     if(!fixture)return {ok:false as const,provider:p,model:"stub",stage:"AI_STUB_RESPONSE_MISSING",message:"AI_STUB_RESPONSE is not configured.",diagnostics:null};
     return {ok:true as const,provider:p,model:"deterministic-test-fixture",text:fixture,diagnostics:{mode:"stub"}};
@@ -39,7 +39,7 @@ Deno.serve(async req=>{
   if(req.method==="OPTIONS")return new Response("ok",{headers:C});
   const url=Deno.env.get("SUPABASE_URL"),serviceKey=Deno.env.get("SUPABASE_SERVICE_ROLE_KEY"),p=provider(),key=p==="stub"?null:p==="gemini"?(Deno.env.get("GEMINI_API_KEY")??null):(Deno.env.get("ANTHROPIC_API_KEY")??null);
   if(!url||!serviceKey||(p!=="stub"&&!key))return json({error:"Verification service configuration is missing.",provider:p},500);
-  if(p==="stub"&&url.includes(PROD_REF))return json({error:"The AI stub is forbidden in production."},500);
+  if(p==="stub"&&!canUseAiStub(url))return json({error:"The AI stub is forbidden in production."},500);
   const admin=createClient(url,serviceKey,{auth:{persistSession:false,autoRefreshToken:false}});
   let profileId:string|null=null,doc:any=null;
   const recordAttempt=async(outcome:"verified"|"mismatch"|"failed",extra:any={})=>{if(!doc||!profileId)throw new Error("Verification context is incomplete."); const {data,error}=await admin.rpc("record_document_verification",{p_document_id:doc.id,p_requested_by:profileId,p_provider:p,p_model:extra.model??null,p_outcome:outcome,p_detected_doc_type:extra.doc_type??null,p_detected_year:extra.year??null,p_detected_expiry_date:extra.expiry_date??null,p_confidence:extra.confidence??null,p_error_stage:extra.error_stage??null,p_error_message:extra.error_message??null,p_diagnostics:extra.diagnostics??null}); if(error)throw error; return data as string;};
@@ -79,7 +79,7 @@ Deno.serve(async req=>{
     let result:any;try{result=await aiCall(p,key,base64,filename,doc.id)}catch(e){await recordAttempt("failed",{error_stage:"AI_REQUEST_EXCEPTION",error_message:e instanceof Error?e.message:String(e)});return json({error:"AI verification request failed.",stage:"AI_REQUEST_EXCEPTION"},502)}
     if(!result.ok){await recordAttempt("failed",{model:result.model,error_stage:result.stage,error_message:result.message,diagnostics:result.diagnostics});return json({error:result.message,provider:p,stage:result.stage,diagnostics:result.diagnostics},502)}
     const parsed=parse(result.text); if(!parsed||!validType(parsed.doc_type)){await recordAttempt("failed",{model:result.model,error_stage:"AI_CONTENT_PARSE_EXCEPTION",error_message:"Invalid verification payload.",diagnostics:{extracted_text:result.text}});return json({error:"Invalid verification payload.",provider:p,model:result.model,stage:"AI_CONTENT_PARSE_EXCEPTION"},502)}
-    const year=typeof parsed.year==="number"&&Number.isInteger(parsed.year)&&parsed.year>=1900&&parsed.year<=2100?parsed.year:null; const expiry=typeof parsed.expiry_date==="string"&&/^\d{4}-\d{2}-\d{2}$/.test(parsed.expiry_date)?parsed.expiry_date:null; const confidence=parsed.confidence==="high"?"high":"low"; const detected=parsed.doc_type as VerifiedDocType; const declared=normalizeDocumentType(doc.document_type); const mismatch=Boolean(declared&&declared!=="OTHER"&&detected!=="OTHER"&&declared!==detected); const status=detected==="OTHER"||mismatch||confidence!=="high"?"mismatch":"verified";
+    const year=typeof parsed.year==="number"&&Number.isInteger(parsed.year)&&parsed.year>=1900&&parsed.year<=2100?parsed.year:null; const expiry=typeof parsed.expiry_date==="string"&&/^\d{4}-\d{2}-\d{2}$/.test(parsed.expiry_date)?parsed.expiry_date:null; const confidence=parsed.confidence==="high"?"high":"low"; const detected=parsed.doc_type as VerifiedDocType; const declared=normalizeDocumentType(doc.document_type); const status=resolveVerificationOutcome({declaredType:declared,detectedType:detected,confidence});
     const attemptId=await recordAttempt(status,{model:result.model,doc_type:detected,year,expiry_date:expiry,confidence});
     
     // The database audit trigger is the single writer for verified facts.
