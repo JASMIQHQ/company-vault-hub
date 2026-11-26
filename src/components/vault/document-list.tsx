@@ -89,7 +89,7 @@ function EditValidityDialog({ document, open, onOpenChange }: { document: Compan
           <label className="mt-3 flex items-center gap-2 text-sm"><input type="checkbox" checked={neverExpires} onChange={(event) => { setNeverExpires(event.target.checked); if (event.target.checked) setExpiryDate(""); }} /> Never expires</label>
           {!neverExpires ? <Input type="date" value={expiryDate} onChange={(event) => setExpiryDate(event.target.value)} className="mt-3 rounded-xl" /> : null}
           {!neverExpires && !expiryDate ? <p className="mt-2 text-xs text-warning">Choose an expiry date or select Never expires.</p> : null}
-        </div>
+          </div>
         </div>
         <DialogFooter>
           <Button variant="ghost" className="rounded-xl" onClick={() => onOpenChange(false)}>
