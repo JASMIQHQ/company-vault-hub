@@ -37,7 +37,7 @@ async function aiCall(p:Provider,key:string|null,base64:string,filename:string,d
 
 Deno.serve(async req=>{
   if(req.method==="OPTIONS")return new Response("ok",{headers:C});
-  const url=Deno.env.get("SUPABASE_URL"),serviceKey=Deno.env.get("SUPABASE_SERVICE_ROLE_KEY"),p=provider(),key=p==="stub"?null:p==="gemini"?Deno.env.get("GEMINI_API_KEY"):Deno.env.get("ANTHROPIC_API_KEY");
+  const url=Deno.env.get("SUPABASE_URL"),serviceKey=Deno.env.get("SUPABASE_SERVICE_ROLE_KEY"),p=provider(),key=p==="stub"?null:p==="gemini"?(Deno.env.get("GEMINI_API_KEY")??null):(Deno.env.get("ANTHROPIC_API_KEY")??null);
   if(!url||!serviceKey||(p!=="stub"&&!key))return json({error:"Verification service configuration is missing.",provider:p},500);
   if(p==="stub"&&url.includes(PROD_REF))return json({error:"The AI stub is forbidden in production."},500);
   const admin=createClient(url,serviceKey,{auth:{persistSession:false,autoRefreshToken:false}});
@@ -68,7 +68,7 @@ Deno.serve(async req=>{
       await recordAttempt("failed",{error_stage:"PDF_TOO_LARGE",error_message:"PDF exceeds 20 MB limit."});
       return json({error:"PDF_TOO_LARGE",document_id:doc.id,max_raw_bytes:MAX},413);
     }
-    if(!doc.storage_path)return json({error:"Document has no stored file.",stage:"STORAGE_PATH_MISSING"},404);
+    if(!doc.storage_path){await recordAttempt("failed",{error_stage:"STORAGE_PATH_MISSING",error_message:"Document has no stored file."});return json({error:"Document has no stored file.",stage:"STORAGE_PATH_MISSING"},404);}
     const {data:blob,error:dl}=await admin.storage.from("company-documents").download(doc.storage_path);
     if(dl||!blob){await recordAttempt("failed",{error_stage:"STORAGE_DOWNLOAD",error_message:"Could not download document for verification."});return json({error:"Could not download document for verification.",stage:"STORAGE_DOWNLOAD"},502);}
     const bytes=new Uint8Array(await blob.arrayBuffer());
