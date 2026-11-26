@@ -47,7 +47,8 @@ export async function sha256Hex(file: File): Promise<string> {
 }
 
 export function sanitizeFilename(filename: string): string {
-  const sanitized = filename
+  const basename = filename.split(/[\\/]/).pop() ?? "";
+  const sanitized = basename
     .replace(/[^a-zA-Z0-9._-]/g, "_")
     .replace(/^\.+/, "")
     .slice(0, 120);
