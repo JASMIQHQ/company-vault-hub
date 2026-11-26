@@ -69,16 +69,45 @@ on public.company_documents
 for each row execute function private.guard_company_document_scope();
 
 drop policy if exists company_documents_company_access on public.company_documents;
+drop policy if exists company_documents_member_select on public.company_documents;
+drop policy if exists company_documents_member_insert on public.company_documents;
+drop policy if exists company_documents_member_update on public.company_documents;
+drop policy if exists company_documents_member_delete on public.company_documents;
 
-create policy company_documents_company_access
-on public.company_documents
-for all
-to authenticated
+create policy company_documents_member_select
+on public.company_documents for select to authenticated
 using (
   private.is_company_member(company_id)
   and exists (
-    select 1
-    from public.companies c
+    select 1 from public.companies c
+    where c.id = company_documents.company_id
+      and c.organization_id = company_documents.organization_id
+  )
+);
+
+create policy company_documents_member_insert
+on public.company_documents for insert to authenticated
+with check (
+  private.is_company_member(company_id)
+  and exists (
+    select 1 from public.companies c
+    where c.id = company_documents.company_id
+      and c.organization_id = company_documents.organization_id
+  )
+  and uploaded_by = public.current_profile_id()
+  and verification_status = 'unverified'
+  and verified_doc_type is null
+  and verified_year is null
+  and verified_expiry_date is null
+  and analysis_status = 'pending'
+);
+
+create policy company_documents_member_update
+on public.company_documents for update to authenticated
+using (
+  private.is_company_member(company_id)
+  and exists (
+    select 1 from public.companies c
     where c.id = company_documents.company_id
       and c.organization_id = company_documents.organization_id
   )
@@ -86,12 +115,27 @@ using (
 with check (
   private.is_company_member(company_id)
   and exists (
-    select 1
-    from public.companies c
+    select 1 from public.companies c
     where c.id = company_documents.company_id
       and c.organization_id = company_documents.organization_id
   )
 );
+
+create policy company_documents_member_delete
+on public.company_documents for delete to authenticated
+using (
+  deleted_at is not null
+  and private.is_company_member(company_id)
+  and exists (
+    select 1 from public.companies c
+    where c.id = company_documents.company_id
+      and c.organization_id = company_documents.organization_id
+  )
+);
+
+revoke update on public.company_documents from authenticated;
+grant update (document_name, expiry_date, deleted_at)
+on public.company_documents to authenticated;
 
 drop index if exists public.uq_company_document_hash;
 
