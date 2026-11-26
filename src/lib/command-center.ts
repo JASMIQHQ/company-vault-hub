@@ -126,11 +126,16 @@ export function buildMissions(
     const status = tender.analysis_status ?? "pending";
     const label = tender.procuring_entity ?? tender.title;
     if (status === "failed") {
+      const creditsExhausted = /AI credits exhausted/i.test(
+        tender.analysis_error ?? "",
+      );
       missions.push({
         id: `tender-failed-${tender.id}`,
         urgency: "high",
-        title: "Retry tender analysis",
-        detail: `${label} — analysis did not complete.`,
+        title: creditsExhausted ? "AI credits exhausted" : "Tender analysis failed",
+        detail: creditsExhausted
+          ? `${label} — automatic analysis is paused until workspace AI credits are restored. Continue with manual review in the meantime.`
+          : `${label} — ${tender.analysis_error ?? "Analysis did not complete."}`,
         deadline: tender.submission_deadline,
         action: { label: "Open Tender Command", to: "/tenders" },
       });

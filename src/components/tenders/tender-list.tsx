@@ -45,7 +45,8 @@ function AnalyzeButton({ tender, onAnalyze }: { tender: TenderListItem; onAnalyz
   const analyze = useAnalyzeTender();
   const status = tender.analysis_status ?? "pending";
   const processing = status === "processing" || analyze.isPending;
-  const label = processing ? "Analyzing..." : status === "analyzed" || status === "requires_review" ? "Re-analyze" : "Analyze";
+  const creditsExhausted = /AI credits exhausted/i.test(tender.analysis_error ?? "");
+  const label = processing ? "Analyzing..." : creditsExhausted ? "Retry after credits" : status === "analyzed" || status === "requires_review" ? "Re-analyze" : "Analyze";
   return <Button variant="outline" size="sm" className="rounded-lg" disabled={processing} onClick={async () => { try { await analyze.mutateAsync(tender.id); toast.success("Analysis started"); } catch (error) { toast.error(error instanceof Error ? error.message : "Analysis failed"); } await onAnalyze(tender.id); }}>{processing ? <Loader2 className="size-4 animate-spin" /> : <Sparkles className="size-4" />}<span className="ml-1.5">{label}</span></Button>;
 }
 
