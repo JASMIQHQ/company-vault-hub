@@ -14,7 +14,7 @@ Deno.test("high-confidence verified fact can satisfy evidence", () => {
   if (r.status !== "matched" || r.matchBasis !== "VERIFIED_FACT" || r.confidence !== 0.99) throw new Error("Verified fact should satisfy requirement");
 });
 Deno.test("expired verified evidence is linked but not satisfied", () => {
-  const r = decideEvidenceMatch({ disposition: "eligibility", aliases, documents: [{ ...doc, expiry_date: "2026-01-01" }], trustedDocumentIds: new Set([doc.id]), asOf: "2026-11-26" });
+  const r = decideEvidenceMatch({ disposition: "eligibility", aliases, documents: [{ ...doc, expiry_date: "2026-01-01", document_status: "expired" }], trustedDocumentIds: new Set([doc.id]), asOf: "2026-11-26" });
   if (r.status !== "expired" || r.candidate?.id !== doc.id) throw new Error("Expired verified evidence must be reported");
 });
 Deno.test("unmapped evidence remains unlinked for review", () => {

@@ -3,7 +3,7 @@ import type { RequirementDisposition } from "./requirement-classification.ts";
 export type EvidenceMatchStatus = "matched" | "manual_review" | "missing" | "expired";
 export interface EvidenceDocument {
   id: string; document_name: string | null; original_filename: string | null; document_type: string | null;
-  category: string | null; expiry_date: string | null; verified_doc_type: string | null; created_at?: string | null;
+  category: string | null; expiry_date: string | null; verified_doc_type: string | null; document_status?: string | null; created_at?: string | null;
 }
 export interface EvidenceMatchDecision {
   status: EvidenceMatchStatus; candidate: EvidenceDocument | null; confidence: number;
@@ -44,7 +44,7 @@ export function decideEvidenceMatch(input: {
     .filter((document) => trustedDocumentIds.has(document.id) && expectedTypes.includes(document.verified_doc_type as VerifiedDocType))
     .sort((a, b) => (b.created_at ?? "").localeCompare(a.created_at ?? ""))[0];
   if (verified) {
-    const expired = verified.expiry_date !== null && verified.expiry_date < asOf;
+    const expired = verified.document_status === "expired" || (verified.expiry_date !== null && verified.expiry_date < asOf);
     const expiryText = verified.expiry_date ? `Recorded expiry: ${verified.expiry_date}.` : "No expiry date recorded; treated as non-expiring under the current Vault rule.";
     return {
       status: expired ? "expired" : "matched", candidate: verified, confidence: 0.99, matchBasis: "VERIFIED_FACT",

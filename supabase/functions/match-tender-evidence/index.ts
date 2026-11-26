@@ -98,7 +98,7 @@ Deno.serve(async (req) => {
       .not("verification_attempt_id", "is", null);
     if (factsError) throw factsError;
 
-    const activeDocs = ((documents ?? []) as Document[]).filter((doc) => !doc.document_status || doc.document_status === "active");
+    const activeDocs = ((documents ?? []) as Document[]).filter((doc) => !doc.document_status || doc.document_status === "active" || doc.document_status === "expired");
     const trustedDocumentIds = new Set(
       (facts ?? [])
         .filter((fact) => fact.doc_type && fact.doc_type !== "OTHER")
