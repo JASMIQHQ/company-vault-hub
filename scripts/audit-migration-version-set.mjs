@@ -30,9 +30,9 @@ const actualSet = new Set(actual);
 const missing = expected.filter((version) => !actualSet.has(version)).sort();
 const extra = actual.filter((version) => !expectedSet.has(version)).sort();
 const latestRecordedVersion = [...expected].sort().at(-1);
-const outOfOrderExtras = extra.filter(
-  (version) => !latestRecordedVersion || version <= latestRecordedVersion,
-).sort();
+const outOfOrderExtras = extra
+  .filter((version) => !latestRecordedVersion || version <= latestRecordedVersion)
+  .sort();
 
 console.log(`Expected live-ledger versions: ${expected.length}`);
 console.log(`SQL migration files found: ${sqlFiles.length}`);
