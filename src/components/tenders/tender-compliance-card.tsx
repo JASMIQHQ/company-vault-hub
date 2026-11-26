@@ -66,17 +66,16 @@ export function TenderComplianceCard({
     () => requirementsProp ?? fallbackRequirementsQuery.data ?? [],
     [fallbackRequirementsQuery.data, requirementsProp],
   );
-  const documents = useMemo(
-    () => documentsQuery.data ?? [],
-    [documentsQuery.data],
-  );
   const [expanded, setExpanded] = useState<Status | null>(null);
   const [open, setOpen] = useState(false);
   const [dontShowAgain, setDontShowAgain] = useState(false);
 
   const companyDocuments = useMemo(
-    () => documents.filter((document) => document.company_id === tender?.company_id),
-    [documents, tender?.company_id],
+    () =>
+      (documentsQuery.data ?? []).filter(
+        (document) => document.company_id === tender?.company_id,
+      ),
+    [documentsQuery.data, tender?.company_id],
   );
   const counts = useMemo(
     () =>
