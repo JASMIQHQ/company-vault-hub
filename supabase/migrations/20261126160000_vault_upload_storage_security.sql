@@ -322,11 +322,133 @@ begin
     raise exception 'file size must be between 1 byte and 20 MB' using errcode = '22023';
   end if;
 
-  if p_mime_type not in ('application/pdf', 'image/png', 'image/jpeg') then
+  if p_mime_type is null or p_mime_type not in ('application/pdf', 'image/png', 'image/jpeg') then
     raise exception 'unsupported document MIME type' using errcode = '22023';
   end if;
 
-  if p_sha256_hash !~ '^[0-9a-f]{64}$' then
+  if p_sha256_hash is null or p_sha256_hash !~ '^[0-9a-f]{64}
+    raise exception 'invalid SHA-256 hash' using errcode = '22023';
+  end if;
+
+  if p_storage_path is null or p_storage_path !~ (
+    '^' || p_company_id::text || '/[A-Za-z0-9._-]+/[0-9]+_[A-Za-z0-9._-]+$'
+  ) then
+    raise exception 'storage path must be company-prefixed and sanitized' using errcode = '22023';
+  end if;
+
+  if not exists (
+    select 1
+    from storage.objects o
+    where o.bucket_id = 'company-documents'
+      and o.name = p_storage_path
+  ) then
+    raise exception 'uploaded storage object was not found';
+  end if;
+
+  if exists (
+    select 1
+    from public.company_documents d
+    where d.company_id = p_company_id
+      and d.sha256_hash = p_sha256_hash
+      and d.deleted_at is null
+  ) then
+    raise exception 'duplicate document already exists in this company'
+      using errcode = '23505';
+  end if;
+
+  insert into public.company_documents (
+    organization_id,
+    company_id,
+    uploaded_by,
+    category,
+    document_type,
+    document_name,
+    original_filename,
+    storage_path,
+    mime_type,
+    file_size,
+    sha256_hash,
+    expiry_date,
+    analysis_status,
+    document_status,
+    version
+  )
+  values (
+    v_organization_id,
+    p_company_id,
+    public.current_profile_id(),
+    p_category,
+    p_document_type,
+    p_document_name,
+    p_original_filename,
+    p_storage_path,
+    p_mime_type,
+    p_file_size,
+    p_sha256_hash,
+    p_expiry_date,
+    'pending',
+    'active',
+    1
+  )
+  returning id into v_document_id;
+
+  return v_document_id;
+end;
+$$;
+
+create or replace function public.register_document_upload(
+  p_company_id uuid,
+  p_category text,
+  p_document_type text,
+  p_document_name text,
+  p_original_filename text,
+  p_storage_path text,
+  p_mime_type text,
+  p_file_size bigint,
+  p_sha256_hash text
+)
+returns uuid
+language sql
+security definer
+set search_path = ''
+as $$
+  select public.register_document_upload(
+    p_company_id,
+    p_category,
+    p_document_type,
+    p_document_name,
+    p_original_filename,
+    p_storage_path,
+    p_mime_type,
+    p_file_size,
+    p_sha256_hash,
+    null::date
+  );
+$$;
+
+revoke all on function public.register_document_upload(
+  uuid, text, text, text, text, text, text, bigint, text, date
+) from public, anon;
+
+revoke all on function public.register_document_upload(
+  uuid, text, text, text, text, text, text, bigint, text
+) from public, anon;
+
+grant execute on function public.register_document_upload(
+  uuid, text, text, text, text, text, text, bigint, text, date
+) to authenticated, service_role;
+
+grant execute on function public.register_document_upload(
+  uuid, text, text, text, text, text, text, bigint, text
+) to authenticated, service_role;
+
+grant insert on public.audit_logs to service_role;
+revoke insert, update, delete on public.audit_logs from anon, authenticated;
+
+grant delete on public.company_documents to service_role;
+
+commit;
+ then
     raise exception 'invalid SHA-256 hash' using errcode = '22023';
   end if;
 
