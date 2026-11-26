@@ -76,8 +76,7 @@ const parse = (value: string): Record<string, unknown> | null => {
 };
 
 const validType = (value: unknown): value is VerifiedDocType =>
-  typeof value === "string" &&
-  (DOCUMENT_TYPES as readonly string[]).includes(value);
+  typeof value === "string" && (DOCUMENT_TYPES as readonly string[]).includes(value);
 
 const provider = (): Provider => {
   const configured = Deno.env.get("AI_PROVIDER")?.toLowerCase();
@@ -326,8 +325,7 @@ Deno.serve(async (req) => {
     const token = (req.headers.get("Authorization") ?? "").replace(/^Bearer\s+/i, "");
     if (!token) return json({ error: "Not authenticated." }, 401);
 
-    const { data: authResult, error: authError } =
-      await admin.auth.getUser(token);
+    const { data: authResult, error: authError } = await admin.auth.getUser(token);
     if (authError || !authResult.user) {
       return json({ error: "Not authenticated." }, 401);
     }
@@ -490,8 +488,7 @@ Deno.serve(async (req) => {
     } catch (error) {
       await recordAttempt("failed", {
         error_stage: "AI_REQUEST_EXCEPTION",
-        error_message:
-          error instanceof Error ? error.message : String(error),
+        error_message: error instanceof Error ? error.message : String(error),
       });
       return json({ error: "AI verification request failed.", stage: "AI_REQUEST_EXCEPTION" }, 502);
     }
@@ -541,8 +538,7 @@ Deno.serve(async (req) => {
         ? parsed.year
         : null;
     const expiry =
-      typeof parsed.expiry_date === "string" &&
-      /^\d{4}-\d{2}-\d{2}$/.test(parsed.expiry_date)
+      typeof parsed.expiry_date === "string" && /^\d{4}-\d{2}-\d{2}$/.test(parsed.expiry_date)
         ? parsed.expiry_date
         : null;
     const confidence = parsed.confidence === "high" ? "high" : "low";
