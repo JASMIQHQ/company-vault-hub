@@ -9,19 +9,29 @@ import {
 
 describe("Vault upload validation", () => {
   it("accepts supported PDF, PNG and JPEG files", () => {
-    expect(validateFile({ name: "tcc.pdf", type: "application/pdf", size: 100 } as File)).toBeNull();
+    expect(
+      validateFile({ name: "tcc.pdf", type: "application/pdf", size: 100 } as File),
+    ).toBeNull();
     expect(validateFile({ name: "logo.png", type: "image/png", size: 100 } as File)).toBeNull();
     expect(validateFile({ name: "photo.jpeg", type: "image/jpeg", size: 100 } as File)).toBeNull();
   });
 
   it("rejects unsupported extensions and mismatched MIME types", () => {
-    expect(validateFile({ name: "payload.exe", type: "application/pdf", size: 100 } as File)).toContain("Only PDF");
-    expect(validateFile({ name: "fake.pdf", type: "image/png", size: 100 } as File)).toContain("do not match");
+    expect(
+      validateFile({ name: "payload.exe", type: "application/pdf", size: 100 } as File),
+    ).toContain("Only PDF");
+    expect(validateFile({ name: "fake.pdf", type: "image/png", size: 100 } as File)).toContain(
+      "do not match",
+    );
   });
 
   it("enforces the 20 MB limit and rejects empty files", () => {
-    expect(validateFile({ name: "empty.pdf", type: "application/pdf", size: 0 } as File)).toContain("empty");
-    expect(validateFile({ name: "large.pdf", type: "application/pdf", size: MAX_FILE_SIZE + 1 } as File)).toContain("20MB");
+    expect(validateFile({ name: "empty.pdf", type: "application/pdf", size: 0 } as File)).toContain(
+      "empty",
+    );
+    expect(
+      validateFile({ name: "large.pdf", type: "application/pdf", size: MAX_FILE_SIZE + 1 } as File),
+    ).toContain("20MB");
   });
 
   it("infers a MIME type only when the browser omits it", () => {
