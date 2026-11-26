@@ -1,4 +1,4 @@
-const PRODUCTION_SUPABASE_REF = "itqepknvdiedldcyunig";
+const STAGING_SUPABASE_REF = "rmtoaaxnuwsecmajhwjx";
 
 export type VerificationConfidence = "high" | "low";
 export type VerificationOutcome = "verified" | "mismatch";
@@ -23,7 +23,11 @@ export function resolveVerificationOutcome(args: {
   return "verified";
 }
 
-/** AI stub responses are allowed only outside the production Supabase project. */
+/** The deterministic AI stub is allowed only on the known staging project. */
 export function canUseAiStub(supabaseUrl: string): boolean {
-  return !supabaseUrl.includes(PRODUCTION_SUPABASE_REF);
+  try {
+    return new URL(supabaseUrl).hostname === `${STAGING_SUPABASE_REF}.supabase.co`;
+  } catch {
+    return false;
+  }
 }
