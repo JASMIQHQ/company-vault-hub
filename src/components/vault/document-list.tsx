@@ -86,7 +86,7 @@ function RowActions({ document }: { document: CompanyDocument }) {
   const softDelete = useSoftDeleteDocument();
   const open = async (mode: "preview" | "download") => {
     setBusy(mode);
-    try { const url = await createSignedUrl(document.storage_path, mode === "download"); window.open(url, "_blank", "noopener,noreferrer"); glassToast(mode === "preview" ? "Evidence opened" : "Evidence download started", document.document_name); }
+    try { const url = await createSignedUrl(document.id, mode === "download"); window.open(url, "_blank", "noopener,noreferrer"); glassToast(mode === "preview" ? "Evidence opened" : "Evidence download started", document.document_name); }
     catch (error) { toast.error(error instanceof Error ? error.message : "Could not open the file"); }
     finally { setBusy(null); }
   };
