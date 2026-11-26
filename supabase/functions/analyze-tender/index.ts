@@ -2,6 +2,7 @@
 // Diagnostic patch: preserve matcher behavior while exposing the actual matcher failure body.
 // Contract: POST { tender_id: uuid } with the caller's Supabase JWT.
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.58.0";
+import { authorizeCompanyMembership } from "../_shared/company-authorization.ts";
 import { extractText, getDocumentProxy } from "https://esm.sh/unpdf@0.12.1";
 
 const corsHeaders = {
@@ -113,7 +114,7 @@ Deno.serve(async (req) => {
 
     const { data: memberships } = await admin
       .from("organization_members")
-      .select("organization_id")
+      .select("organization_id, is_owner")
       .eq("profile_id", profile.id);
     const orgIds = (memberships ?? []).map((m) => m.organization_id);
     if (orgIds.length === 0) return json({ error: "No organization found for this user." }, 403);
@@ -129,15 +130,13 @@ Deno.serve(async (req) => {
     if (!orgIds.includes(tender.organization_id) || !tender.company_id) {
       return json({ error: "Tender not found." }, 404);
     }
-    const { data: companyMembership } = await admin
-      .from("company_members")
-      .select("company_id")
-      .eq("company_id", tender.company_id)
-      .eq("profile_id", profile.id)
-      .maybeSingle();
-    if (!companyMembership) {
-      return json({ error: "Tender not found." }, 404);
-    }
+    const companyAuthorized = await authorizeCompanyMembership(admin, {
+      profileId: profile.id,
+      companyId: tender.company_id,
+      organizationId: tender.organization_id,
+      organizationMemberships: memberships ?? [],
+    });
+    if (!companyAuthorized) return json({ error: "Tender not found." }, 404);
 
     tenderId = tender.id;
 
