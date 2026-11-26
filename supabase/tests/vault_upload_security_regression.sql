@@ -8,6 +8,8 @@ declare
   v_scope_guard text;
   v_current_org text;
   v_policy text;
+  v_insert_policy text;
+  v_delete_policy text;
   v_count integer;
 begin
   if not exists (
@@ -61,12 +63,47 @@ begin
   from pg_policies
   where schemaname = 'public'
     and tablename = 'company_documents'
-    and policyname = 'company_documents_company_access';
+    and policyname = 'company_documents_member_select';
 
   if v_policy is null
      or position('private.is_company_member' in v_policy) = 0
      or position('organization_id' in v_policy) = 0 then
-    raise exception 'Company document RLS must enforce both membership and organization/company consistency';
+    raise exception 'Company document SELECT RLS must enforce membership and organization/company consistency';
+  end if;
+
+  select lower(coalesce(with_check, ''))
+  into v_insert_policy
+  from pg_policies
+  where schemaname = 'public'
+    and tablename = 'company_documents'
+    and policyname = 'company_documents_member_insert';
+
+  if v_insert_policy is null
+     or position('uploaded_by' in v_insert_policy) = 0
+     or position('current_profile_id' in v_insert_policy) = 0
+     or position('verification_status' in v_insert_policy) = 0
+     or position('analysis_status' in v_insert_policy) = 0 then
+    raise exception 'Company document INSERT RLS must bind uploader and prevent client-created verification facts';
+  end if;
+
+  select lower(coalesce(qual, ''))
+  into v_delete_policy
+  from pg_policies
+  where schemaname = 'public'
+    and tablename = 'company_documents'
+    and policyname = 'company_documents_member_delete';
+
+  if v_delete_policy is null
+     or position('deleted_at is not null' in v_delete_policy) = 0 then
+    raise exception 'Only soft-deleted documents may be permanently deleted by authenticated users';
+  end if;
+
+  if not has_column_privilege('authenticated', 'public.company_documents', 'document_name', 'UPDATE')
+     or not has_column_privilege('authenticated', 'public.company_documents', 'expiry_date', 'UPDATE')
+     or not has_column_privilege('authenticated', 'public.company_documents', 'deleted_at', 'UPDATE')
+     or has_column_privilege('authenticated', 'public.company_documents', 'verification_status', 'UPDATE')
+     or has_column_privilege('authenticated', 'public.company_documents', 'verified_doc_type', 'UPDATE') then
+    raise exception 'Authenticated updates must be limited to document name, expiry and Bin state';
   end if;
 
   select regexp_replace(lower(pg_get_functiondef(
