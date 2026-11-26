@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import type { Session } from "@supabase/supabase-js";
 import { supabase } from "@/integrations/supabase/client";
-import { BUCKET, buildStoragePath, getFileMimeType, sha256Hex, type CompanyDocument } from "@/lib/vault";
+import { BUCKET, buildStoragePath, getFileMimeType, sha256Hex, validateFile, type CompanyDocument } from "@/lib/vault";
 
 export function useSession() {
   const [session, setSession] = useState<Session | null>(null);
@@ -206,6 +206,8 @@ export function useUploadDocument() {
       companyId,
       expiryDate,
     }: UploadInput) => {
+      const validationError = validateFile(file);
+      if (validationError) throw new Error(validationError);
       const hash = await sha256Hex(file);
       const mimeType = getFileMimeType(file);
       const storagePath = buildStoragePath(companyId, category, file.name);
