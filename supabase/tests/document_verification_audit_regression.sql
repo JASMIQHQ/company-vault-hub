@@ -31,7 +31,9 @@ begin
   )), E'\\s+', ' ', 'g')
   into v_writer;
 
-  if position('for update' in v_writer) = 0
+  if position('p_confidence is distinct from ''high''' in v_writer) = 0
+     or position('p_detected_doc_type = ''other''' in v_writer) = 0
+     or position('for update' in v_writer) = 0
      or position('membership_source' in v_writer) = 0
      or position('is_active is true' in v_writer) = 0
      or position('organization_id = v_doc.organization_id' in v_writer) = 0
