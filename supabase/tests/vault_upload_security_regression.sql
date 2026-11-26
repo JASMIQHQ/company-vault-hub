@@ -212,6 +212,7 @@ begin
       and tablename = 'company_documents'
       and indexname = 'company_documents_company_hash_active_uq'
       and indexdef ilike '%unique%'
+      and indexdef ilike '%document_status = ''active''%'
   ) then
     raise exception 'Company-scoped active-document hash index is missing';
   end if;
@@ -247,7 +248,7 @@ begin
   if exists (
     select 1
     from public.company_documents
-    where sha256_hash is not null and deleted_at is null
+    where sha256_hash is not null and deleted_at is null and document_status = 'active'
     group by company_id, sha256_hash
     having count(*) > 1
   ) then
