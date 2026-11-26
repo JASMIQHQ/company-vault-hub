@@ -62,8 +62,14 @@ export function TenderComplianceCard({
   );
   const documentsQuery = useDocuments(session, org.activeOrgId);
   const tender = tenderProp ?? fallbackTenderQuery.data;
-  const requirements = requirementsProp ?? fallbackRequirementsQuery.data ?? [];
-  const documents = documentsQuery.data ?? [];
+  const requirements = useMemo(
+    () => requirementsProp ?? fallbackRequirementsQuery.data ?? [],
+    [fallbackRequirementsQuery.data, requirementsProp],
+  );
+  const documents = useMemo(
+    () => documentsQuery.data ?? [],
+    [documentsQuery.data],
+  );
   const [expanded, setExpanded] = useState<Status | null>(null);
   const [open, setOpen] = useState(false);
   const [dontShowAgain, setDontShowAgain] = useState(false);
