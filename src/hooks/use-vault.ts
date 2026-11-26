@@ -193,6 +193,7 @@ export interface UploadInput {
   organizationId: string;
   companyId: string;
   expiryDate: string | null;
+  sha256Hash?: string;
 }
 
 export function useUploadDocument() {
@@ -205,10 +206,11 @@ export function useUploadDocument() {
       category,
       companyId,
       expiryDate,
+      sha256Hash,
     }: UploadInput) => {
       const validationError = validateFile(file);
       if (validationError) throw new Error(validationError);
-      const hash = await sha256Hex(file);
+      const hash = sha256Hash ?? await sha256Hex(file);
       const mimeType = getFileMimeType(file);
       const storagePath = buildStoragePath(companyId, category, file.name);
       const { error: uploadError } = await supabase.storage
