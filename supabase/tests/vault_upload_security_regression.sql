@@ -111,7 +111,7 @@ begin
      or position('verification_status = ''unverified''' in v_insert_policy) = 0
      or position('verified_doc_type is null' in v_insert_policy) = 0
      or position('analysis_status' in v_insert_policy) = 0
-     or position('analysis_json is null' in v_insert_policy) = 0
+     or position('analysis_json = ''{}''::jsonb' in v_insert_policy) = 0
      or position('verified_at is null' in v_insert_policy) = 0
      or position('file_size between 1 and 20971520' in v_insert_policy) = 0
      or position('mime_type in' in v_insert_policy) = 0
