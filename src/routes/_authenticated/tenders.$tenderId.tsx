@@ -556,7 +556,7 @@ function TenderWorkspacePage() {
                   {requirement.matched_document_id ? (
                     <Badge
                       variant="outline"
-                      className={requirement.match_basis === "VERIFIED_FACT" ? "rounded-full border-success/25 bg-success-soft text-success" : "rounded-full border-warning/25 bg-warning-soft text-warning"}
+                      className={\n                        requirement.match_basis === "VERIFIED_FACT"\n                          ? "rounded-full border-success/25 bg-success-soft text-success"\n                          : "rounded-full border-warning/25 bg-warning-soft text-warning"\n                      }
                     >
                       {requirement.match_basis === "VERIFIED_FACT" ? "Verified evidence" : "Candidate evidence"}
                     </Badge>

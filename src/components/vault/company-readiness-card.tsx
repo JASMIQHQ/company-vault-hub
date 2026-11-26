@@ -230,7 +230,7 @@ export function CompanyReadinessCard({ documents }: { documents: CompanyDocument
                   </p>
                   <h2 className="mt-1 text-xl font-semibold tracking-tight">{readinessLabel}</h2>
                   <p className="mt-1 max-w-lg text-xs leading-5 text-muted-foreground">
-                    Coverage of the six core company document categories. RC and TIN are company profile identifiers and are not included in this six-document score. This is not a tender-specific compliance assessment.
+                    Coverage of the six core company document categories. RC and TIN are company profile identifiers and are not included in this six-document score.\n                    This is not a tender-specific compliance assessment.
                   </p>
                 </div>
                 <button

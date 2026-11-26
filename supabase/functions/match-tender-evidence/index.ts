@@ -14,7 +14,13 @@ const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 type Status = "matched" | "manual_review" | "missing" | "expired";
 interface Tender { id: string; company_id: string; organization_id: string; }
 interface Requirement { id: string; category: string | null; requirement_name: string | null; requirement_text: string | null; display_order: number | null; }
-interface Document extends EvidenceDocument { company_id: string; organization_id: string; document_status: string | null; deleted_at: string | null; verification_status: string | null; }
+interface Document extends EvidenceDocument {
+  company_id: string;
+  organization_id: string;
+  document_status: string | null;
+  deleted_at: string | null;
+  verification_status: string | null;
+}
 
 const json = (body: unknown, status = 200) => new Response(JSON.stringify(body), { status, headers: { ...CORS, "Content-Type": "application/json" } });
 const norm = (value: string) => value.toLowerCase().replace(/[^a-z0-9]+/g, " ").replace(/\s+/g, " ").trim();
@@ -82,7 +88,9 @@ Deno.serve(async (req) => {
     if (requirementsError) throw requirementsError;
     const { data: documents, error: documentsError } = await admin
       .from("company_documents")
-      .select("id, company_id, organization_id, document_name, original_filename, document_type, category, expiry_date, document_status, deleted_at, verification_status, verified_doc_type, created_at")
+      .select(
+        "id, company_id, organization_id, document_name, original_filename, document_type, category, expiry_date, document_status, deleted_at, verification_status, verified_doc_type, created_at",
+      )
       .eq("organization_id", tenderRow.organization_id)
       .eq("company_id", tenderRow.company_id)
       .is("deleted_at", null)
@@ -98,42 +106,100 @@ Deno.serve(async (req) => {
       .not("verification_attempt_id", "is", null);
     if (factsError) throw factsError;
 
-    const activeDocs = ((documents ?? []) as Document[]).filter((doc) => !doc.document_status || doc.document_status === "active" || doc.document_status === "expired");
+    const activeDocs = ((documents ?? []) as Document[]).filter(
+      (doc) =>
+        !doc.document_status ||
+        doc.document_status === "active" ||
+        doc.document_status === "expired",
+    );
     const trustedDocumentIds = new Set(
       (facts ?? [])
         .filter((fact) => fact.doc_type && fact.doc_type !== "OTHER")
-        .filter((fact) => activeDocs.some((doc) => doc.id === fact.document_id && doc.verification_status === "verified" && doc.verified_doc_type === fact.doc_type))
+        .filter((fact) =>
+          activeDocs.some(
+            (doc) =>
+              doc.id === fact.document_id &&
+              doc.verification_status === "verified" &&
+              doc.verified_doc_type === fact.doc_type,
+          ),
+        )
         .map((fact) => fact.document_id),
     );
 
-    await admin.from("compliance_matches").delete().eq("tender_id", tenderRow.id).eq("organization_id", tenderRow.organization_id);
+    await admin
+      .from("compliance_matches")
+      .delete()
+      .eq("tender_id", tenderRow.id)
+      .eq("organization_id", tenderRow.organization_id);
 
-    const results: Array<{ requirement_id: string; status: Status; matched_document_id: string | null; confidence: number; explanation: string; match_basis: string | null }> = [];
+    const results: Array<{
+      requirement_id: string;
+      status: Status;
+      matched_document_id: string | null;
+      confidence: number;
+      explanation: string;
+      match_basis: string | null;
+    }> = [];
+
     for (const requirement of (requirements ?? []) as Requirement[]) {
       const aliasesForRequirement = requirementAliases(requirement);
-      const disposition = classifyRequirement({ category: requirement.category, name: requirement.requirement_name, text: requirement.requirement_text });
-      const decision = decideEvidenceMatch({ disposition, aliases: aliasesForRequirement, documents: activeDocs, trustedDocumentIds, asOf: today() });
+      const disposition = classifyRequirement({
+        category: requirement.category,
+        name: requirement.requirement_name,
+        text: requirement.requirement_text,
+      });
+      const decision = decideEvidenceMatch({
+        disposition,
+        aliases: aliasesForRequirement,
+        documents: activeDocs,
+        trustedDocumentIds,
+        asOf: today(),
+      });
       const matchedDocumentId = decision.candidate?.id ?? null;
       const row = {
         organization_id: tenderRow.organization_id,
         tender_id: tenderRow.id,
         document_id: matchedDocumentId,
-        requirement: [requirement.requirement_name, requirement.requirement_text].filter(Boolean).join(". "),
+        requirement: [requirement.requirement_name, requirement.requirement_text]
+          .filter(Boolean)
+          .join(". "),
         requirement_type: requirement.category ?? "general",
         status: decision.status,
         confidence: decision.confidence,
-        notes: JSON.stringify({ match_basis: decision.matchBasis, candidate_document_id: matchedDocumentId, verification_required: decision.status === "manual_review" && matchedDocumentId !== null }),
+        notes: JSON.stringify({
+          match_basis: decision.matchBasis,
+          candidate_document_id: matchedDocumentId,
+          verification_required:
+            decision.status === "manual_review" && matchedDocumentId !== null,
+        }),
       };
-      const { error: matchError } = await admin.from("compliance_matches").insert(row);
+      const { error: matchError } = await admin
+        .from("compliance_matches")
+        .insert(row);
       if (matchError) throw matchError;
+
       const { error: requirementError } = await admin
         .from("tender_requirements")
-        .update({ status: decision.status, matched_document_id: matchedDocumentId, confidence_score: decision.confidence, explanation: decision.explanation, match_basis: decision.matchBasis })
+        .update({
+          status: decision.status,
+          matched_document_id: matchedDocumentId,
+          confidence_score: decision.confidence,
+          explanation: decision.explanation,
+          match_basis: decision.matchBasis,
+        })
         .eq("id", requirement.id)
         .eq("tender_id", tenderRow.id)
         .eq("organization_id", tenderRow.organization_id);
       if (requirementError) throw requirementError;
-      results.push({ requirement_id: requirement.id, status: decision.status, matched_document_id: matchedDocumentId, confidence: decision.confidence, explanation: decision.explanation, match_basis: decision.matchBasis });
+
+      results.push({
+        requirement_id: requirement.id,
+        status: decision.status,
+        matched_document_id: matchedDocumentId,
+        confidence: decision.confidence,
+        explanation: decision.explanation,
+        match_basis: decision.matchBasis,
+      });
     }
 
     const total = results.length;
