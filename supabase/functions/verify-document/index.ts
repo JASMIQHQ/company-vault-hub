@@ -10,14 +10,26 @@ import { canUseAiStub, resolveVerificationOutcome } from "../_shared/verificatio
 
 const CORS_HEADERS = {
   "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers":
-    "authorization, x-client-info, apikey, content-type",
+  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
   "Access-Control-Allow-Methods": "POST, OPTIONS",
 };
 const MAX_PDF_BYTES = 20 * 1024 * 1024;
 
 type Provider = "gemini" | "anthropic" | "stub";
 type VerificationStatus = "verified" | "mismatch" | "failed";
+
+interface CompanyDocumentRow {
+  id: string;
+  organization_id: string;
+  company_id: string;
+  document_name: string | null;
+  original_filename: string | null;
+  document_type: string | null;
+  category: string | null;
+  storage_path: string | null;
+  mime_type: string | null;
+  file_size: number | null;
+}
 
 interface AttemptExtra {
   model?: string | null;
@@ -35,6 +47,21 @@ const json = (body: unknown, status = 200) =>
     status,
     headers: { ...CORS_HEADERS, "Content-Type": "application/json" },
   });
+
+function getProperty(value: unknown, key: string): unknown {
+  if (typeof value !== "object" || value === null) return undefined;
+  return (value as Record<string, unknown>)[key];
+}
+
+function extractTextBlocks(value: unknown, requiredType?: string): string[] {
+  const items: unknown[] = Array.isArray(value) ? value : [];
+  return items.flatMap((item) => {
+    const text = getProperty(item, "text");
+    if (typeof text !== "string") return [];
+    if (requiredType && getProperty(item, "type") !== requiredType) return [];
+    return [text];
+  });
+}
 
 const parse = (value: string): Record<string, unknown> | null => {
   try {
@@ -158,11 +185,8 @@ async function aiCall(
       };
     }
 
-    const payload = await response.json();
-    const text = (payload?.content ?? [])
-      .filter((item: any) => item?.type === "text")
-      .map((item: any) => item.text)
-      .join("\n");
+    const payload: unknown = await response.json();
+    const text = extractTextBlocks(getProperty(payload, "content"), "text").join("\n");
 
     return {
       ok: true as const,
@@ -217,12 +241,12 @@ async function aiCall(
     };
   }
 
-  const payload = await response.json();
-  const parts = payload?.candidates?.[0]?.content?.parts ?? [];
-  const text = parts
-    .filter((item: any) => typeof item?.text === "string")
-    .map((item: any) => item.text)
-    .join("\n");
+  const payload: unknown = await response.json();
+  const candidateValue = getProperty(payload, "candidates");
+  const candidates: unknown[] = Array.isArray(candidateValue) ? candidateValue : [];
+  const firstCandidate = candidates[0];
+  const content = getProperty(firstCandidate, "content");
+  const text = extractTextBlocks(getProperty(content, "parts")).join("\n");
 
   return {
     ok: true as const,
@@ -230,7 +254,7 @@ async function aiCall(
     model,
     text,
     diagnostics: {
-      finish_reason: payload?.candidates?.[0]?.finishReason ?? null,
+      finish_reason: getProperty(firstCandidate, "finishReason") ?? null,
     },
   };
 }
@@ -269,7 +293,7 @@ Deno.serve(async (req) => {
   });
 
   let profileId: string | null = null;
-  let doc: any = null;
+  let doc: CompanyDocumentRow | null = null;
 
   const recordAttempt = async (
     outcome: VerificationStatus,
@@ -344,7 +368,7 @@ Deno.serve(async (req) => {
       .maybeSingle();
 
     if (documentError) throw documentError;
-    doc = document;
+    doc = document as CompanyDocumentRow | null;
 
     if (!doc || !organizationIds.includes(doc.organization_id)) {
       return json({ error: "Document not found or not accessible." }, 404);
