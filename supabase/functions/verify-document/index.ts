@@ -6,10 +6,7 @@ import {
   type VerifiedDocType,
 } from "../_shared/document-classifier.ts";
 import { authorizeCompanyMembership } from "../_shared/company-authorization.ts";
-import {
-  canUseAiStub,
-  resolveVerificationOutcome,
-} from "../_shared/verification-decision.ts";
+import { canUseAiStub, resolveVerificationOutcome } from "../_shared/verification-decision.ts";
 
 const CORS_HEADERS = {
   "Access-Control-Allow-Origin": "*",
@@ -41,9 +38,11 @@ const json = (body: unknown, status = 200) =>
 
 const parse = (value: string): Record<string, unknown> | null => {
   try {
-    return JSON.parse(
-      value.replace(/^\`\`\`json\s*/i, "").replace(/\`\`\`\s*$/i, "").trim(),
-    ) as Record<string, unknown>;
+    const withoutCodeFence = value
+      .replace(/^\x60{3}json\s*/i, "")
+      .replace(/\x60{3}\s*$/i, "")
+      .trim();
+    return JSON.parse(withoutCodeFence) as Record<string, unknown>;
   } catch {
     return null;
   }
@@ -55,11 +54,7 @@ const validType = (value: unknown): value is VerifiedDocType =>
 
 const provider = (): Provider => {
   const configured = Deno.env.get("AI_PROVIDER")?.toLowerCase();
-  return configured === "stub"
-    ? "stub"
-    : configured === "anthropic"
-      ? "anthropic"
-      : "gemini";
+  return configured === "stub" ? "stub" : configured === "anthropic" ? "anthropic" : "gemini";
 };
 
 const prompt = () =>
@@ -304,10 +299,7 @@ Deno.serve(async (req) => {
   };
 
   try {
-    const token = (req.headers.get("Authorization") ?? "").replace(
-      /^Bearer\s+/i,
-      "",
-    );
+    const token = (req.headers.get("Authorization") ?? "").replace(/^Bearer\s+/i, "");
     if (!token) return json({ error: "Not authenticated." }, 401);
 
     const { data: authResult, error: authError } =
@@ -369,9 +361,7 @@ Deno.serve(async (req) => {
       return json({ error: "Document not found or not accessible." }, 404);
     }
 
-    const filename = String(
-      doc.original_filename ?? doc.document_name ?? "unknown",
-    );
+    const filename = String(doc.original_filename ?? doc.document_name ?? "unknown");
     const mime = String(doc.mime_type ?? "")
       .toLowerCase()
       .split(";")[0]
@@ -411,10 +401,7 @@ Deno.serve(async (req) => {
         error_stage: "STORAGE_PATH_MISSING",
         error_message: "Document has no stored file.",
       });
-      return json(
-        { error: "Document has no stored file.", stage: "STORAGE_PATH_MISSING" },
-        404,
-      );
+      return json({ error: "Document has no stored file.", stage: "STORAGE_PATH_MISSING" }, 404);
     }
 
     const { data: blob, error: downloadError } = await admin.storage
@@ -469,9 +456,7 @@ Deno.serve(async (req) => {
 
     const chunks: string[] = [];
     for (let i = 0; i < bytes.length; i += 0x8000) {
-      chunks.push(
-        String.fromCharCode(...bytes.subarray(i, i + 0x8000)),
-      );
+      chunks.push(String.fromCharCode(...bytes.subarray(i, i + 0x8000)));
     }
     const base64 = btoa(chunks.join(""));
 
@@ -484,10 +469,7 @@ Deno.serve(async (req) => {
         error_message:
           error instanceof Error ? error.message : String(error),
       });
-      return json(
-        { error: "AI verification request failed.", stage: "AI_REQUEST_EXCEPTION" },
-        502,
-      );
+      return json({ error: "AI verification request failed.", stage: "AI_REQUEST_EXCEPTION" }, 502);
     }
 
     if (!result.ok) {
@@ -573,10 +555,7 @@ Deno.serve(async (req) => {
     console.error("verify-document failed", error);
     return json(
       {
-        error:
-          error instanceof Error
-            ? error.message
-            : "Document verification failed.",
+        error: error instanceof Error ? error.message : "Document verification failed.",
         stage: "UNHANDLED_EXCEPTION",
       },
       500,
