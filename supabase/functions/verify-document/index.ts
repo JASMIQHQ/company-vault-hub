@@ -25,12 +25,12 @@ async function aiCall(p:Provider,key:string|null,base64:string,filename:string,d
   if(p==="anthropic"){
     const model=Deno.env.get("ANTHROPIC_MODEL")||"claude-sonnet-4-6";
     const r=await fetch("https://api.anthropic.com/v1/messages",{method:"POST",headers:{"x-api-key":key,"anthropic-version":"2023-06-01","content-type":"application/json"},body:JSON.stringify({model,max_tokens:300,system:prompt(),messages:[{role:"user",content:[{type:"document",source:{type:"base64",media_type:"application/pdf",data:base64}},{type:"text",text:`Filename: ${filename}`}]}]})});
-    if(!r.ok)return {ok:false as const,provider:p,model,stage:"AI_UPSTREAM_HTTP",message:"Claude verification failed.",diagnostics:{http_status:r.status,detail:await r.text()}};
+    if(!r.ok){const errorBody=await r.text();return {ok:false as const,provider:p,model,stage:"AI_UPSTREAM_HTTP",message:"Claude verification failed.",diagnostics:{http_status:r.status,response_length:errorBody.length}};}
     const x=await r.json(); return {ok:true as const,provider:p,model,text:(x?.content??[]).filter((i:any)=>i?.type==="text").map((i:any)=>i.text).join("\n"),diagnostics:null};
   }
   const model=Deno.env.get("GEMINI_MODEL")||"gemini-3.6-flash";
   const r=await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`,{method:"POST",headers:{"x-goog-api-key":key,"content-type":"application/json"},body:JSON.stringify({contents:[{role:"user",parts:[{text:prompt()},{inlineData:{mimeType:"application/pdf",data:base64}},{text:`Filename: ${filename}`}]}],generationConfig:{responseMimeType:"application/json",maxOutputTokens:1024,thinkingConfig:{thinkingLevel:"minimal"}}})});
-  if(!r.ok)return {ok:false as const,provider:p,model,stage:"AI_UPSTREAM_HTTP",message:"Gemini verification failed.",diagnostics:{http_status:r.status,detail:await r.text()}};
+  if(!r.ok){const errorBody=await r.text();return {ok:false as const,provider:p,model,stage:"AI_UPSTREAM_HTTP",message:"Gemini verification failed.",diagnostics:{http_status:r.status,response_length:errorBody.length}};}
   const x=await r.json(); const parts=x?.candidates?.[0]?.content?.parts??[]; const text=parts.filter((i:any)=>typeof i?.text==="string").map((i:any)=>i.text).join("\n");
   return {ok:true as const,provider:p,model,text,diagnostics:{finish_reason:x?.candidates?.[0]?.finishReason??null}};
 }
@@ -78,7 +78,7 @@ Deno.serve(async req=>{
     const chunks:string[]=[];for(let i=0;i<bytes.length;i+=0x8000)chunks.push(String.fromCharCode(...bytes.subarray(i,i+0x8000))); const base64=btoa(chunks.join(""));
     let result:any;try{result=await aiCall(p,key,base64,filename,doc.id)}catch(e){await recordAttempt("failed",{error_stage:"AI_REQUEST_EXCEPTION",error_message:e instanceof Error?e.message:String(e)});return json({error:"AI verification request failed.",stage:"AI_REQUEST_EXCEPTION"},502)}
     if(!result.ok){await recordAttempt("failed",{model:result.model,error_stage:result.stage,error_message:result.message,diagnostics:result.diagnostics});return json({error:result.message,provider:p,stage:result.stage,diagnostics:result.diagnostics},502)}
-    const parsed=parse(result.text); if(!parsed||!validType(parsed.doc_type)){await recordAttempt("failed",{model:result.model,error_stage:"AI_CONTENT_PARSE_EXCEPTION",error_message:"Invalid verification payload.",diagnostics:{extracted_text:result.text}});return json({error:"Invalid verification payload.",provider:p,model:result.model,stage:"AI_CONTENT_PARSE_EXCEPTION"},502)}
+    const parsed=parse(result.text); if(!parsed||!validType(parsed.doc_type)){await recordAttempt("failed",{model:result.model,error_stage:"AI_CONTENT_PARSE_EXCEPTION",error_message:"Invalid verification payload.",diagnostics:{response_length:result.text.length}});return json({error:"Invalid verification payload.",provider:p,model:result.model,stage:"AI_CONTENT_PARSE_EXCEPTION"},502)}
     const year=typeof parsed.year==="number"&&Number.isInteger(parsed.year)&&parsed.year>=1900&&parsed.year<=2100?parsed.year:null; const expiry=typeof parsed.expiry_date==="string"&&/^\d{4}-\d{2}-\d{2}$/.test(parsed.expiry_date)?parsed.expiry_date:null; const confidence=parsed.confidence==="high"?"high":"low"; const detected=parsed.doc_type as VerifiedDocType; const declared=normalizeDocumentType(doc.document_type); const status=resolveVerificationOutcome({declaredType:declared,detectedType:detected,confidence});
     const attemptId=await recordAttempt(status,{model:result.model,doc_type:detected,year,expiry_date:expiry,confidence});
     
