@@ -1,0 +1,35 @@
+name: Temporary tender-list formatter
+
+on:
+  push:
+    branches:
+      - work/mvp-evidence-trust-procedural-20261126
+
+permissions:
+  contents: write
+
+jobs:
+  format-tender-list:
+    if: "!contains(github.event.head_commit.message, '[auto-format]')"
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+      - run: bun install --frozen-lockfile
+      - name: Format tender requirement components
+        run: bunx prettier --write 'src/components/tenders/tender-list.tsx' 'src/components/tenders/requirement-status-badge.tsx'
+      - name: Commit formatting
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -- 'src/components/tenders/tender-list.tsx' 'src/components/tenders/requirement-status-badge.tsx'
+          if git diff --cached --quiet; then
+            echo "No formatting changes."
+          else
+            git commit -m "style: format tender evidence checklist [auto-format]"
+            git push origin HEAD:work/mvp-evidence-trust-procedural-20261126
+          fi
