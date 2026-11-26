@@ -53,6 +53,10 @@ Deno.serve(async (req) => {
   const url = Deno.env.get("SUPABASE_URL")!;
   const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
   const publishableKey = Deno.env.get("SUPABASE_PUBLISHABLE_KEY") ?? Deno.env.get("SUPABASE_ANON_KEY");
+  if (!publishableKey) {
+    console.error("Supabase publishable key is not configured for tender analysis.");
+    return json({ error: "Tender analysis service configuration is incomplete." }, 500);
+  }
   const aiKey = Deno.env.get("LOVABLE_API_KEY");
   // New-format Supabase secret keys (sb_secret_...) are opaque strings, not JWTs.
   // PostgREST rejects them when sent as `Authorization: Bearer <key>`, which makes every
