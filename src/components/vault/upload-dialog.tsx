@@ -294,6 +294,7 @@ export function UploadDialog({ organizationId }: { organizationId: string }) {
             organizationId,
             companyId,
             expiryDate: hasExpiry === "yes" ? expiryDate : null,
+            sha256Hash: item.hash,
           });
           uploadedCount += 1;
           seenHashes.add(item.hash);
