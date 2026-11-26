@@ -1,21 +1,644 @@
-name: Staging schema restore (blocked pending reviewed grants allowlist)
+name: Staging schema restore (verified production baseline, hardened ACLs)
 
 on:
   workflow_dispatch:
+    inputs:
+      export_run_id:
+        description: "Successful read-only production schema export run ID"
+        required: true
+        type: string
+        default: "43885665656"
+      artifact_id:
+        description: "Exact GitHub artifact ID from that run"
+        required: true
+        type: string
+        default: "14234138047"
+      artifact_sha256:
+        description: "Expected SHA-256 digest of the downloaded artifact ZIP"
+        required: true
+        type: string
+        default: "fd4a5c746e54a0c556c3942c2c2f393101163b86578b345de1e6a67852f38c0f"
+      sql_sha256:
+        description: "Expected SHA-256 digest of production-schema.sql"
+        required: true
+        type: string
+        default: "6bf83ec93fc2ae9a9325fea2a6a82593b1d1ea91c4bacbb7373e2d9e8734bbc0"
+      confirmation:
+        description: "Type exactly: RESTORE JASMIQ SCHEMA TO STAGING ONLY"
+        required: true
+        type: string
 
 permissions:
   contents: read
+  actions: read
+
+concurrency:
+  group: jasmiq-staging-schema-baseline-restore
+  cancel-in-progress: false
 
 jobs:
-  blocked:
-    name: Fail closed until privilege model is approved
+  prepare:
+    name: Verify production export and generate least-privilege ACLs
     runs-on: ubuntu-latest
+    environment: jasmiq-schema-export
+    timeout-minutes: 30
+    env:
+      PRODUCTION_DB_URL: ${{ secrets.PRODUCTION_DB_URL }}
+      EXPORT_RUN_ID: ${{ inputs.export_run_id }}
+      ARTIFACT_ID: ${{ inputs.artifact_id }}
+      EXPECTED_ARTIFACT_SHA: ${{ inputs.artifact_sha256 }}
+      EXPECTED_SQL_SHA: ${{ inputs.sql_sha256 }}
+      GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+    outputs:
+      source_commit: ${{ steps.provenance.outputs.source_commit }}
     steps:
-      - name: Explain restore gate
+      - uses: actions/checkout@v4
+
+      - name: Validate inputs and install PostgreSQL client
         shell: bash
         run: |
-          echo "::error::Staging restore is intentionally disabled."
-          echo "A privilege-free schema export and a reviewed, table-specific grants allowlist are required first."
-          echo "The previous regex-based GRANT sanitizer is retired and must not be used."
-          echo "No database connection or write was attempted."
-          exit 1
+          set -euo pipefail
+          [[ "$EXPORT_RUN_ID" =~ ^[0-9]+$ ]]
+          [[ "$ARTIFACT_ID" =~ ^[0-9]+$ ]]
+          [[ "$EXPECTED_ARTIFACT_SHA" =~ ^[a-f0-9]{64}$ ]]
+          [[ "$EXPECTED_SQL_SHA" =~ ^[a-f0-9]{64}$ ]]
+          test -n "$PRODUCTION_DB_URL"
+          [[ "$PRODUCTION_DB_URL" == *itqepknvdiedldcyunig* ]]
+          sudo apt-get update
+          sudo apt-get install -y postgresql-client
+
+      - name: Verify export run and artifact provenance
+        id: provenance
+        shell: bash
+        run: |
+          set -euo pipefail
+          gh api "repos/$GITHUB_REPOSITORY/actions/runs/$EXPORT_RUN_ID" > export-run.json
+          jq -e --arg repo "$GITHUB_REPOSITORY" '
+            .repository.full_name == $repo and
+            .path == ".github/workflows/export-production-schema-baseline.yml" and
+            .event == "workflow_dispatch" and
+            .status == "completed" and
+            .conclusion == "success" and
+            .head_branch == "main"
+          ' export-run.json >/dev/null
+          source_commit="$(jq -r '.head_sha' export-run.json)"
+          [[ "$source_commit" =~ ^[a-f0-9]{40}$ ]]
+          echo "source_commit=$source_commit" >> "$GITHUB_OUTPUT"
+
+          gh api "repos/$GITHUB_REPOSITORY/actions/artifacts/$ARTIFACT_ID" > artifact.json
+          expected_name="jasmiq-production-schema-baseline-$EXPORT_RUN_ID"
+          jq -e \
+            --argjson artifact_id "$ARTIFACT_ID" \
+            --argjson run_id "$EXPORT_RUN_ID" \
+            --arg name "$expected_name" \
+            --arg digest "sha256:$EXPECTED_ARTIFACT_SHA" '
+              .id == $artifact_id and
+              .workflow_run.id == $run_id and
+              .name == $name and
+              .expired == false and
+              .digest == $digest
+            ' artifact.json >/dev/null
+
+          curl --fail --location \
+            --header "Authorization: Bearer $GH_TOKEN" \
+            --header "Accept: application/vnd.github+json" \
+            "https://api.github.com/repos/$GITHUB_REPOSITORY/actions/artifacts/$ARTIFACT_ID/zip" \
+            --output schema-artifact.zip
+          echo "$EXPECTED_ARTIFACT_SHA  schema-artifact.zip" | sha256sum --check
+
+      - name: Validate schema-only export contents
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir exported
+          unzip -q schema-artifact.zip -d exported
+          test "$(find exported -maxdepth 1 -type f | wc -l)" -eq 3
+          test -f exported/production-schema.sql
+          test -f exported/production-schema.sha256
+          test -f exported/production-schema-manifest.txt
+          cd exported
+          test "$(awk '{print $1}' production-schema.sha256)" = "$EXPECTED_SQL_SHA"
+          sha256sum --check production-schema.sha256
+          grep -Fx "source_project=itqepknvdiedldcyunig" production-schema-manifest.txt
+          grep -Fx "schemas=public,private" production-schema-manifest.txt
+          grep -Fx "dump_mode=schema-only" production-schema-manifest.txt
+          grep -Fx "archive_data_sections=none (verified from pg_restore TOC)" production-schema-manifest.txt
+          grep -Fx "acl=no-privileges" production-schema-manifest.txt
+          grep -Fx "ownership=no-owner" production-schema-manifest.txt
+          manifest_commit="$(awk -F= '$1=="source_commit"{print $2}' production-schema-manifest.txt)"
+          test "$manifest_commit" = "$(jq -r '.head_sha' ../export-run.json)"
+
+          if grep -Eiq '^(COPY .* FROM stdin|INSERT INTO|GRANT |REVOKE |ALTER .* OWNER TO)' production-schema.sql; then
+            echo "::error::Unexpected data or privilege statement in schema export"
+            exit 1
+          fi
+          test "$(grep -Ec '^CREATE TABLE ' production-schema.sql)" -eq 57
+          test "$(grep -Ec '^CREATE FUNCTION ' production-schema.sql)" -eq 46
+          test "$(grep -Ec '^CREATE TRIGGER ' production-schema.sql)" -eq 18
+          test "$(grep -Ec '^CREATE POLICY ' production-schema.sql)" -eq 43
+          test "$(grep -Ec '^CREATE VIEW ' production-schema.sql)" -eq 18
+          test "$(grep -Ec '^ALTER TABLE .* ENABLE ROW LEVEL SECURITY;' production-schema.sql)" -eq 57
+          cd ..
+
+      - name: Check out exact source commit and validate migration files
+        shell: bash
+        run: |
+          set -euo pipefail
+          source_commit="$(jq -r '.head_sha' export-run.json)"
+          git fetch origin "$source_commit"
+          git checkout --detach "$source_commit"
+          node scripts/audit-migration-version-set.mjs
+
+      - name: Read production ledger and build staging-only ACL allowlist
+        shell: bash
+        run: |
+          set -euo pipefail
+          export PGOPTIONS='-c default_transaction_read_only=on'
+
+          grep -E '^[0-9]{14}$' supabase/migrations/live-ledger-versions-2026-10-29.txt > expected-ledger.txt
+          psql "$PRODUCTION_DB_URL" -XAt -v ON_ERROR_STOP=1 \
+            -c "SELECT version FROM supabase_migrations.schema_migrations ORDER BY version" \
+            > live-ledger-versions.txt
+          diff -u expected-ledger.txt live-ledger-versions.txt
+          test "$(wc -l < live-ledger-versions.txt)" -eq 66
+
+          cat > deferred-storage-migrations.txt <<'VERSIONS'
+          20260729140358
+          20260730124656
+          20260925150643
+          20260928124639
+          20260928124650
+          VERSIONS
+          while IFS= read -r version; do
+            grep -qx "$version" live-ledger-versions.txt
+          done < deferred-storage-migrations.txt
+          grep -Fvx -f deferred-storage-migrations.txt live-ledger-versions.txt > staging-ledger-versions.txt
+          test "$(wc -l < staging-ledger-versions.txt)" -eq 61
+
+          psql "$PRODUCTION_DB_URL" -XAt -v ON_ERROR_STOP=1 -c "
+            SELECT e.extname || '=' || e.extversion || '@' || n.nspname
+            FROM pg_extension e JOIN pg_namespace n ON n.oid=e.extnamespace
+            WHERE e.extname IN ('citext','vector','uuid-ossp','pgcrypto')
+            ORDER BY e.extname;" > required-extensions.txt
+          test "$(wc -l < required-extensions.txt)" -eq 4
+
+          function_shape="$(psql "$PRODUCTION_DB_URL" -XAt -v ON_ERROR_STOP=1 -c "
+            SELECT count(*) || ':' ||
+                   count(*) FILTER (WHERE prosecdef) || ':' ||
+                   count(*) FILTER (WHERE prosecdef AND NOT EXISTS
+                     (SELECT 1 FROM unnest(coalesce(proconfig, ARRAY[]::text[])) AS cfg(setting)
+                      WHERE cfg.setting LIKE 'search_path=%'))
+            FROM pg_proc p JOIN pg_namespace n ON n.oid=p.pronamespace
+            WHERE n.nspname IN ('public','private')
+              AND p.proowner=(SELECT oid FROM pg_roles WHERE rolname='postgres');")"
+          test "$function_shape" = "46:30:0"
+
+          cat > staging-acl.sql <<'SQL'
+          -- Staging-only hardening. Do not copy production TRUNCATE/MAINTAIN grants:
+          -- TRUNCATE bypasses row-level security.
+          GRANT USAGE ON SCHEMA public TO anon, authenticated, service_role;
+          REVOKE ALL ON SCHEMA private FROM PUBLIC, anon, service_role;
+          GRANT USAGE ON SCHEMA private TO authenticated;
+          REVOKE ALL PRIVILEGES ON ALL TABLES IN SCHEMA public FROM PUBLIC, anon, authenticated, service_role;
+          ALTER DEFAULT PRIVILEGES FOR ROLE postgres IN SCHEMA public
+            REVOKE ALL ON TABLES FROM PUBLIC, anon, authenticated, service_role;
+          ALTER DEFAULT PRIVILEGES FOR ROLE postgres IN SCHEMA public
+            REVOKE EXECUTE ON FUNCTIONS FROM anon, authenticated, service_role;
+          ALTER DEFAULT PRIVILEGES FOR ROLE postgres
+            REVOKE EXECUTE ON FUNCTIONS FROM PUBLIC;
+          SQL
+
+          table_grants_query="$(cat <<'SQL'
+          SELECT format('GRANT %s ON TABLE public.%I TO %I;', p.privilege, c.relname, r.role_name)
+          FROM pg_class c
+          JOIN pg_namespace n ON n.oid=c.relnamespace
+          CROSS JOIN (VALUES ('authenticated'),('service_role')) r(role_name)
+          CROSS JOIN (VALUES ('SELECT'),('INSERT'),('UPDATE'),('DELETE')) p(privilege)
+          WHERE n.nspname='public' AND c.relkind IN ('r','p')
+            AND has_table_privilege(r.role_name,c.oid,p.privilege)
+          ORDER BY c.relname,r.role_name,p.privilege;
+          SQL
+          )"
+          psql "$PRODUCTION_DB_URL" -XAt -v ON_ERROR_STOP=1 -c "$table_grants_query" >> staging-acl.sql
+
+          function_acl_query="$(cat <<'SQL'
+          WITH funcs AS (
+            SELECT p.oid,n.nspname,p.proname,oidvectortypes(p.proargtypes) AS args,p.proacl
+            FROM pg_proc p JOIN pg_namespace n ON n.oid=p.pronamespace
+            WHERE n.nspname IN ('public','private')
+              AND p.proowner=(SELECT oid FROM pg_roles WHERE rolname='postgres')
+          ), statements AS (
+            SELECT 0 AS ord,nspname,proname,args,
+              format('REVOKE ALL ON FUNCTION %I.%I(%s) FROM PUBLIC, anon, authenticated, service_role;',
+                     nspname,proname,args) AS statement
+            FROM funcs
+            UNION ALL
+            SELECT 1 AS ord,f.nspname,f.proname,f.args,
+              format('GRANT EXECUTE ON FUNCTION %I.%I(%s) TO %s;',
+                     f.nspname,f.proname,f.args,
+                     CASE WHEN a.grantee=0 THEN 'PUBLIC' ELSE quote_ident(pg_get_userbyid(a.grantee)) END)
+            FROM funcs f CROSS JOIN LATERAL aclexplode(f.proacl) a
+            WHERE a.privilege_type='EXECUTE'
+              AND (a.grantee=0 OR a.grantee IN
+                (SELECT oid FROM pg_roles WHERE rolname IN ('anon','authenticated','service_role')))
+          )
+          SELECT statement FROM statements
+          ORDER BY nspname,proname,args,ord,statement;
+          SQL
+          )"
+          psql "$PRODUCTION_DB_URL" -XAt -v ON_ERROR_STOP=1 -c "$function_acl_query" >> staging-acl.sql
+
+          mkdir -p restore-inputs
+          cp exported/production-schema.sql restore-inputs/production-schema.original.sql
+          cp exported/production-schema.sql restore-inputs/production-schema.sql
+          cp exported/production-schema.sha256 restore-inputs/
+          cp exported/production-schema-manifest.txt restore-inputs/
+          cp staging-acl.sql live-ledger-versions.txt staging-ledger-versions.txt deferred-storage-migrations.txt expected-ledger.txt required-extensions.txt restore-inputs/
+          cp supabase/migrations/20260902133301_add_federal_tender_document_taxonomy.sql restore-inputs/
+          cp schema-artifact.zip restore-inputs/
+          printf '%s\n' "$(jq -r '.head_sha' export-run.json)" > restore-inputs/source-commit.txt
+
+          # Remove psql-only dump guards and avoid recreating Supabase's existing public schema.
+          sed -E '/^\\(restrict|unrestrict) /d; /^CREATE SCHEMA public;$/d' \
+            restore-inputs/production-schema.sql > restore-inputs/production-schema.prepared.sql
+          mv restore-inputs/production-schema.prepared.sql restore-inputs/production-schema.sql
+
+      - name: Upload immutable restore inputs
+        uses: actions/upload-artifact@v4
+        with:
+          name: jasmiq-staging-restore-inputs-${{ github.run_id }}
+          path: restore-inputs/
+          if-no-files-found: error
+          retention-days: 30
+
+  restore:
+    name: Restore verified baseline to staging only
+    needs: prepare
+    runs-on: ubuntu-latest
+    environment: jasmiq-staging
+    timeout-minutes: 60
+    env:
+      STAGING_REF: ${{ secrets.STAGING_PROJECT_REF }}
+      STAGING_DB_PASSWORD: ${{ secrets.STAGING_DB_PASSWORD }}
+      SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+      CONFIRMATION: ${{ inputs.confirmation }}
+      EXPECTED_ARTIFACT_SHA: ${{ inputs.artifact_sha256 }}
+      EXPECTED_SQL_SHA: ${{ inputs.sql_sha256 }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Validate staging-only confirmation and target
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$CONFIRMATION" = "RESTORE JASMIQ SCHEMA TO STAGING ONLY"
+          test "$STAGING_REF" = "rmtoaaxnuwsecmajhwjx"
+          test "$STAGING_REF" != "itqepknvdiedldcyunig"
+          test -n "$STAGING_DB_PASSWORD"
+          test -n "$SUPABASE_ACCESS_TOKEN"
+
+      - name: Download verified restore inputs
+        uses: actions/download-artifact@v4
+        with:
+          name: jasmiq-staging-restore-inputs-${{ github.run_id }}
+          path: restore-inputs
+
+      - name: Check out exact source commit and validate inputs
+        shell: bash
+        run: |
+          set -euo pipefail
+          source_commit="$(cat restore-inputs/source-commit.txt)"
+          [[ "$source_commit" =~ ^[a-f0-9]{40}$ ]]
+          git fetch origin "$source_commit"
+          git checkout --detach "$source_commit"
+          node scripts/audit-migration-version-set.mjs
+          awk 'length($0) == 14 && $0 ~ /^[0-9]+$/ {print}' supabase/migrations/live-ledger-versions-2026-10-29.txt > source-ledger.txt
+          diff -u source-ledger.txt restore-inputs/expected-ledger.txt
+          echo "$EXPECTED_ARTIFACT_SHA  restore-inputs/schema-artifact.zip" | sha256sum --check
+          echo "$EXPECTED_SQL_SHA  restore-inputs/production-schema.original.sql" | sha256sum --check
+
+      - name: Install Supabase CLI
+        uses: supabase/setup-cli@v3
+        with:
+          version: 2.122.1
+
+      - name: Install PostgreSQL client
+        shell: bash
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y postgresql-client
+
+      - name: Verify staging is still empty and dependencies match
+        shell: bash
+        env:
+          PGPASSWORD: ${{ secrets.STAGING_DB_PASSWORD }}
+        run: |
+          set -euo pipefail
+          export PGHOST="aws-0-eu-west-1.pooler.supabase.com"
+          export PGPORT=5432
+          export PGUSER="postgres.$STAGING_REF"
+          export PGDATABASE=postgres
+          export PGSSLMODE=require
+          relation_count="$(psql -XAt -v ON_ERROR_STOP=1 -c "
+            SELECT count(*) FROM pg_class c JOIN pg_namespace n ON n.oid=c.relnamespace
+            WHERE n.nspname IN ('public','private') AND c.relkind IN ('r','p','v','m','S');")"
+          table_count="$(psql -XAt -v ON_ERROR_STOP=1 -c "
+            SELECT count(*) FROM pg_class c JOIN pg_namespace n ON n.oid=c.relnamespace
+            WHERE n.nspname='public' AND c.relkind IN ('r','p');")"
+          view_count="$(psql -XAt -v ON_ERROR_STOP=1 -c "
+            SELECT count(*) FROM pg_class c JOIN pg_namespace n ON n.oid=c.relnamespace
+            WHERE n.nspname='public' AND c.relkind='v';")"
+          function_count="$(psql -XAt -v ON_ERROR_STOP=1 -c "
+            SELECT count(*) FROM pg_proc p JOIN pg_namespace n ON n.oid=p.pronamespace
+            WHERE n.nspname IN ('public','private') AND p.proowner=(SELECT oid FROM pg_roles WHERE rolname='postgres');")"
+          policy_count="$(psql -XAt -v ON_ERROR_STOP=1 -c "SELECT count(*) FROM pg_policies WHERE schemaname='public';")"
+          rls_count="$(psql -XAt -v ON_ERROR_STOP=1 -c "
+            SELECT count(*) FROM pg_class c JOIN pg_namespace n ON n.oid=c.relnamespace
+            WHERE n.nspname='public' AND c.relkind IN ('r','p') AND c.relrowsecurity;")"
+          migration_table_exists="$(psql -XAt -v ON_ERROR_STOP=1 -c "SELECT to_regclass('supabase_migrations.schema_migrations') IS NOT NULL;")"
+          if [ "$migration_table_exists" = "t" ]; then
+            migration_count="$(psql -XAt -v ON_ERROR_STOP=1 -c "SELECT count(*) FROM supabase_migrations.schema_migrations;")"
+            psql -XAt -v ON_ERROR_STOP=1 -c "SELECT version FROM supabase_migrations.schema_migrations ORDER BY version" > existing-ledger.txt
+          else
+            migration_count=0
+            : > existing-ledger.txt
+          fi
+          private_schema_count="$(psql -XAt -v ON_ERROR_STOP=1 -c "
+            SELECT count(*) FROM pg_namespace WHERE nspname='private';")"
+          auth_uid_count="$(psql -XAt -v ON_ERROR_STOP=1 -c "
+            SELECT count(*) FROM pg_proc p JOIN pg_namespace n ON n.oid=p.pronamespace
+            WHERE n.nspname='auth' AND p.proname='uid';")"
+          psql -XAt -v ON_ERROR_STOP=1 -c "
+            SELECT e.extname || '=' || e.extversion || '@' || n.nspname
+            FROM pg_extension e JOIN pg_namespace n ON n.oid=e.extnamespace
+            WHERE e.extname IN ('citext','vector','uuid-ossp','pgcrypto')
+            ORDER BY e.extname;" > staging-extensions.txt
+          diff -u restore-inputs/required-extensions.txt staging-extensions.txt
+          test "$auth_uid_count" -eq 1
+
+          if comm -23 <(sort existing-ledger.txt) <(sort restore-inputs/staging-ledger-versions.txt) | grep -q .; then
+            echo "::error::Staging contains migration versions outside the reviewed production ledger."
+            exit 1
+          fi
+
+          if [ "$relation_count" -eq 0 ] && [ "$migration_count" -eq 0 ] && [ "$private_schema_count" -eq 0 ]; then
+            echo "RESTORE_SCHEMA=true" >> "$GITHUB_ENV"
+          elif [ "$relation_count" -eq 75 ] && [ "$table_count" -eq 57 ] && [ "$view_count" -eq 18 ] \
+            && [ "$function_count" -eq 46 ] && [ "$policy_count" -eq 43 ] && [ "$rls_count" -eq 57 ] \
+            && [ "$private_schema_count" -eq 1 ] && [ "$migration_count" -le 61 ]; then
+            echo "RESTORE_SCHEMA=false" >> "$GITHUB_ENV"
+          else
+            echo "::error::Staging is neither empty nor an already restored baseline; refusing to continue."
+            exit 1
+          fi
+
+      - name: Apply schema and hardened ACLs atomically to staging
+        if: ${{ env.RESTORE_SCHEMA == 'true' }}
+        shell: bash
+        env:
+          PGPASSWORD: ${{ secrets.STAGING_DB_PASSWORD }}
+        run: |
+          set -euo pipefail
+          export PGHOST="aws-0-eu-west-1.pooler.supabase.com"
+          export PGPORT=5432
+          export PGUSER="postgres.$STAGING_REF"
+          export PGDATABASE=postgres
+          export PGSSLMODE=require
+          psql -X -v ON_ERROR_STOP=1 --single-transaction \
+            -f restore-inputs/production-schema.sql \
+            -f restore-inputs/20260902133301_add_federal_tender_document_taxonomy.sql \
+            -f restore-inputs/staging-acl.sql
+
+      - name: Mark the 61 non-Storage production migrations as applied on staging
+        shell: bash
+        env:
+          PGPASSWORD: ${{ secrets.STAGING_DB_PASSWORD }}
+        run: |
+          set -euo pipefail
+          export PGHOST="aws-0-eu-west-1.pooler.supabase.com"
+          export PGPORT=5432
+          export PGUSER="postgres.$STAGING_REF"
+          export PGDATABASE=postgres
+          export PGSSLMODE=require
+          STAGING_DB_URL="$(python3 -c 'import os, urllib.parse; print("postgresql://postgres." + os.environ["STAGING_REF"] + ":" + urllib.parse.quote(os.environ["STAGING_DB_PASSWORD"], safe="") + "@aws-0-eu-west-1.pooler.supabase.com:5432/postgres")')"
+          echo "::add-mask::$STAGING_DB_URL"
+          # A schema-only pg_dump intentionally excludes Supabase's migration history.
+          # Create the standard empty ledger on staging before using the CLI repair command.
+          psql -X -v ON_ERROR_STOP=1 <<'SQL'
+          CREATE SCHEMA IF NOT EXISTS supabase_migrations;
+          CREATE TABLE IF NOT EXISTS supabase_migrations.schema_migrations (
+            version varchar(255) NOT NULL PRIMARY KEY,
+            statements text[]
+          );
+          REVOKE ALL ON SCHEMA supabase_migrations FROM PUBLIC, anon, authenticated, service_role;
+          REVOKE ALL ON TABLE supabase_migrations.schema_migrations FROM PUBLIC, anon, authenticated, service_role;
+          SQL
+          psql -XAt -v ON_ERROR_STOP=1 -c "SELECT version FROM supabase_migrations.schema_migrations ORDER BY version" > existing-ledger.txt
+          while IFS= read -r version; do
+            [[ "$version" =~ ^[0-9]{14}$ ]]
+            if ! grep -qx "$version" existing-ledger.txt; then
+              supabase migration repair "$version" --status applied --db-url "$STAGING_DB_URL" --yes
+              echo "$version" >> existing-ledger.txt
+            fi
+          done < restore-inputs/staging-ledger-versions.txt
+
+      - name: Verify restored schema, RLS, ACLs and migration ledger
+        shell: bash
+        env:
+          PGPASSWORD: ${{ secrets.STAGING_DB_PASSWORD }}
+        run: |
+          set -euo pipefail
+          export PGHOST="aws-0-eu-west-1.pooler.supabase.com"
+          export PGPORT=5432
+          export PGUSER="postgres.$STAGING_REF"
+          export PGDATABASE=postgres
+          export PGSSLMODE=require
+          psql -X -v ON_ERROR_STOP=1 <<'SQL'
+          DO $verify$
+          DECLARE
+            tables_count integer;
+            views_count integer;
+            functions_count integer;
+            definer_count integer;
+            triggers_count integer;
+            policies_count integer;
+            rls_count integer;
+            force_rls_count integer;
+            bad_anon_dml integer;
+            bad_truncate integer;
+            bad_definer_execute integer;
+            bad_definer_path integer;
+            bad_function_path integer;
+            bad_view_access integer;
+            bad_default_acl integer;
+            extension_count integer;
+            auth_select integer;
+            auth_insert integer;
+            auth_update integer;
+            auth_delete integer;
+            service_select integer;
+            service_insert integer;
+            service_update integer;
+            service_delete integer;
+            taxonomy_rows integer;
+            alias_rows integer;
+            non_seed_rows bigint := 0;
+            row_count bigint;
+            table_record record;
+          BEGIN
+            SELECT count(*) INTO tables_count FROM pg_class c JOIN pg_namespace n ON n.oid=c.relnamespace
+              WHERE n.nspname='public' AND c.relkind IN ('r','p');
+            SELECT count(*) INTO taxonomy_rows FROM public.document_taxonomy;
+            SELECT count(*) INTO alias_rows FROM public.document_type_aliases;
+            FOR table_record IN
+              SELECT tablename FROM pg_tables
+              WHERE schemaname='public' AND tablename NOT IN ('document_taxonomy','document_type_aliases')
+            LOOP
+              EXECUTE format('SELECT count(*) FROM public.%I',table_record.tablename) INTO row_count;
+              non_seed_rows := non_seed_rows + row_count;
+            END LOOP;
+
+            SELECT count(*) INTO views_count FROM pg_class c JOIN pg_namespace n ON n.oid=c.relnamespace
+              WHERE n.nspname='public' AND c.relkind='v';
+            SELECT count(*) INTO functions_count FROM pg_proc p JOIN pg_namespace n ON n.oid=p.pronamespace
+              WHERE n.nspname IN ('public','private') AND p.proowner=(SELECT oid FROM pg_roles WHERE rolname='postgres');
+            SELECT count(*) INTO definer_count FROM pg_proc p JOIN pg_namespace n ON n.oid=p.pronamespace
+              WHERE n.nspname IN ('public','private') AND p.proowner=(SELECT oid FROM pg_roles WHERE rolname='postgres') AND p.prosecdef;
+            SELECT count(*) INTO triggers_count FROM pg_trigger t JOIN pg_class c ON c.oid=t.tgrelid
+              JOIN pg_namespace n ON n.oid=c.relnamespace WHERE n.nspname='public' AND NOT t.tgisinternal;
+            SELECT count(*) INTO policies_count FROM pg_policies WHERE schemaname='public';
+            SELECT count(*) INTO rls_count FROM pg_class c JOIN pg_namespace n ON n.oid=c.relnamespace
+              WHERE n.nspname='public' AND c.relkind IN ('r','p') AND c.relrowsecurity;
+            SELECT count(*) INTO force_rls_count FROM pg_class c JOIN pg_namespace n ON n.oid=c.relnamespace
+              WHERE n.nspname='public' AND c.relkind IN ('r','p') AND c.relforcerowsecurity;
+
+            SELECT count(*) INTO bad_anon_dml FROM pg_class c JOIN pg_namespace n ON n.oid=c.relnamespace
+              WHERE n.nspname='public' AND c.relkind IN ('r','p') AND
+                (has_table_privilege('anon',c.oid,'SELECT') OR has_table_privilege('anon',c.oid,'INSERT')
+                 OR has_table_privilege('anon',c.oid,'UPDATE') OR has_table_privilege('anon',c.oid,'DELETE'));
+            SELECT count(*) INTO bad_truncate FROM pg_class c JOIN pg_namespace n ON n.oid=c.relnamespace
+              WHERE n.nspname='public' AND c.relkind IN ('r','p') AND
+                (has_table_privilege('anon',c.oid,'TRUNCATE') OR has_table_privilege('authenticated',c.oid,'TRUNCATE')
+                 OR has_table_privilege('service_role',c.oid,'TRUNCATE') OR
+                 has_table_privilege('anon',c.oid,'MAINTAIN') OR has_table_privilege('authenticated',c.oid,'MAINTAIN')
+                 OR has_table_privilege('service_role',c.oid,'MAINTAIN')
+                 OR has_table_privilege('anon',c.oid,'REFERENCES') OR has_table_privilege('authenticated',c.oid,'REFERENCES')
+                 OR has_table_privilege('service_role',c.oid,'REFERENCES')
+                 OR has_table_privilege('anon',c.oid,'TRIGGER') OR has_table_privilege('authenticated',c.oid,'TRIGGER')
+                 OR has_table_privilege('service_role',c.oid,'TRIGGER'));
+            SELECT count(*) INTO bad_definer_execute FROM pg_proc p JOIN pg_namespace n ON n.oid=p.pronamespace
+              WHERE n.nspname IN ('public','private') AND p.proowner=(SELECT oid FROM pg_roles WHERE rolname='postgres')
+                AND p.prosecdef AND has_function_privilege('anon',p.oid,'EXECUTE');
+            SELECT count(*) INTO bad_definer_path FROM pg_proc p JOIN pg_namespace n ON n.oid=p.pronamespace
+              WHERE n.nspname IN ('public','private') AND p.proowner=(SELECT oid FROM pg_roles WHERE rolname='postgres')
+                AND p.prosecdef AND NOT EXISTS
+                  (SELECT 1 FROM unnest(coalesce(p.proconfig,ARRAY[]::text[])) AS cfg(setting) WHERE cfg.setting LIKE 'search_path=%');
+            SELECT count(*) INTO bad_function_path FROM pg_proc p JOIN pg_namespace n ON n.oid=p.pronamespace
+              WHERE n.nspname IN ('public','private') AND p.proowner=(SELECT oid FROM pg_roles WHERE rolname='postgres')
+                AND NOT EXISTS
+                  (SELECT 1 FROM unnest(coalesce(p.proconfig,ARRAY[]::text[])) AS cfg(setting) WHERE cfg.setting LIKE 'search_path=%');
+            SELECT count(*) INTO bad_view_access FROM pg_class c JOIN pg_namespace n ON n.oid=c.relnamespace
+              WHERE n.nspname='public' AND c.relkind='v'
+                AND (has_table_privilege('anon',c.oid,'SELECT')
+                  OR has_table_privilege('authenticated',c.oid,'SELECT')
+                  OR has_table_privilege('service_role',c.oid,'SELECT'));
+            SELECT count(*) INTO bad_default_acl
+            FROM pg_default_acl d JOIN pg_roles owner_role ON owner_role.oid=d.defaclrole
+            CROSS JOIN LATERAL aclexplode(d.defaclacl) a
+            LEFT JOIN pg_roles grantee_role ON grantee_role.oid=a.grantee
+            WHERE owner_role.rolname='postgres'
+              AND ((d.defaclobjtype='r' AND d.defaclnamespace=(SELECT oid FROM pg_namespace WHERE nspname='public')
+                    AND (a.grantee=0 OR grantee_role.rolname IN ('anon','authenticated','service_role')))
+                OR (d.defaclobjtype='f' AND d.defaclnamespace=0
+                    AND (a.grantee=0 OR grantee_role.rolname IN ('anon','authenticated','service_role')))
+                OR (d.defaclobjtype='f' AND d.defaclnamespace=(SELECT oid FROM pg_namespace WHERE nspname='public')
+                    AND (a.grantee=0 OR grantee_role.rolname IN ('anon','authenticated','service_role'))));
+            SELECT count(*) INTO extension_count FROM pg_extension
+              WHERE extname IN ('citext','vector','uuid-ossp','pgcrypto');
+
+            SELECT count(*) INTO auth_select FROM pg_class c JOIN pg_namespace n ON n.oid=c.relnamespace
+              WHERE n.nspname='public' AND c.relkind IN ('r','p') AND has_table_privilege('authenticated',c.oid,'SELECT');
+            SELECT count(*) INTO auth_insert FROM pg_class c JOIN pg_namespace n ON n.oid=c.relnamespace
+              WHERE n.nspname='public' AND c.relkind IN ('r','p') AND has_table_privilege('authenticated',c.oid,'INSERT');
+            SELECT count(*) INTO auth_update FROM pg_class c JOIN pg_namespace n ON n.oid=c.relnamespace
+              WHERE n.nspname='public' AND c.relkind IN ('r','p') AND has_table_privilege('authenticated',c.oid,'UPDATE');
+            SELECT count(*) INTO auth_delete FROM pg_class c JOIN pg_namespace n ON n.oid=c.relnamespace
+              WHERE n.nspname='public' AND c.relkind IN ('r','p') AND has_table_privilege('authenticated',c.oid,'DELETE');
+            SELECT count(*) INTO service_select FROM pg_class c JOIN pg_namespace n ON n.oid=c.relnamespace
+              WHERE n.nspname='public' AND c.relkind IN ('r','p') AND has_table_privilege('service_role',c.oid,'SELECT');
+            SELECT count(*) INTO service_insert FROM pg_class c JOIN pg_namespace n ON n.oid=c.relnamespace
+              WHERE n.nspname='public' AND c.relkind IN ('r','p') AND has_table_privilege('service_role',c.oid,'INSERT');
+            SELECT count(*) INTO service_update FROM pg_class c JOIN pg_namespace n ON n.oid=c.relnamespace
+              WHERE n.nspname='public' AND c.relkind IN ('r','p') AND has_table_privilege('service_role',c.oid,'UPDATE');
+            SELECT count(*) INTO service_delete FROM pg_class c JOIN pg_namespace n ON n.oid=c.relnamespace
+              WHERE n.nspname='public' AND c.relkind IN ('r','p') AND has_table_privilege('service_role',c.oid,'DELETE');
+
+            IF tables_count<>57 OR views_count<>18 OR functions_count<>46 OR definer_count<>30
+              OR triggers_count<>18 OR policies_count<>43 OR rls_count<>57 OR force_rls_count<>0
+              OR bad_anon_dml<>0 OR bad_truncate<>0 OR bad_definer_execute<>0 OR bad_definer_path<>0
+              OR bad_function_path<>0 OR bad_view_access<>0 OR bad_default_acl<>0 OR extension_count<>4
+              OR auth_select<>24 OR auth_insert<>7 OR auth_update<>7 OR auth_delete<>6
+              OR service_select<>11 OR service_insert<>3 OR service_update<>5 OR service_delete<>2
+              OR taxonomy_rows<>11 OR alias_rows<>16 OR non_seed_rows<>0
+              OR NOT has_schema_privilege('authenticated','private','USAGE')
+              OR has_schema_privilege('anon','private','USAGE')
+              OR has_schema_privilege('service_role','private','USAGE')
+              OR NOT has_schema_privilege('anon','public','USAGE')
+              OR NOT has_schema_privilege('authenticated','public','USAGE')
+              OR NOT has_schema_privilege('service_role','public','USAGE')
+              OR NOT has_function_privilege('authenticated','private.is_company_member(uuid)','EXECUTE')
+              OR has_function_privilege('anon','private.is_company_member(uuid)','EXECUTE')
+              OR has_function_privilege('service_role','private.is_company_member(uuid)','EXECUTE') THEN
+              RAISE EXCEPTION 'Staging baseline verification failed. tables %, views %, funcs %, definers %, triggers %, policies %, RLS %, FORCE %, anon DML %, unsafe table privileges %, definer anon exec %, definer path %, auth DML %/%/%/%, service DML %/%/%/%, taxonomy %, aliases %, other rows %.',
+                tables_count,views_count,functions_count,definer_count,triggers_count,policies_count,rls_count,
+                force_rls_count,bad_anon_dml,bad_truncate,bad_definer_execute,bad_definer_path,
+                auth_select,auth_insert,auth_update,auth_delete,service_select,service_insert,service_update,service_delete,
+                taxonomy_rows,alias_rows,non_seed_rows;
+            END IF;
+          END
+          $verify$;
+          SQL
+
+          psql -XAt -v ON_ERROR_STOP=1 -c "SELECT version FROM supabase_migrations.schema_migrations ORDER BY version" > actual-ledger.txt
+          diff -u restore-inputs/staging-ledger-versions.txt actual-ledger.txt
+          test "$(wc -l < actual-ledger.txt)" -eq 61
+          while IFS= read -r version; do
+            if grep -qx "$version" actual-ledger.txt; then
+              echo "::error::Storage migration $version must remain pending for the Storage phase."
+              exit 1
+            fi
+          done < restore-inputs/deferred-storage-migrations.txt
+
+      - name: Upload staging restore evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: jasmiq-staging-schema-restore-${{ github.run_id }}
+          path: |
+            restore-inputs/
+            actual-ledger.txt
+          if-no-files-found: warn
+          retention-days: 30
+
+      - name: Publish restore summary
+        if: always()
+        shell: bash
+        run: |
+          {
+            echo "## Staging schema baseline restore"
+            echo "- Workflow run: https://github.com/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID"
+            echo "- Target: staging only ($STAGING_REF)"
+            echo "- Source export run: ${{ inputs.export_run_id }}"
+            echo "- Source commit: ${{ needs.prepare.outputs.source_commit }}"
+            echo "- Schema SHA-256: ${{ inputs.sql_sha256 }}"
+            echo "- Production was queried read-only; no production writes were performed."
+            if [[ "${{ job.status }}" == "success" ]]; then
+              echo "- RESULT: SUCCESS — all staging restore and verification steps passed."
+              echo "- 61 non-Storage migrations are recorded as applied; 5 Storage migrations remain pending."
+              echo "- No Edge Functions or Storage buckets were deployed or created."
+            else
+              echo "- RESULT: FAILED — do not treat staging as restored or ready."
+              echo "- Migration-ledger and schema completion must be confirmed from the step logs; this summary does not claim migrations were applied."
+              echo "- Inspect the failed step and uploaded evidence before any retry."
+            fi
+          } >> "$GITHUB_STEP_SUMMARY"
