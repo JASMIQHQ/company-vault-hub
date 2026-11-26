@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { DocumentList } from "@/components/vault/document-list";
 import { Skeleton } from "@/components/ui/skeleton";
 import { sortByCanonicalOrder } from "@/lib/document-order";
+import { StatusBadge } from "@/components/vault/status-badge";
 import type { Company } from "@/hooks/use-companies";
 import type { CompanyDocument } from "@/lib/vault";
 
@@ -34,7 +35,26 @@ function CompanyGroup({ company, documents, allCompanyDocuments, count, isLoadin
   onToggle: () => void;
 }) {
   const readiness = calculateCompanyReadiness(allCompanyDocuments);
-  const readinessLabel = readiness.score === 100 ? "PROCUREMENT READY" : readiness.score >= 67 ? "ATTENTION" : "INCOMPLETE";
+  const analysisStatuses = [
+    "pending",
+    "processing",
+    "analyzed",
+    "requires_review",
+    "verified",
+    "failed",
+  ] as const;
+  const analysisStates = analysisStatuses
+    .map((status) => ({
+      status,
+      count: allCompanyDocuments.filter((document) => document.analysis_status === status).length,
+    }))
+    .filter((item) => item.count > 0);
+  const readinessLabel =
+    readiness.score === 100
+      ? "BASELINE COMPLETE"
+      : readiness.score >= 67
+        ? "BASELINE IN PROGRESS"
+        : "BASELINE INCOMPLETE";
 
   return (
     <div className="group border-b border-white/[0.07] last:border-b-0">
@@ -48,14 +68,23 @@ function CompanyGroup({ company, documents, allCompanyDocuments, count, isLoadin
           <span className="hidden size-8 shrink-0 items-center justify-center rounded-xl border border-white/10 bg-white/[0.035] text-primary/80 sm:flex"><Building2 className="size-4" /></span>
           <span className="min-w-0">
             <span className="block truncate text-sm font-semibold tracking-[-0.01em] text-foreground">{company.legal_name}</span>
-            <span className="mt-0.5 block text-[10px] uppercase tracking-[0.12em] text-muted-foreground sm:hidden">{count} {count === 1 ? "document" : "documents"}</span>
+            <span className="mt-0.5 block text-[10px] text-muted-foreground">
+              {company.registration_number?.trim() ? "RC recorded" : "RC missing"}
+              {" · "}
+              {company.tax_identification_number?.trim() ? "TIN recorded" : "TIN missing"}
+            </span>
+            <span className="mt-0.5 block text-[10px] uppercase tracking-[0.12em] text-muted-foreground sm:hidden">
+              {count} {count === 1 ? "document" : "documents"}
+            </span>
           </span>
         </span>
 
         <span className="hidden shrink-0 rounded-full border border-white/10 bg-white/[0.035] px-2.5 py-1 text-[10px] font-medium text-muted-foreground sm:inline-flex">{count} {count === 1 ? "document" : "documents"}</span>
         <span className={`relative hidden shrink-0 rounded-full border px-2.5 py-1.5 text-center sm:inline-flex ${readiness.score === 100 ? "border-emerald-400/15 bg-emerald-400/[0.045] text-emerald-300" : "border-amber-300/15 bg-amber-300/[0.045] text-amber-200"}`}>
           <span className="block text-[9px] font-semibold uppercase tracking-[0.08em]">{readinessLabel}</span>
-          <span className="mt-0.5 block text-[8px] font-medium text-current/70">{readiness.score}% coverage</span>
+          <span className="mt-0.5 block text-[8px] font-medium text-current/70">
+            {readiness.score}% core coverage
+          </span>
         </span>
         <span className={`relative shrink-0 rounded-full border px-2.5 py-1.5 text-center sm:hidden ${readiness.score === 100 ? "border-emerald-400/15 bg-emerald-400/[0.045] text-emerald-300" : "border-amber-300/15 bg-amber-300/[0.045] text-amber-200"}`}>
           <span className="block text-[10px] font-bold leading-none">{readiness.score}%</span>
@@ -67,6 +96,36 @@ function CompanyGroup({ company, documents, allCompanyDocuments, count, isLoadin
           <div className="pointer-events-none absolute inset-x-10 top-0 h-20 bg-primary/[0.025] blur-3xl" />
           <div className="relative">
             <CompanyReadinessCard documents={allCompanyDocuments} />
+            <section
+              className="mb-4 rounded-2xl border border-border/70 bg-card/70 p-4 shadow-sm"
+              aria-label="Document analysis status"
+            >
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <div>
+                  <p className="text-xs font-semibold">Document analysis</p>
+                  <p className="mt-0.5 text-[11px] text-muted-foreground">
+                    Processing state is separate from document validity and tender-specific
+                    matching.
+                  </p>
+                </div>
+                <div className="flex flex-wrap items-center gap-2">
+                  {analysisStates.map(({ status, count }) => (
+                    <span
+                      key={status}
+                      className="inline-flex items-center gap-1.5 rounded-full border border-border/70 bg-background/70 px-2 py-1"
+                    >
+                      <StatusBadge status={status} />
+                      <span className="text-xs font-semibold tabular-nums">{count}</span>
+                    </span>
+                  ))}
+                  {analysisStates.length === 0 ? (
+                    <span className="text-xs text-muted-foreground">
+                      No analysis states recorded.
+                    </span>
+                  ) : null}
+                </div>
+              </div>
+            </section>
             {documents.length === 0 && !isLoading && !error ? (
               <p className="px-1 pb-1 text-sm text-muted-foreground">{isFiltered ? "No documents match your search" : "No documents yet"}</p>
             ) : (
