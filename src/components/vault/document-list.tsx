@@ -95,7 +95,9 @@ function RowActions({ document }: { document: CompanyDocument }) {
       );
     } catch (error) {
       toast.error(error instanceof Error ? error.message : "Could not open the file");
-    finally { setBusy(null); }
+    } finally {
+      setBusy(null);
+    }
   };
   const moveToBin = async () => { try { await softDelete.mutateAsync({ id: document.id }); glassToast("Evidence moved to Bin", "The document can be recovered from the Bin."); setConfirmDelete(false); } catch (error) { toast.error(error instanceof Error ? error.message : "Could not move the document"); } };
   return <div className="flex justify-end gap-1">
