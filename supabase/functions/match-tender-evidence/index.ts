@@ -1,4 +1,5 @@
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
+import { authorizeCompanyMembership } from "../_shared/company-authorization.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.58.0";
 
 const CORS = {
@@ -101,7 +102,7 @@ Deno.serve(async (req) => {
     const { data: profile, error: profileError } = await admin.from("profiles").select("id").eq("auth_user_id", userData.user.id).maybeSingle();
     if (profileError) throw profileError;
     if (!profile) return json({ error: "No profile found for this user." }, 403);
-    const { data: memberships, error: membershipError } = await admin.from("organization_members").select("organization_id").eq("profile_id", profile.id);
+    const { data: memberships, error: membershipError } = await admin.from("organization_members").select("organization_id, is_owner").eq("profile_id", profile.id);
     if (membershipError) throw membershipError;
     const organizationIds = (memberships ?? []).map((row) => row.organization_id).filter(Boolean);
 
@@ -109,13 +110,13 @@ Deno.serve(async (req) => {
     if (tenderError) throw tenderError;
     const tenderRow = tender as Tender | null;
     if (!tenderRow || !organizationIds.includes(tenderRow.organization_id) || !tenderRow.company_id) return json({ error: "Tender not found." }, 404);
-    const { data: companyMembership } = await admin
-      .from("company_members")
-      .select("company_id")
-      .eq("company_id", tenderRow.company_id)
-      .eq("profile_id", profile.id)
-      .maybeSingle();
-    if (!companyMembership) return json({ error: "Tender not found." }, 404);
+    const companyAuthorized = await authorizeCompanyMembership(admin, {
+      profileId: profile.id,
+      companyId: tenderRow.company_id,
+      organizationId: tenderRow.organization_id,
+      organizationMemberships: memberships ?? [],
+    });
+    if (!companyAuthorized) return json({ error: "Tender not found." }, 404);
 
     const { data: requirements, error: requirementsError } = await admin.from("tender_requirements").select("id, category, requirement_name, requirement_text, display_order").eq("tender_id", tenderRow.id).eq("organization_id", tenderRow.organization_id).order("display_order", { ascending: true, nullsFirst: false });
     if (requirementsError) throw requirementsError;
