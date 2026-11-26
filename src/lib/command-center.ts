@@ -126,9 +126,7 @@ export function buildMissions(
     const status = tender.analysis_status ?? "pending";
     const label = tender.procuring_entity ?? tender.title;
     if (status === "failed") {
-      const creditsExhausted = /AI credits exhausted/i.test(
-        tender.analysis_error ?? "",
-      );
+      const creditsExhausted = /AI credits exhausted/i.test(tender.analysis_error ?? "");
       missions.push({
         id: `tender-failed-${tender.id}`,
         urgency: "high",
