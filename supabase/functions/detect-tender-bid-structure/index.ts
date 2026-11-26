@@ -1,4 +1,5 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.58.0";
+import { authorizeCompanyMembership } from "../_shared/company-authorization.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -71,7 +72,7 @@ Deno.serve(async (req) => {
 
     const { data: memberships } = await admin
       .from("organization_members")
-      .select("organization_id")
+      .select("organization_id, is_owner")
       .eq("profile_id", profile.id);
     const orgIds = (memberships ?? []).map((row) => row.organization_id);
     if (!orgIds.length) return json({ error: "No organization found for this user." }, 403);
@@ -84,6 +85,14 @@ Deno.serve(async (req) => {
     if (tenderError) return json({ error: "Could not load the tender." }, 500);
     if (!tender) return json({ error: "Tender not found." }, 404);
     if (!orgIds.includes(tender.organization_id)) return json({ error: "You are not allowed to configure this tender." }, 403);
+    if (!tender.company_id) return json({ error: "Tender not found." }, 404);
+    const companyAuthorized = await authorizeCompanyMembership(admin, {
+      profileId: profile.id,
+      companyId: tender.company_id,
+      organizationId: tender.organization_id,
+      organizationMemberships: memberships ?? [],
+    });
+    if (!companyAuthorized) return json({ error: "Tender not found." }, 404);
     if (tender.analysis_status !== "analyzed" && tender.analysis_status !== "requires_review") {
       return json({ error: "Analyze the tender before detecting its bid structure." }, 409);
     }
