@@ -142,21 +142,33 @@ function RequirementChecklist({
   tender: TenderListItem;
 }) {
   const requirements = useTenderRequirements(session, tender.id);
-  if (tender.analysis_status === "failed")
-    return (
-      <div className="space-y-2">
-        <p className="text-sm font-medium text-destructive">Analysis failed.</p>
-        {tender.analysis_error ? (
-          <p className="text-sm text-muted-foreground">{tender.analysis_error}</p>
-        ) : null}
-      </div>
-    );
   if (requirements.isPending) return <Skeleton className="h-16 w-full rounded-xl" />;
   if (requirements.error)
     return <p className="text-sm text-muted-foreground">{(requirements.error as Error).message}</p>;
-  if ((requirements.data ?? []).length === 0)
-    return <p className="text-sm text-muted-foreground">No requirements extracted.</p>;
-  const rows = requirements.data!;
+  const rows = requirements.data ?? [];
+  const failed = tender.analysis_status === "failed";
+  const failureNotice = failed ? (
+    <div className="rounded-xl border border-warning/25 bg-warning-soft/40 p-3">
+      <p className="text-sm font-medium text-warning">Automatic analysis is paused.</p>
+      <p className="mt-1 text-sm text-muted-foreground">
+        {tender.analysis_error ?? "Analysis did not complete."}
+      </p>
+      <p className="mt-1 text-xs text-muted-foreground">
+        {rows.length > 0
+          ? "Previously stored requirements are shown below for manual review."
+          : "No stored requirements are available for manual review."}
+      </p>
+    </div>
+  ) : null;
+  if (rows.length === 0)
+    return (
+      <div className="space-y-3">
+        {failureNotice}
+        {!failed ? (
+          <p className="text-sm text-muted-foreground">No requirements extracted.</p>
+        ) : null}
+      </div>
+    );
   const counts = {
     vaultLinks: rows.filter((row) => Boolean(row.matched_document_id)).length,
     available: rows.filter((row) => row.status === "matched").length,
@@ -172,6 +184,7 @@ function RequirementChecklist({
   };
   return (
     <div className="space-y-3">
+      {failureNotice}
       <div className="flex flex-wrap gap-2 text-xs">
         <span className="rounded-full border border-border/60 bg-muted/40 px-2.5 py-0.5 font-medium text-muted-foreground">
           {counts.vaultLinks} Vault links
