@@ -13,6 +13,7 @@ import {
 } from "@/components/ui/select";
 import { CompanySelect } from "@/components/company-select";
 import { CompanyVaultGroups } from "@/components/vault/company-vault-groups";
+import { VerificationQueue } from "@/components/vault/verification-queue";
 import { BinDialog } from "@/components/vault/bin-dialog";
 import { UploadDialog } from "@/components/vault/upload-dialog";
 import { useDeletedDocuments, useDocuments, useSession } from "@/hooks/use-vault";
@@ -332,6 +333,8 @@ function VaultPage() {
           </div>
         ) : null}
       </div>
+
+      <VerificationQueue documents={filtered} />
 
       <section className="relative z-10 mt-6 overflow-hidden rounded-[2rem] border border-white/65 bg-white/[0.48] shadow-[0_32px_90px_-38px_rgba(15,23,42,0.28),inset_0_1px_0_rgba(255,255,255,0.9)] backdrop-blur-xl dark:border-white/10 dark:bg-white/[0.025] dark:shadow-[0_32px_90px_-38px_rgba(0,0,0,0.65)]">
         {orgMissing ? (
