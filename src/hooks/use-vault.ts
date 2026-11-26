@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import type { Session } from "@supabase/supabase-js";
 import { supabase } from "@/integrations/supabase/client";
-import { BUCKET, buildStoragePath, sha256Hex, type CompanyDocument } from "@/lib/vault";
+import { BUCKET, buildStoragePath, getFileMimeType, sha256Hex, type CompanyDocument } from "@/lib/vault";
 
 export function useSession() {
   const [session, setSession] = useState<Session | null>(null);
@@ -168,24 +168,15 @@ export function usePermanentDeleteDocument() {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: async ({ id }: { id: string }): Promise<PermanentDeleteResult> => {
-      const { data, error } = await supabase
-        .from("company_documents")
-        .delete()
-        .eq("id", id)
-        .not("deleted_at", "is", null)
-        .select("storage_path")
-        .maybeSingle();
+      const { data, error } = await supabase.functions.invoke("document-access", {
+        body: { document_id: id, mode: "delete" },
+      });
       if (error) throw error;
-      if (!data) throw new Error("Only documents already in the Bin can be permanently deleted.");
-
-      const { error: storageError } = await supabase.storage
-        .from(BUCKET)
-        .remove([data.storage_path]);
-
-      if (storageError) {
-        return { storageDeleted: false, cleanupError: storageError.message };
-      }
-      return { storageDeleted: true };
+      if (!data?.deleted) throw new Error("Only documents already in the Bin can be permanently deleted.");
+      return {
+        storageDeleted: data.storage_deleted === true,
+        cleanupError: typeof data.cleanup_error === "string" ? data.cleanup_error : undefined,
+      };
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["company-documents"] });
@@ -212,52 +203,54 @@ export function useUploadDocument() {
       documentName,
       documentType,
       category,
-      organizationId,
       companyId,
       expiryDate,
     }: UploadInput) => {
       const hash = await sha256Hex(file);
-      const storagePath = buildStoragePath(organizationId, category, file.name);
+      const mimeType = getFileMimeType(file);
+      const storagePath = buildStoragePath(companyId, category, file.name);
       const { error: uploadError } = await supabase.storage
         .from(BUCKET)
-        .upload(storagePath, file, { contentType: file.type, upsert: false });
+        .upload(storagePath, file, { contentType: mimeType, upsert: false });
       if (uploadError) throw uploadError;
-      const { data: profileId } = await supabase.rpc("current_profile_id");
-      const { data, error } = await supabase
-        .from("company_documents")
-        .insert({
-          organization_id: organizationId,
-          company_id: companyId,
-          uploaded_by: (profileId as string | null) ?? null,
-          category,
-          document_type: documentType,
-          document_name: documentName,
-          original_filename: file.name,
-          storage_path: storagePath,
-          mime_type: file.type,
-          file_size: file.size,
-          sha256_hash: hash,
-          expiry_date: expiryDate,
-          analysis_status: "pending",
-          document_status: "active",
-          version: 1,
-        })
-        .select("id")
-        .single();
+
+      const { data, error } = await supabase.rpc("register_document_upload", {
+        p_company_id: companyId,
+        p_category: category,
+        p_document_type: documentType,
+        p_document_name: documentName,
+        p_original_filename: file.name,
+        p_storage_path: storagePath,
+        p_mime_type: mimeType,
+        p_file_size: file.size,
+        p_sha256_hash: hash,
+        p_expiry_date: expiryDate,
+      });
+
       if (error) {
-        await supabase.storage.from(BUCKET).remove([storagePath]);
+        const { error: cleanupError } = await supabase.storage.from(BUCKET).remove([storagePath]);
+        if (cleanupError) {
+          console.error("Upload rollback cleanup failed", cleanupError);
+        }
+        if (error.code === "23505") {
+          throw new Error("A document with the same content already exists in this company.");
+        }
         throw error;
       }
-      return data.id as string;
+
+      return data as string;
     },
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ["company-documents"] }),
   });
 }
 
-export async function createSignedUrl(storagePath: string, download = false) {
-  const { data, error } = await supabase.storage
-    .from(BUCKET)
-    .createSignedUrl(storagePath, 60, download ? { download: true } : undefined);
+export async function createSignedUrl(documentId: string, download = false) {
+  const { data, error } = await supabase.functions.invoke("document-access", {
+    body: { document_id: documentId, mode: download ? "download" : "preview" },
+  });
   if (error) throw error;
-  return data.signedUrl;
+  if (typeof data?.signed_url !== "string") {
+    throw new Error("The document access service did not return a signed URL.");
+  }
+  return data.signed_url;
 }
