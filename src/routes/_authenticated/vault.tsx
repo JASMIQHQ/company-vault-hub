@@ -24,7 +24,6 @@ import {
   type VaultDocumentFilter,
 } from "@/lib/vault-filters";
 import { cn } from "@/lib/utils";
-import { summarizeVaultHealth } from "@/lib/vault-health";
 
 export const Route = createFileRoute("/_authenticated/vault")({
   validateSearch: (search: Record<string, unknown>) => ({
@@ -35,17 +34,9 @@ export const Route = createFileRoute("/_authenticated/vault")({
   head: () => ({
     meta: [
       { title: "Company Vault | Jasmiq Procurement AI" },
-      {
-        name: "description",
-        content:
-          "Every compliance document your company needs, grouped by company in one secure vault.",
-      },
+      { name: "description", content: "Every compliance document your company needs, grouped by company in one secure vault." },
       { property: "og:title", content: "Company Vault | Jasmiq Procurement AI" },
-      {
-        property: "og:description",
-        content:
-          "Every compliance document your company needs, grouped by company in one secure vault.",
-      },
+      { property: "og:description", content: "Every compliance document your company needs, grouped by company in one secure vault." },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary_large_image" },
     ],
@@ -99,12 +90,10 @@ function VaultPage() {
       if (category !== "all" && document.category !== category) return false;
       if (!matchesVaultDocumentFilter(document, status)) return false;
       if (!term) return true;
-      return (
-        document.document_name.toLowerCase().includes(term) ||
+      return document.document_name.toLowerCase().includes(term) ||
         (document.document_type ?? "").toLowerCase().includes(term) ||
         (document.original_filename ?? "").toLowerCase().includes(term) ||
-        (document.category ?? "").toLowerCase().replace(/_/g, " ").includes(term)
-      );
+        (document.category ?? "").toLowerCase().replace(/_/g, " ").includes(term);
     });
   }, [documents, q, category, status]);
 
@@ -130,7 +119,6 @@ function VaultPage() {
   const bootstrapping = org.bootstrapping;
   const orgMissing = !bootstrapping && !org.error && Boolean(session) && !org.activeOrgId;
   const isFiltered = Boolean(q) || category !== "all" || status !== "all";
-  const health = useMemo(() => summarizeVaultHealth(documents), [documents]);
 
   return (
     <div className="relative mx-auto max-w-6xl px-4 py-8 sm:px-6 sm:py-12">
@@ -139,13 +127,7 @@ function VaultPage() {
 
       {org.multiCompany ? (
         <div className="relative z-10 mb-6">
-          <CompanySelect
-            id="vault-company"
-            label="Which company are you working in?"
-            organizations={org.organizations}
-            value={org.activeOrgId}
-            onChange={org.setActiveOrgId}
-          />
+          <CompanySelect id="vault-company" label="Which company are you working in?" organizations={org.organizations} value={org.activeOrgId} onChange={org.setActiveOrgId} />
         </div>
       ) : null}
 
@@ -153,77 +135,17 @@ function VaultPage() {
         <div className="flex flex-col gap-5 sm:flex-row sm:items-end sm:justify-between">
           <div>
             <div className="mb-2 inline-flex items-center gap-2 rounded-full border border-primary/15 bg-primary/[0.06] px-2.5 py-1 text-[9px] font-bold uppercase tracking-[0.18em] text-primary">
-              <span className="size-1.5 rounded-full bg-primary shadow-[0_0_10px_currentColor]" />{" "}
-              Evidence intelligence
+              <span className="size-1.5 rounded-full bg-primary shadow-[0_0_10px_currentColor]" /> Evidence intelligence
             </div>
-            <h1 className="text-2xl font-semibold tracking-[-0.025em] sm:text-3xl">
-              Company Vault
-            </h1>
+            <h1 className="text-2xl font-semibold tracking-[-0.025em] sm:text-3xl">Company Vault</h1>
             <p className="mt-1.5 max-w-2xl text-sm leading-6 text-muted-foreground">
-              {org.activeOrgName ? `${org.activeOrgName} — ` : ""}every compliance document this
-              organization needs, in one secure place.
+              {org.activeOrgName ? `${org.activeOrgName} — ` : ""}every compliance document this organization needs, in one secure place.
             </p>
           </div>
           <div className="hidden shrink-0 rounded-2xl border border-white/70 bg-white/[0.42] px-4 py-3 text-right shadow-[0_12px_30px_-18px_rgba(15,23,42,0.25),inset_0_1px_0_rgba(255,255,255,0.85)] dark:border-white/10 dark:bg-white/[0.035] sm:block">
-            <p className="text-[9px] font-bold uppercase tracking-[0.16em] text-muted-foreground">
-              Evidence control
-            </p>
+            <p className="text-[9px] font-bold uppercase tracking-[0.16em] text-muted-foreground">Evidence control</p>
             <p className="mt-1 text-xs font-semibold text-foreground">Procurement-grade vault</p>
           </div>
-        </div>
-
-        <div className="mt-6 grid grid-cols-2 gap-2 sm:grid-cols-4">
-          {[
-            {
-              label: "Expiring soon",
-              value: health.expiringSoon,
-              filter: "expiring_soon" as const,
-              hint: "Active evidence due within 30 days",
-            },
-            {
-              label: "Expired",
-              value: health.expired,
-              filter: "expired" as const,
-              hint: "Evidence that needs renewal",
-            },
-            {
-              label: "Needs review",
-              value: health.needsReview,
-              filter: "needs_review" as const,
-              hint: "Documents awaiting human review",
-            },
-            {
-              label: "Analysis failed",
-              value: health.failed,
-              filter: "failed" as const,
-              hint: "Documents whose analysis failed",
-            },
-          ].map((item) => (
-            <button
-              key={item.filter}
-              type="button"
-              onClick={() => setStatus(item.filter)}
-              aria-label={`Show ${item.value} documents: ${item.label}`}
-              aria-pressed={status === item.filter}
-              title={item.hint}
-              className={cn(
-                "min-w-0 rounded-2xl border px-3 py-3 text-left transition-colors",
-                status === item.filter
-                  ? "border-primary/35 bg-primary/[0.09] shadow-[inset_0_1px_0_rgba(255,255,255,0.12)]"
-                  : "border-white/60 bg-white/[0.28] hover:border-primary/25 hover:bg-white/[0.42] dark:border-white/10 dark:bg-white/[0.025] dark:hover:bg-white/[0.05]",
-              )}
-            >
-              <span className="block truncate text-[10px] font-semibold uppercase tracking-[0.12em] text-muted-foreground">
-                {item.label}
-              </span>
-              <span className="mt-1 block text-xl font-bold tabular-nums tracking-tight">
-                {item.value}
-              </span>
-              <span className="mt-0.5 block truncate text-[10px] text-muted-foreground">
-                {item.hint}
-              </span>
-            </button>
-          ))}
         </div>
 
         <div className="mt-6 flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
@@ -337,9 +259,7 @@ function VaultPage() {
         {orgMissing ? (
           <div className="p-12 text-center">
             <p className="text-sm font-medium">No organization found for your account</p>
-            <p className="mt-1 text-sm text-muted-foreground">
-              Ask an administrator to add you to an organization before using the vault.
-            </p>
+            <p className="mt-1 text-sm text-muted-foreground">Ask an administrator to add you to an organization before using the vault.</p>
           </div>
         ) : (
           <CompanyVaultGroups
@@ -348,16 +268,8 @@ function VaultPage() {
             documents={filtered}
             allDocuments={documents}
             isLoading={bootstrapping || documentsQuery.isPending || companiesQuery.isPending}
-            error={
-              org.error ??
-              (documentsQuery.error as Error | null) ??
-              (companiesQuery.error as Error | null)
-            }
-            onRetry={() => {
-              org.refetch();
-              documentsQuery.refetch();
-              companiesQuery.refetch();
-            }}
+            error={org.error ?? (documentsQuery.error as Error | null) ?? (companiesQuery.error as Error | null)}
+            onRetry={() => { org.refetch(); documentsQuery.refetch(); companiesQuery.refetch(); }}
             isFiltered={isFiltered}
           />
         )}
