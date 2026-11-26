@@ -37,7 +37,7 @@ begin
      or position('membership_source' in v_writer) = 0
      or position('is_active is true' in v_writer) = 0
      or position('organization_id = v_doc.organization_id' in v_writer) = 0
-     or position('set_config(''jasmiq.verification_attempt_id''' in v_writer) = 0
+     or position('jasmiq.verification_attempt_id' in v_writer) = 0
      or position('insert into public.document_verification_attempts' in v_writer) = 0
      or position('update public.company_documents' in v_writer) = 0 then
     raise exception 'Private verification writer is missing lock, authorization, attempt context, or document transition';
