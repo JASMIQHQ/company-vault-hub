@@ -110,6 +110,10 @@ with check (
   and analysis_json = '{}'::jsonb
   and document_status = 'active'
   and storage_path is not null
+  and (
+    split_part(storage_path, '/', 1) = company_id::text
+    or split_part(storage_path, '/', 1) = organization_id::text
+  )
   and file_size between 1 and 20971520
   and mime_type in ('application/pdf', 'image/png', 'image/jpeg')
   and sha256_hash ~ '^[0-9a-f]{64}$'
@@ -210,6 +214,10 @@ begin
           on c.id = d.company_id
          and c.organization_id = d.organization_id
         where d.storage_path = name
+          and (
+            split_part(d.storage_path, '/', 1) = d.company_id::text
+            or split_part(d.storage_path, '/', 1) = d.organization_id::text
+          )
           and private.is_company_member(d.company_id)
       )
     );
@@ -263,6 +271,10 @@ begin
           select 1
           from public.company_documents d
           where d.storage_path = name
+            and (
+              split_part(d.storage_path, '/', 1) = d.company_id::text
+              or split_part(d.storage_path, '/', 1) = d.organization_id::text
+            )
             and private.is_company_member(d.company_id)
         )
       )
@@ -286,6 +298,10 @@ begin
           on t.id = tf.tender_id
          and t.organization_id = tf.organization_id
         where tf.storage_path = name
+          and (
+            split_part(tf.storage_path, '/', 1) = t.company_id::text
+            or split_part(tf.storage_path, '/', 1) = t.organization_id::text
+          )
           and private.is_company_member(t.company_id)
       )
     );
@@ -342,6 +358,10 @@ begin
             on t.id = tf.tender_id
            and t.organization_id = tf.organization_id
           where tf.storage_path = name
+            and (
+              split_part(tf.storage_path, '/', 1) = t.company_id::text
+              or split_part(tf.storage_path, '/', 1) = t.organization_id::text
+            )
             and private.is_company_member(t.company_id)
         )
       )
