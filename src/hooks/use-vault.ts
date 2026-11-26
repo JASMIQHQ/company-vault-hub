@@ -2,7 +2,14 @@ import { useEffect, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import type { Session } from "@supabase/supabase-js";
 import { supabase } from "@/integrations/supabase/client";
-import { BUCKET, buildStoragePath, getFileMimeType, sha256Hex, validateFile, type CompanyDocument } from "@/lib/vault";
+import {
+  BUCKET,
+  buildStoragePath,
+  getFileMimeType,
+  sha256Hex,
+  validateFile,
+  type CompanyDocument,
+} from "@/lib/vault";
 
 export function useSession() {
   const [session, setSession] = useState<Session | null>(null);
@@ -172,7 +179,8 @@ export function usePermanentDeleteDocument() {
         body: { document_id: id, mode: "delete" },
       });
       if (error) throw error;
-      if (!data?.deleted) throw new Error("Only documents already in the Bin can be permanently deleted.");
+      if (!data?.deleted)
+        throw new Error("Only documents already in the Bin can be permanently deleted.");
       return {
         storageDeleted: data.storage_deleted === true,
         cleanupError: typeof data.cleanup_error === "string" ? data.cleanup_error : undefined,
@@ -210,7 +218,7 @@ export function useUploadDocument() {
     }: UploadInput) => {
       const validationError = validateFile(file);
       if (validationError) throw new Error(validationError);
-      const hash = sha256Hash ?? await sha256Hex(file);
+      const hash = sha256Hash ?? (await sha256Hex(file));
       const mimeType = getFileMimeType(file);
       const storagePath = buildStoragePath(companyId, category, file.name);
       const { error: uploadError } = await supabase.storage
