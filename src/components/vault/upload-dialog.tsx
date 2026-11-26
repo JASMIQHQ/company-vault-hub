@@ -1,12 +1,5 @@
 import { useMemo, useState, type ChangeEvent } from "react";
-import {
-  CalendarDays,
-  FileText,
-  Loader2,
-  RotateCcw,
-  Trash2,
-  UploadCloud,
-} from "lucide-react";
+import { CalendarDays, FileText, Loader2, RotateCcw, Trash2, UploadCloud } from "lucide-react";
 import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
@@ -24,11 +17,7 @@ import { Label } from "@/components/ui/label";
 import { Progress } from "@/components/ui/progress";
 import { CompanyPicker } from "@/components/vault/company-picker";
 import { useCompanies } from "@/hooks/use-companies";
-import {
-  useDocuments,
-  useSession,
-  useUploadDocument,
-} from "@/hooks/use-vault";
+import { useDocuments, useSession, useUploadDocument } from "@/hooks/use-vault";
 import { findCompanyDuplicate, type DuplicateCandidate } from "@/lib/vault-duplicates";
 import { summarizeUploadQueue, type UploadQueueStatus } from "@/lib/upload-queue";
 import { ACCEPT_ATTRIBUTE, sha256Hex, validateFile } from "@/lib/vault";
@@ -97,10 +86,7 @@ export function UploadDialog({ organizationId }: { organizationId: string }) {
   const companiesQuery = useCompanies(session, organizationId);
   const documentsQuery = useDocuments(session, organizationId);
   const companies = companiesQuery.data ?? [];
-  const documents = useMemo(
-    () => documentsQuery.data ?? [],
-    [documentsQuery.data],
-  );
+  const documents = useMemo(() => documentsQuery.data ?? [], [documentsQuery.data]);
   const summary = useMemo(() => summarizeUploadQueue(queue), [queue]);
 
   const reset = () => {
@@ -114,18 +100,14 @@ export function UploadDialog({ organizationId }: { organizationId: string }) {
   const fingerprint = (item: UploadQueueItem) => {
     setQueue((current) =>
       current.map((entry) =>
-        entry.id === item.id
-          ? { ...entry, status: "hashing", error: undefined }
-          : entry,
+        entry.id === item.id ? { ...entry, status: "hashing", error: undefined } : entry,
       ),
     );
     void sha256Hex(item.file)
       .then((hash) => {
         setQueue((current) =>
           current.map((entry) =>
-            entry.id === item.id
-              ? { ...entry, hash, status: "queued", error: undefined }
-              : entry,
+            entry.id === item.id ? { ...entry, hash, status: "queued", error: undefined } : entry,
           ),
         );
       })
@@ -164,16 +146,12 @@ export function UploadDialog({ organizationId }: { organizationId: string }) {
     });
 
     setQueue((current) => [...current, ...additions]);
-    additions
-      .filter((item) => item.status === "hashing")
-      .forEach(fingerprint);
+    additions.filter((item) => item.status === "hashing").forEach(fingerprint);
   };
 
   const updateDocumentName = (id: string, documentName: string) => {
     setQueue((current) =>
-      current.map((item) =>
-        item.id === id ? { ...item, documentName } : item,
-      ),
+      current.map((item) => (item.id === id ? { ...item, documentName } : item)),
     );
   };
 
@@ -185,9 +163,7 @@ export function UploadDialog({ organizationId }: { organizationId: string }) {
     if (item.hash) {
       setQueue((current) =>
         current.map((entry) =>
-          entry.id === item.id
-            ? { ...entry, status: "queued", error: undefined }
-            : entry,
+          entry.id === item.id ? { ...entry, status: "queued", error: undefined } : entry,
         ),
       );
       return;
@@ -196,9 +172,7 @@ export function UploadDialog({ organizationId }: { organizationId: string }) {
   };
 
   const retryFailed = () => {
-    queue
-      .filter((item) => item.status === "failed")
-      .forEach(retryItem);
+    queue.filter((item) => item.status === "failed").forEach(retryItem);
   };
 
   const onExpiryChange = (value: "yes" | "no") => {
@@ -220,7 +194,9 @@ export function UploadDialog({ organizationId }: { organizationId: string }) {
       return;
     }
     if (documentsQuery.isPending || documentsQuery.isError) {
-      toast.error("JASMIQ cannot check for duplicates right now. Reload the Vault before uploading.");
+      toast.error(
+        "JASMIQ cannot check for duplicates right now. Reload the Vault before uploading.",
+      );
       return;
     }
 
@@ -251,7 +227,11 @@ export function UploadDialog({ organizationId }: { organizationId: string }) {
           setQueue((current) =>
             current.map((entry) =>
               entry.id === item.id
-                ? { ...entry, status: "failed", error: "File fingerprint is missing. Retry this file." }
+                ? {
+                    ...entry,
+                    status: "failed",
+                    error: "File fingerprint is missing. Retry this file.",
+                  }
                 : entry,
             ),
           );
@@ -279,9 +259,7 @@ export function UploadDialog({ organizationId }: { organizationId: string }) {
 
         setQueue((current) =>
           current.map((entry) =>
-            entry.id === item.id
-              ? { ...entry, status: "uploading", error: undefined }
-              : entry,
+            entry.id === item.id ? { ...entry, status: "uploading", error: undefined } : entry,
           ),
         );
 
@@ -307,9 +285,7 @@ export function UploadDialog({ organizationId }: { organizationId: string }) {
           });
           setQueue((current) =>
             current.map((entry) =>
-              entry.id === item.id
-                ? { ...entry, status: "success", error: undefined }
-                : entry,
+              entry.id === item.id ? { ...entry, status: "success", error: undefined } : entry,
             ),
           );
         } catch (error) {
@@ -320,8 +296,7 @@ export function UploadDialog({ organizationId }: { organizationId: string }) {
                 ? {
                     ...entry,
                     status: "failed",
-                    error:
-                      error instanceof Error ? error.message : "Upload failed.",
+                    error: error instanceof Error ? error.message : "Upload failed.",
                   }
                 : entry,
             ),
@@ -342,9 +317,7 @@ export function UploadDialog({ organizationId }: { organizationId: string }) {
       }
     } catch (error) {
       toast.error(
-        error instanceof Error
-          ? error.message
-          : "Could not refresh the Vault before upload.",
+        error instanceof Error ? error.message : "Could not refresh the Vault before upload.",
       );
     } finally {
       setProcessingBatch(false);
@@ -453,9 +426,7 @@ export function UploadDialog({ organizationId }: { organizationId: string }) {
                       )
                     : null;
                   const displayStatus =
-                    existingDuplicate || sameBatchDuplicate
-                      ? "duplicate"
-                      : item.status;
+                    existingDuplicate || sameBatchDuplicate ? "duplicate" : item.status;
 
                   return (
                     <div
@@ -478,9 +449,7 @@ export function UploadDialog({ organizationId }: { organizationId: string }) {
                           </div>
                           <Input
                             value={item.documentName}
-                            onChange={(event) =>
-                              updateDocumentName(item.id, event.target.value)
-                            }
+                            onChange={(event) => updateDocumentName(item.id, event.target.value)}
                             aria-label={`Document name for ${item.file.name}`}
                             className="mt-2 h-8 rounded-lg text-xs"
                             disabled={item.status === "uploading" || item.status === "success"}
