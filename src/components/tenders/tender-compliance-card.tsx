@@ -73,7 +73,7 @@ export function TenderComplianceCard({
   const companyDocuments = useMemo(
     () =>
       (documentsQuery.data ?? []).filter(
-        (document) => document.company_id === tender?.company_id,
+        (document) => document.company_id === tender?.company_id
       ),
     [documentsQuery.data, tender?.company_id],
   );
