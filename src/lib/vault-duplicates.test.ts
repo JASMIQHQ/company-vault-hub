@@ -33,16 +33,28 @@ describe("findCompanyDuplicate", () => {
 
   test("ignores superseded and archived versions", () => {
     expect(
-      findCompanyDuplicate([{ ...existing, document_status: "superseded" }], "company-1", hash),
+      findCompanyDuplicate(
+        [{ ...existing, document_status: "superseded" }],
+        "company-1",
+        hash,
+      ),
     ).toBeNull();
     expect(
-      findCompanyDuplicate([{ ...existing, document_status: "archived" }], "company-1", hash),
+      findCompanyDuplicate(
+        [{ ...existing, document_status: "archived" }],
+        "company-1",
+        hash,
+      ),
     ).toBeNull();
   });
 
   test("compares hashes without case sensitivity", () => {
     expect(
-      findCompanyDuplicate([{ ...existing, sha256_hash: hash.toUpperCase() }], "company-1", hash),
+      findCompanyDuplicate(
+        [{ ...existing, sha256_hash: hash.toUpperCase() }],
+        "company-1",
+        hash,
+      ),
     ).not.toBeNull();
   });
 
