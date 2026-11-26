@@ -78,9 +78,12 @@ const parse = (value: string): Record<string, unknown> | null => {
 const validType = (value: unknown): value is VerifiedDocType =>
   typeof value === "string" && (DOCUMENT_TYPES as readonly string[]).includes(value);
 
-const provider = (): Provider => {
-  const configured = Deno.env.get("AI_PROVIDER")?.toLowerCase();
-  return configured === "stub" ? "stub" : configured === "anthropic" ? "anthropic" : "gemini";
+const provider = (): Provider | null => {
+  const configured = (Deno.env.get("AI_PROVIDER") ?? "gemini").toLowerCase();
+  if (configured === "gemini" || configured === "anthropic" || configured === "stub") {
+    return configured;
+  }
+  return null;
 };
 
 const prompt = () =>
@@ -266,6 +269,9 @@ Deno.serve(async (req) => {
   const url = Deno.env.get("SUPABASE_URL");
   const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
   const selectedProvider = provider();
+  if (!selectedProvider) {
+    return json({ error: "Unsupported AI_PROVIDER configuration." }, 500);
+  }
   const key =
     selectedProvider === "stub"
       ? null
