@@ -10,7 +10,11 @@ import { formatDate } from "@/lib/vault";
 const STATUS_META = {
   matched: { label: "Satisfied", icon: FileCheck2, className: "text-success" },
   manual_review: { label: "Needs Review", icon: FileWarning, className: "text-warning" },
-  submission_action: { label: "Submission Actions", icon: ClipboardList, className: "text-warning" },
+  submission_action: {
+    label: "Submission Actions",
+    icon: ClipboardList,
+    className: "text-warning",
+  },
   missing: { label: "Missing", icon: XCircle, className: "text-destructive" },
   expired: { label: "Expired", icon: Clock3, className: "text-warning" },
 } as const;
@@ -74,9 +78,7 @@ export function TenderComplianceCard({
 
   const companyDocuments = useMemo(
     () =>
-      (documentsQuery.data ?? []).filter(
-        (document) => document.company_id === tender?.company_id
-      ),
+      (documentsQuery.data ?? []).filter((document) => document.company_id === tender?.company_id),
     [documentsQuery.data, tender?.company_id],
   );
   const counts = useMemo(() => {
