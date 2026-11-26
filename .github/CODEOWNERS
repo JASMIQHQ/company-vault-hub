@@ -1,0 +1,4 @@
+# Critical security and release-control ownership
+/supabase/ @Bosah
+/.github/workflows/ @Bosah
+/docs/release/ @Bosah
