@@ -148,7 +148,7 @@ drop index if exists public.uq_company_document_hash;
 
 create unique index if not exists company_documents_company_hash_active_uq
 on public.company_documents (company_id, sha256_hash)
-where sha256_hash is not null and deleted_at is null;
+where sha256_hash is not null and deleted_at is null and document_status = 'active';
 
 insert into storage.buckets (id, name, public, file_size_limit, allowed_mime_types)
 values (
@@ -402,6 +402,7 @@ begin
     where d.company_id = p_company_id
       and d.sha256_hash = p_sha256_hash
       and d.deleted_at is null
+      and d.document_status = 'active'
   ) then
     raise exception 'duplicate document already exists in this company'
       using errcode = '23505';
