@@ -25,9 +25,7 @@ export interface CompanyAuthorizationContext {
  * organization member. An owner membership additionally requires the current
  * organization_members row to identify that user as an owner.
  */
-export function isCompanyAuthorizationValid(
-  context: CompanyAuthorizationContext,
-): boolean {
+export function isCompanyAuthorizationValid(context: CompanyAuthorizationContext): boolean {
   const {
     expectedCompanyId,
     expectedOrganizationId,
@@ -45,11 +43,7 @@ export function isCompanyAuthorizationValid(
     return false;
   }
 
-  if (
-    !organizationMemberships.some(
-      (row) => row.organization_id === expectedOrganizationId,
-    )
-  ) {
+  if (!organizationMemberships.some((row) => row.organization_id === expectedOrganizationId)) {
     return false;
   }
 
@@ -102,11 +96,7 @@ export async function authorizeCompanyMembership(
 ): Promise<boolean> {
   const admin = adminInput as AdminClient;
 
-  if (
-    !args.organizationMemberships.some(
-      (row) => row.organization_id === args.organizationId,
-    )
-  ) {
+  if (!args.organizationMemberships.some((row) => row.organization_id === args.organizationId)) {
     return false;
   }
 
