@@ -1,5 +1,5 @@
 export interface OrganizationMembership {
-  organization_id: string;
+  organization_id: string | null;
   is_owner: boolean | null;
 }
 
