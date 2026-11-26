@@ -82,13 +82,27 @@ function EditValidityDialog({ document, open, onOpenChange }: { document: Compan
             />
           </div>
         <div className="rounded-2xl border border-border/60 bg-background/35 p-4">
-          <div className="flex items-center gap-2"><CalendarDays className="size-4 text-primary" /><Label>Validity</Label></div>
+            <div className="flex items-center gap-2">
+              <CalendarDays className="size-4 text-primary" />
+              <Label>Validity</Label>
+            </div>
           <label className="mt-3 flex items-center gap-2 text-sm"><input type="checkbox" checked={neverExpires} onChange={(event) => { setNeverExpires(event.target.checked); if (event.target.checked) setExpiryDate(""); }} /> Never expires</label>
           {!neverExpires ? <Input type="date" value={expiryDate} onChange={(event) => setExpiryDate(event.target.value)} className="mt-3 rounded-xl" /> : null}
           {!neverExpires && !expiryDate ? <p className="mt-2 text-xs text-warning">Choose an expiry date or select Never expires.</p> : null}
         </div>
-      </div>
-      <DialogFooter><Button variant="ghost" className="rounded-xl" onClick={() => onOpenChange(false)}>Cancel</Button><Button className="rounded-xl" onClick={save} disabled={!name.trim() || (!neverExpires && !expiryDate) || pending}>{pending && <Loader2 className="mr-2 size-4 animate-spin" />}Save changes</Button></DialogFooter>
+        </div>
+        <DialogFooter>
+          <Button variant="ghost" className="rounded-xl" onClick={() => onOpenChange(false)}>
+            Cancel
+          </Button>
+          <Button
+            className="rounded-xl"
+            onClick={save}
+            disabled={!name.trim() || (!neverExpires && !expiryDate) || pending}
+          >
+            {pending && <Loader2 className="mr-2 size-4 animate-spin" />}Save changes
+          </Button>
+        </DialogFooter>
       </DialogContent>
   </Dialog>;
 }
@@ -117,7 +131,21 @@ function RowActions({ document }: { document: CompanyDocument }) {
   return (
     <div className="flex justify-end gap-1">
     <Button variant="ghost" size="sm" className="rounded-lg" onClick={() => open("preview")} disabled={busy !== null} aria-label={`Preview ${document.document_name}`}>{busy === "preview" ? <Loader2 className="size-4 animate-spin" /> : <Eye className="size-4" />}<span className="ml-1.5 hidden sm:inline">Preview</span></Button>
-    <Button variant="ghost" size="sm" className="rounded-lg" onClick={() => open("download")} disabled={busy !== null} aria-label={`Download ${document.document_name}`}>{busy === "download" ? <Loader2 className="size-4 animate-spin" /> : <Download className="size-4" />}<span className="ml-1.5 hidden sm:inline">Download</span></Button>
+      <Button
+        variant="ghost"
+        size="sm"
+        className="rounded-lg"
+        onClick={() => open("download")}
+        disabled={busy !== null}
+        aria-label={`Download ${document.document_name}`}
+      >
+        {busy === "download" ? (
+          <Loader2 className="size-4 animate-spin" />
+        ) : (
+          <Download className="size-4" />
+        )}
+        <span className="ml-1.5 hidden sm:inline">Download</span>
+      </Button>
       <Button
         variant="ghost"
         size="sm"
