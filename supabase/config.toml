@@ -1,4 +1,5 @@
-project_id = "itqepknvdiedldcyunig"
+# Staging-first default. Production is intentionally not the CLI default.
+project_id = "rmtoaaxnuwsecmajhwjx"
 
 [functions.analyze-tender]
 verify_jwt = false
