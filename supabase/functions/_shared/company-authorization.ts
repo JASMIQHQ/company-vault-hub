@@ -92,7 +92,7 @@ interface AdminClient {
  * JWT and load organization memberships for that same profile.
  */
 export async function authorizeCompanyMembership(
-  admin: AdminClient,
+  adminInput: unknown,
   args: {
     profileId: string;
     companyId: string;
@@ -100,6 +100,8 @@ export async function authorizeCompanyMembership(
     organizationMemberships: readonly OrganizationMembership[];
   },
 ): Promise<boolean> {
+  const admin = adminInput as AdminClient;
+
   if (
     !args.organizationMemberships.some(
       (row) => row.organization_id === args.organizationId,
