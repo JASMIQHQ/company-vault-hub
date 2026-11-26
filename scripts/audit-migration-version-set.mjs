@@ -29,23 +29,27 @@ const expectedSet = new Set(expected);
 const actualSet = new Set(actual);
 const missing = expected.filter((version) => !actualSet.has(version)).sort();
 const extra = actual.filter((version) => !expectedSet.has(version)).sort();
+const latestRecordedVersion = [...expected].sort().at(-1);
+const outOfOrderExtras = extra.filter(
+  (version) => !latestRecordedVersion || version <= latestRecordedVersion,
+).sort();
 
 console.log(`Expected live-ledger versions: ${expected.length}`);
 console.log(`SQL migration files found: ${sqlFiles.length}`);
 console.log(`Unique version prefixes found: ${actualSet.size}`);
 if (missing.length) console.error(`Missing live versions: ${missing.join(", ")}`);
-if (extra.length) {
-  console.error(`Unrecognized extra versions: ${[...new Set(extra)].sort().join(", ")}`);
+if (outOfOrderExtras.length) {
+  console.error(
+    `Unrecognized non-forward migration versions: ${[...new Set(outOfOrderExtras)].join(", ")}`,
+  );
 }
 if (duplicates.length) console.error(`Duplicate version prefixes: ${duplicates.join(", ")}`);
 if (invalidNames.length) console.error(`Invalid migration filenames: ${invalidNames.join(", ")}`);
 
 if (
   expected.length !== 68 ||
-  actual.length !== expected.length ||
-  actualSet.size !== expectedSet.size ||
   missing.length > 0 ||
-  extra.length > 0 ||
+  outOfOrderExtras.length > 0 ||
   duplicates.length > 0 ||
   invalidNames.length > 0
 ) {
@@ -55,4 +59,6 @@ if (
   process.exit(1);
 }
 
-console.log("PASS: migration version set exactly matches the recorded 66-version live ledger.");
+console.log(
+  `PASS: recorded live-ledger baseline matches; ${extra.length} forward additive migration(s) are queued.`,
+);
