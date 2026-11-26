@@ -58,6 +58,33 @@ begin
     raise exception 'Expected six tenant-scoped Storage policies; found %', v_count;
   end if;
 
+  select lower(coalesce(with_check, ''))
+  into v_policy
+  from pg_policies
+  where schemaname = 'storage'
+    and tablename = 'objects'
+    and policyname = 'company_documents_object_insert';
+
+  if v_policy is null
+     or position('private.is_company_member' in v_policy) = 0
+     or position('public.is_org_member' in v_policy) = 0
+     or position('owner = auth.uid()' in v_policy) = 0 then
+    raise exception 'Company document Storage INSERT must support company-scoped paths and owner-bound legacy paths';
+  end if;
+
+  select lower(coalesce(with_check, ''))
+  into v_policy
+  from pg_policies
+  where schemaname = 'storage'
+    and tablename = 'objects'
+    and policyname = 'tender_files_object_insert';
+
+  if v_policy is null
+     or position('private.is_company_member' in v_policy) = 0
+     or position('public.is_org_member' in v_policy) = 0 then
+    raise exception 'Tender Storage INSERT must enforce company membership and legacy organization path ownership';
+  end if;
+
   select lower(coalesce(qual, '') || ' ' || coalesce(with_check, ''))
   into v_policy
   from pg_policies
@@ -81,7 +108,8 @@ begin
   if v_insert_policy is null
      or position('uploaded_by' in v_insert_policy) = 0
      or position('current_profile_id' in v_insert_policy) = 0
-     or position('verification_status' in v_insert_policy) = 0
+     or position('verification_status = ''unverified''' in v_insert_policy) = 0
+     or position('verified_doc_type is null' in v_insert_policy) = 0
      or position('analysis_status' in v_insert_policy) = 0
      or position('analysis_json is null' in v_insert_policy) = 0
      or position('verified_at is null' in v_insert_policy) = 0 then
