@@ -54,7 +54,7 @@ if (
   invalidNames.length > 0
 ) {
   console.error(
-    "FAIL: migration filenames do not exactly match the recorded live migration ledger.",
+    "FAIL: historical ledger baseline or forward-additive migration ordering is invalid.",
   );
   process.exit(1);
 }
