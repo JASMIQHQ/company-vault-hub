@@ -82,7 +82,9 @@ begin
      or position('uploaded_by' in v_insert_policy) = 0
      or position('current_profile_id' in v_insert_policy) = 0
      or position('verification_status' in v_insert_policy) = 0
-     or position('analysis_status' in v_insert_policy) = 0 then
+     or position('analysis_status' in v_insert_policy) = 0
+     or position('analysis_json is null' in v_insert_policy) = 0
+     or position('verified_at is null' in v_insert_policy) = 0 then
     raise exception 'Company document INSERT RLS must bind uploader and prevent client-created verification facts';
   end if;
 
