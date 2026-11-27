@@ -45,7 +45,8 @@ Return ONLY JSON matching:
   ]
 }
 Never invent values. Use null when the document does not state something.
-List every eligibility/submission requirement you find, in document order.`;
+List every eligibility/submission requirement you find, in document order.
+If the supplied text is OCR output, assume characters, dates, amounts, tables and identifiers may be misread. Do not guess or repair unclear text; use null or omit unsupported requirements.`;
 
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
@@ -92,8 +93,30 @@ Deno.serve(async (req) => {
 
   try {
     const body = await req.json().catch(() => ({}));
-    const id = (body as { tender_id?: string }).tender_id;
+    const payload = body as {
+      tender_id?: string;
+      ocr_text?: unknown;
+      ocr_page_count?: unknown;
+    };
+    const id = payload.tender_id;
     if (!id || !UUID_RE.test(id)) return json({ error: "A valid tender_id is required." }, 400);
+
+    let submittedOcrText = "";
+    let submittedOcrPageCount: number | null = null;
+    if (payload.ocr_text !== undefined) {
+      if (
+        typeof payload.ocr_text !== "string" ||
+        payload.ocr_text.trim().length < 200 ||
+        payload.ocr_text.length > 120000 ||
+        !Number.isInteger(payload.ocr_page_count) ||
+        Number(payload.ocr_page_count) < 1 ||
+        Number(payload.ocr_page_count) > 40
+      ) {
+        return json({ error: "OCR text or page-count metadata is invalid." }, 400);
+      }
+      submittedOcrText = payload.ocr_text.trim();
+      submittedOcrPageCount = Number(payload.ocr_page_count);
+    }
 
     // --- authenticate caller ---
     const authHeader = req.headers.get("Authorization") ?? "";
@@ -197,10 +220,20 @@ Deno.serve(async (req) => {
       const extracted = await extractText(pdf, { mergePages: true });
       text = String(extracted.text ?? "").replace(/\s+/g, " ").trim();
     } catch {
-      return await fail("Could not read text from the tender PDF.", 422);
+      // A scanned PDF may not contain an extractable text layer. The authenticated
+      // browser may supply an OCR transcript, but it is accepted only after this
+      // server independently confirms that the stored PDF has no usable text.
+      text = "";
     }
+    let extractionMethod: "embedded_text" | "browser_ocr" = "embedded_text";
+    let ocrPageCount: number | null = null;
     if (text.length < 200) {
-      return await fail("The tender PDF has no readable text (it may be a scanned image).", 422);
+      if (submittedOcrText.length < 200 || !submittedOcrPageCount) {
+        return await fail("The tender PDF has no readable text (it may be a scanned image).", 422);
+      }
+      text = submittedOcrText;
+      extractionMethod = "browser_ocr";
+      ocrPageCount = submittedOcrPageCount;
     }
     const clipped = text.slice(0, 120000);
 
@@ -213,7 +246,13 @@ Deno.serve(async (req) => {
         response_format: { type: "json_object" },
         messages: [
           { role: "system", content: SCHEMA_PROMPT },
-          { role: "user", content: `Tender document text:\n\n${clipped}` },
+          {
+            role: "user",
+            content:
+              (extractionMethod === "browser_ocr"
+                ? "Tender document text produced by browser-side OCR. Treat recognition as imperfect; do not infer illegible content.\n\n"
+                : "Tender document text:\n\n") + clipped,
+          },
         ],
       }),
     });
@@ -246,6 +285,13 @@ Deno.serve(async (req) => {
       const parsedDate = new Date(raw);
       return Number.isNaN(parsedDate.getTime()) ? null : parsedDate.toISOString();
     };
+
+    parsed.extraction_method = extractionMethod;
+    if (ocrPageCount !== null) parsed.ocr_page_count = ocrPageCount;
+    if (extractionMethod === "browser_ocr") {
+      parsed.extraction_warning =
+        "Browser OCR can misread dates, amounts, identifiers and tables. Human verification against the source PDF is required.";
+    }
 
     const requirements = (Array.isArray(parsed.requirements) ? parsed.requirements : [])
       .map((entry, index) => {
@@ -312,14 +358,28 @@ Deno.serve(async (req) => {
       return json({ tender_id: tender.id, analysis_status: "analyzed", matching_status: "MATCHING_FAILED", requirements: requirements.length, matching: { error_code: "MATCHING_FAILED", http_status: matcherResponse.status, details: matcherBody, raw_body: typeof matcherBody.raw_body === "string" ? matcherBody.raw_body : undefined } }, 500);
     }
     const matcherResults = Array.isArray(matcherBody.results) ? matcherBody.results : [];
-    const requiresReview = matcherResults.some((result) => result !== null && typeof result === "object" && (result as Record<string, unknown>).status === "manual_review");
+    const requiresReview =
+      extractionMethod === "browser_ocr" ||
+      matcherResults.some(
+        (result) =>
+          result !== null &&
+          typeof result === "object" &&
+          (result as Record<string, unknown>).status === "manual_review",
+      );
     const finalMatchingStatus = requiresReview ? "MATCHING_REVIEW" : "MATCHED";
     const { error: finalMatchingStateError } = await admin.from("tenders").update({ matching_status: finalMatchingStatus }).eq("id", tender.id);
     if (finalMatchingStateError) {
       console.error("Could not persist final matching_status", finalMatchingStateError);
       return json({ tender_id: tender.id, analysis_status: "analyzed", matching_status: "MATCHING_FAILED", requirements: requirements.length, matching: { error_code: "MATCHING_STATE_PERSIST_FAILED", error: finalMatchingStateError.message } }, 500);
     }
-    return json({ tender_id: tender.id, analysis_status: "analyzed", matching_status: finalMatchingStatus, requirements: requirements.length, matching: matcherBody });
+    return json({
+      tender_id: tender.id,
+      analysis_status: "analyzed",
+      matching_status: finalMatchingStatus,
+      extraction_method: extractionMethod,
+      requirements: requirements.length,
+      matching: matcherBody,
+    });
   } catch (error) {
     console.error("analyze-tender unexpected error", error);
     return await fail("Unexpected error during tender analysis.", 500);

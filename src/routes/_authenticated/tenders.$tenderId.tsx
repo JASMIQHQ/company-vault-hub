@@ -35,11 +35,13 @@ import {
   useTender,
   useTenderRequirements,
   useUpdateTenderCompany,
+  TenderAnalysisHttpError,
 } from "@/hooks/use-tenders";
 import { useSession, useDocuments } from "@/hooks/use-vault";
 import { deriveTenderReadiness, type TenderReadiness } from "@/lib/tender-readiness";
 import { parseAnalysisJson } from "@/lib/tender-analysis";
 import { formatDate } from "@/lib/vault";
+import { extractScannedTenderPdfText } from "@/lib/tender-ocr";
 
 export const Route = createFileRoute("/_authenticated/tenders/$tenderId")({
   component: TenderWorkspacePage,
@@ -108,6 +110,7 @@ function TenderWorkspacePage() {
   const [selectedLotId, setSelectedLotId] = useState<string | null>(null);
   const [busyFile, setBusyFile] = useState<"preview" | "download" | null>(null);
   const [analysisSubmitting, setAnalysisSubmitting] = useState(false);
+  const [ocrProgress, setOcrProgress] = useState<{ page: number; total: number } | null>(null);
   const renderCountRef = useRef(0);
   const renderCount = ++renderCountRef.current;
   const [companyChangePending, setCompanyChangePending] = useState(false);
@@ -117,7 +120,11 @@ function TenderWorkspacePage() {
   const isProcessing = status === "processing" || analysisSubmitting || analyze.isPending;
   let readActionLabel = "Read Tender";
   if (isProcessing) {
-    readActionLabel = "Reading tender...";
+    readActionLabel = ocrProgress
+      ? ocrProgress.total > 0
+        ? "OCR page " + ocrProgress.page + " of " + ocrProgress.total + "…"
+        : "Preparing local OCR…"
+      : "Reading tender...";
   } else if (hasSavedRequirements) {
     readActionLabel = "Re-read tender";
   }
@@ -182,8 +189,44 @@ function TenderWorkspacePage() {
   const analyzeNow = async () => {
     if (isProcessing) return;
     setAnalysisSubmitting(true);
+    setOcrProgress(null);
+    let usedLocalOcr = false;
     try {
-      await analyze.mutateAsync(tender.id);
+      try {
+        await analyze.mutateAsync({ tenderId: tender.id });
+      } catch (initialError) {
+        const isScannedPdf =
+          initialError instanceof TenderAnalysisHttpError &&
+          initialError.status === 422 &&
+          /no readable text|could not read text/i.test(initialError.message);
+        if (!isScannedPdf) throw initialError;
+        if (!tender.storage_path) {
+          throw new Error("This scanned tender has no accessible source file for local OCR.");
+        }
+
+        toast.info("Scanned PDF detected. Preparing private, on-device OCR…");
+        setOcrProgress({ page: 0, total: 0 });
+        const signedUrl = await createTenderSignedUrl(tender.storage_path);
+        const response = await fetch(signedUrl);
+        if (!response.ok) throw new Error("Could not download the tender for local OCR.");
+        const pdfBlob = await response.blob();
+        const ocr = await extractScannedTenderPdfText(pdfBlob, (page, total) => {
+          setOcrProgress({ page, total });
+        });
+        if (ocr.text.length < 200) {
+          throw new Error(
+            "OCR could not extract enough readable text. Try a clearer scan or a smaller PDF.",
+          );
+        }
+
+        await analyze.mutateAsync({
+          tenderId: tender.id,
+          ocrText: ocr.text,
+          ocrPageCount: ocr.pageCount,
+        });
+        usedLocalOcr = true;
+      }
+
       await Promise.all([
         tenderQuery.refetch(),
         requirementsQuery.refetch(),
@@ -194,9 +237,16 @@ function TenderWorkspacePage() {
           ? "Tender re-read and Vault matching refreshed"
           : "Tender read and Vault matching completed",
       );
+      if (usedLocalOcr) {
+        toast.warning(
+          "OCR-assisted reading completed. Verify all dates, amounts, identifiers and requirements against the original PDF.",
+        );
+      }
     } catch (error) {
       toast.error(error instanceof Error ? error.message : "Tender reading failed");
+      await tenderQuery.refetch();
     } finally {
+      setOcrProgress(null);
       setAnalysisSubmitting(false);
     }
   };
@@ -343,6 +393,16 @@ function TenderWorkspacePage() {
         {matchingStatus === "MATCHING_REVIEW" ? (
           <div className="mt-3 rounded-xl border border-warning/25 bg-warning-soft/30 p-3 text-sm text-warning">
             Matching complete — some requirements need review.
+          </div>
+        ) : null}
+        {tender.analysis_json &&
+        typeof tender.analysis_json === "object" &&
+        !Array.isArray(tender.analysis_json) &&
+        (tender.analysis_json as Record<string, unknown>).extraction_method === "browser_ocr" ? (
+          <div className="mt-3 rounded-xl border border-warning/25 bg-warning-soft/30 p-3 text-sm text-warning">
+            <strong>Scanned PDF — OCR-assisted extraction.</strong> OCR can misread dates, amounts,
+            reference numbers and tables. Check every extracted requirement against the original
+            document before relying on readiness or submitting a bid.
           </div>
         ) : null}
         {status === "failed" && tender.analysis_error ? (
