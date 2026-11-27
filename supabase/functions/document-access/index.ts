@@ -290,8 +290,7 @@ Deno.serve(async (req) => {
       );
 
       if (registerError) {
-        const { error: cleanupError } = await admin.storage.from(BUCKET)
-          .remove([storagePath]);
+        const { error: cleanupError } = await admin.storage.from(BUCKET).remove([storagePath]);
         if (!cleanupError) {
           await completeIntent(intent.id);
         } else {
@@ -334,8 +333,7 @@ Deno.serve(async (req) => {
         return json({ cleaned: false, registered: true });
       }
 
-      const { error: removeError } = await admin.storage.from(BUCKET)
-          .remove([intent.storage_path]);
+      const { error: removeError } = await admin.storage.from(BUCKET).remove([intent.storage_path]);
       if (removeError) {
         await recordCleanupFailure(intent.id, removeError);
         return json({ error: "Cleanup remains queued for retry." }, 202);
@@ -418,8 +416,7 @@ Deno.serve(async (req) => {
         }
 
         if (!intentId) throw new Error("Delete cleanup intent was not created.");
-        const { error: removeError } = await admin.storage.from(BUCKET)
-          .remove([doc.storage_path]);
+        const { error: removeError } = await admin.storage.from(BUCKET).remove([doc.storage_path]);
         if (removeError) {
           await recordCleanupFailure(intentId, removeError);
           return json(
