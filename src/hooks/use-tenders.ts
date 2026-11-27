@@ -241,28 +241,43 @@ export function useMatchTenderEvidence() {
   });
 }
 
+export class TenderAnalysisHttpError extends Error {
+  status: number;
+
+  constructor(message: string, status: number) {
+    super(message);
+    this.name = "TenderAnalysisHttpError";
+    this.status = status;
+  }
+}
+
+export interface AnalyzeTenderInput {
+  tenderId: string;
+  ocrText?: string;
+  ocrPageCount?: number;
+}
+
 export function useAnalyzeTender() {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: async (tenderId: string) => {
+    mutationFn: async ({ tenderId, ocrText, ocrPageCount }: AnalyzeTenderInput) => {
       const { data, error } = await supabase.functions.invoke("analyze-tender", {
-        body: { tender_id: tenderId },
+        body: {
+          tender_id: tenderId,
+          ...(ocrText ? { ocr_text: ocrText, ocr_page_count: ocrPageCount } : {}),
+        },
       });
 
       if (error instanceof FunctionsHttpError) {
+        let message = error.message;
         try {
           const body = (await error.context.clone().json()) as { error?: unknown };
-          if (typeof body.error === "string" && body.error.trim()) {
-            throw new Error(body.error);
-          }
-        } catch (parseError) {
-          if (parseError instanceof Error && parseError.message !== error.message) {
-            throw parseError;
-          }
+          if (typeof body.error === "string" && body.error.trim()) message = body.error;
+        } catch {
+          // Keep the transport error when the function did not return JSON.
         }
-
-        throw new Error(error.message);
+        throw new TenderAnalysisHttpError(message, error.context.status);
       }
 
       if (error instanceof FunctionsRelayError || error instanceof FunctionsFetchError) {
