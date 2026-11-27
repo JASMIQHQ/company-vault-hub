@@ -23,6 +23,7 @@ import { TenderDetailsDialog } from "@/components/tenders/tender-details-dialog"
 import { featureFlags } from "@/lib/feature-flags";
 import { TenderLotManager, useTenderLots } from "@/components/tenders/tender-lot-manager";
 import { TenderActionPlan } from "@/components/tenders/tender-action-plan";
+import { ProposalStudio } from "@/components/tenders/proposal-studio";
 import { CompanyPicker } from "@/components/vault/company-picker";
 import { StatusBadge } from "@/components/vault/status-badge";
 import { useActiveOrganization } from "@/hooks/use-active-organization";
@@ -415,6 +416,15 @@ function TenderWorkspacePage() {
         selectedLotId={selectedLotId}
         organizationId={tender.organization_id}
         tenderId={tender.id}
+      />
+
+      <ProposalStudio
+        tenderId={tender.id}
+        tenderTitle={tender.title}
+        organizationId={tender.organization_id}
+        companyName={companiesQuery.data?.find((company) => company.id === tender.company_id)?.name ?? "Selected company"}
+        requirements={displayRequirements}
+        documents={documentsQuery.data ?? []}
       />
 
       <section className="glass-panel mt-5 rounded-2xl p-4 sm:p-5">
