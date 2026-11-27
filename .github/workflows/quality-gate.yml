@@ -72,7 +72,7 @@ jobs:
         run: |
           set -uo pipefail
           failed=0
-          for fn in analyze-tender match-tender-evidence verify-document analyze-document detect-tender-bid-structure; do
+          for fn in analyze-tender match-tender-evidence verify-document analyze-document detect-tender-bid-structure document-access; do
             echo "Checking supabase/functions/$fn/index.ts"
             if ! deno check --no-lock --node-modules-dir=auto "supabase/functions/$fn/index.ts"; then
               failed=1

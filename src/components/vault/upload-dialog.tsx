@@ -272,6 +272,7 @@ export function UploadDialog({ organizationId }: { organizationId: string }) {
             organizationId,
             companyId,
             expiryDate: hasExpiry === "yes" ? expiryDate : null,
+            sha256Hash: item.hash,
           });
           uploadedCount += 1;
           seenHashes.add(item.hash);
@@ -378,7 +379,7 @@ export function UploadDialog({ organizationId }: { organizationId: string }) {
               className="rounded-xl"
             />
             <p className="text-xs text-muted-foreground">
-              PDF, PNG and JPEG files up to 25 MB each. Files are checked independently.
+              PDF, PNG and JPEG files up to 20 MB each. Files are checked independently.
             </p>
           </div>
 
