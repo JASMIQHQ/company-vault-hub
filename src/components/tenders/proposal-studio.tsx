@@ -47,6 +47,8 @@ function buildProposalDraft({
   companyName,
   requirements,
   documents,
+  organizationId,
+  companyId,
 }: {
   tenderTitle: string;
   companyName: string;
@@ -61,7 +63,7 @@ function buildProposalDraft({
   const gaps = requirements.filter(
     (requirement) =>
       requirement.match_basis !== "PROCEDURAL_DECLARATION" &&
-      (requirement.status !== "matched" || requirement.match_basis !== "VERIFIED_FACT"),
+      !isCurrentVerifiedEvidence(requirement, documents, organizationId, companyId),
   );
   const submissionSteps = requirements.filter(
     (requirement) => requirement.match_basis === "PROCEDURAL_DECLARATION",
@@ -172,6 +174,8 @@ function csvCell(value: string | null | undefined) {
 function downloadRequirementMatrix(
   requirements: TenderRequirementWithLot[],
   documents: CompanyDocument[],
+  organizationId: string,
+  companyId: string,
   tenderTitle: string,
 ) {
   const header = [
@@ -185,13 +189,17 @@ function downloadRequirementMatrix(
   ];
   const rows = requirements.map((requirement) => {
     const document = documents.find(
-      (item) => item.id === requirement.matched_document_id && !item.deleted_at,
+      (item) =>
+        item.id === requirement.matched_document_id &&
+        item.organization_id === organizationId &&
+        item.company_id === companyId &&
+        !item.deleted_at,
     );
     const trusted = isCurrentVerifiedEvidence(
       requirement,
       documents,
-      document?.organization_id ?? "",
-      document?.company_id ?? "",
+      organizationId,
+      companyId,
     );
     return [
       requirement.requirement_name ?? requirement.requirement_text,
@@ -253,7 +261,7 @@ export function ProposalStudio({
       requirements.filter((requirement) =>
         isCurrentVerifiedEvidence(requirement, documents, organizationId, companyId),
       ).length,
-    [requirements, documents],
+    [requirements, documents, organizationId, companyId],
   );
 
   const saveDraft = useMutation({
@@ -390,7 +398,15 @@ export function ProposalStudio({
               variant="outline"
               className="rounded-xl"
               disabled={requirements.length === 0}
-              onClick={() => downloadRequirementMatrix(requirements, documents, tenderTitle)}
+              onClick={() =>
+                downloadRequirementMatrix(
+                  requirements,
+                  documents,
+                  organizationId,
+                  companyId,
+                  tenderTitle,
+                )
+              }
             >
               <FileSpreadsheet className="mr-2 size-4" />
               Export compliance CSV
