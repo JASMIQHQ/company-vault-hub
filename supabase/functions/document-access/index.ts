@@ -209,7 +209,8 @@ Deno.serve(async (req) => {
           continue;
         }
 
-        const { error: removeError } = await admin.storage.from(BUCKET)
+        const { error: removeError } = await admin.storage
+          .from(BUCKET)
           .remove([intent.storage_path]);
         if (!removeError) {
           await completeIntent(intent.id);
