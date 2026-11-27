@@ -49,14 +49,13 @@ begin
     and policyname in (
       'company_documents_object_select',
       'company_documents_object_insert',
-      'company_documents_object_delete',
       'tender_files_object_select',
       'tender_files_object_insert',
       'tender_files_object_delete'
     );
 
-  if v_count <> 6 then
-    raise exception 'Expected six tenant-scoped Storage policies; found %', v_count;
+  if v_count <> 5 then
+    raise exception 'Expected five tenant-scoped Storage policies with browser document deletion disabled; found %', v_count;
   end if;
 
   select lower(coalesce(with_check, ''))
@@ -130,6 +129,19 @@ begin
   if v_delete_policy is null
      or position('deleted_at is not null' in v_delete_policy) = 0 then
     raise exception 'Only soft-deleted documents may be permanently deleted by authenticated users';
+  end if;
+
+  if has_table_privilege('authenticated', 'public.company_documents', 'INSERT')
+     or has_table_privilege('authenticated', 'public.company_documents', 'DELETE') then
+    raise exception 'Browser roles must not insert evidence metadata or bypass the audited permanent-delete flow';
+  end if;
+
+  if exists (
+    select 1 from pg_policies
+    where schemaname = 'storage' and tablename = 'objects'
+      and policyname = 'company_documents_object_delete'
+  ) then
+    raise exception 'Authenticated users must not directly delete Vault Storage objects';
   end if;
 
   if not has_column_privilege('authenticated', 'public.company_documents', 'document_name', 'UPDATE')

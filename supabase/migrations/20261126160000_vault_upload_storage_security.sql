@@ -613,4 +613,9 @@ revoke all on function public.register_document_upload(uuid,text,text,text,text,
 revoke all on function public.register_document_upload(uuid,text,text,text,text,text,text,bigint,text,date,uuid) from public,anon,authenticated;
 grant execute on function public.register_document_upload(uuid,text,text,text,text,text,text,bigint,text,date,uuid) to service_role;
 
+
+-- Browser roles must not bypass the audited upload/delete Edge Function.
+revoke insert, delete on public.company_documents from anon, authenticated;
+drop policy if exists company_documents_object_delete on storage.objects;
+
 commit;
