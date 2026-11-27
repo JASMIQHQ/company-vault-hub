@@ -168,6 +168,7 @@ export async function extractScannedTenderPdfText(
   }
 
   let worker: TesseractWorker | null = null;
+  let processedPages = 0;
   const pages: string[] = [];
   try {
     worker = await tesseract.createWorker("eng", 1, {
@@ -194,6 +195,7 @@ export async function extractScannedTenderPdfText(
       canvas.width = 0;
       canvas.height = 0;
       page.cleanup?.();
+      processedPages = pageNumber;
       onPageProgress?.(pageNumber, pdf.numPages);
       if (pages.join("\n\n").length >= MAX_OCR_TEXT) break;
     }
@@ -204,6 +206,6 @@ export async function extractScannedTenderPdfText(
 
   return {
     text: pages.join("\n\n").slice(0, MAX_OCR_TEXT).trim(),
-    pageCount: pdf.numPages,
+    pageCount: processedPages,
   };
 }
