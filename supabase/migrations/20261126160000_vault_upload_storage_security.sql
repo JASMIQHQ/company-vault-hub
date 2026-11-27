@@ -615,7 +615,7 @@ grant execute on function public.register_document_upload(uuid,text,text,text,te
 
 
 -- Browser roles must not bypass the audited upload/delete Edge Function.
-revoke insert, delete on public.company_documents from anon, authenticated;
+revoke insert, delete on public.company_documents from public, anon, authenticated;
 drop policy if exists company_documents_object_delete on storage.objects;
 
 commit;
