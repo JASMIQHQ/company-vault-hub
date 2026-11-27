@@ -9,6 +9,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { supabase } from "@/integrations/supabase/client";
 import type { TenderRequirementWithLot } from "@/hooks/use-tenders";
 import type { CompanyDocument } from "@/lib/vault";
+import { getDocumentValidity } from "@/lib/document-validity";
 
 type SavedProposal = {
   id: string;
@@ -20,6 +21,27 @@ type SavedProposal = {
   created_at: string | null;
 };
 
+function isCurrentVerifiedEvidence(
+  requirement: TenderRequirementWithLot,
+  documents: CompanyDocument[],
+  organizationId: string,
+  companyId: string,
+) {
+  if (requirement.status !== "matched" || requirement.match_basis !== "VERIFIED_FACT") {
+    return false;
+  }
+  const document = documents.find((item) => item.id === requirement.matched_document_id);
+  return Boolean(
+    document &&
+      document.organization_id === organizationId &&
+      document.company_id === companyId &&
+      document.verification_status === "verified" &&
+      !document.deleted_at &&
+      (!document.document_status || document.document_status === "active") &&
+      getDocumentValidity(document.expiry_date) !== "expired",
+  );
+}
+
 function buildProposalDraft({
   tenderTitle,
   companyName,
@@ -30,14 +52,12 @@ function buildProposalDraft({
   companyName: string;
   requirements: TenderRequirementWithLot[];
   documents: CompanyDocument[];
+  organizationId: string;
+  companyId: string;
 }) {
-  const evidence = requirements.filter((requirement) => {
-    if (requirement.status !== "matched" || requirement.match_basis !== "VERIFIED_FACT") {
-      return false;
-    }
-    const document = documents.find((item) => item.id === requirement.matched_document_id);
-    return Boolean(document && document.verification_status === "verified" && !document.deleted_at);
-  });
+  const evidence = requirements.filter((requirement) =>
+    isCurrentVerifiedEvidence(requirement, documents, organizationId, companyId),
+  );
   const gaps = requirements.filter(
     (requirement) =>
       requirement.match_basis !== "PROCEDURAL_DECLARATION" &&
@@ -167,10 +187,12 @@ function downloadRequirementMatrix(
     const document = documents.find(
       (item) => item.id === requirement.matched_document_id && !item.deleted_at,
     );
-    const trusted =
-      requirement.status === "matched" &&
-      requirement.match_basis === "VERIFIED_FACT" &&
-      document?.verification_status === "verified";
+    const trusted = isCurrentVerifiedEvidence(
+      requirement,
+      documents,
+      document?.organization_id ?? "",
+      document?.company_id ?? "",
+    );
     return [
       requirement.requirement_name ?? requirement.requirement_text,
       requirement.category,
@@ -198,10 +220,12 @@ export function ProposalStudio({
   companyName,
   requirements,
   documents,
+  companyId,
 }: {
   tenderId: string;
   tenderTitle: string;
   organizationId: string;
+  companyId: string;
   companyName: string;
   requirements: TenderRequirementWithLot[];
   documents: CompanyDocument[];
@@ -226,13 +250,9 @@ export function ProposalStudio({
 
   const verifiedEvidenceCount = useMemo(
     () =>
-      requirements.filter((requirement) => {
-        if (requirement.status !== "matched" || requirement.match_basis !== "VERIFIED_FACT") {
-          return false;
-        }
-        const document = documents.find((item) => item.id === requirement.matched_document_id);
-        return Boolean(document && document.verification_status === "verified" && !document.deleted_at);
-      }).length,
+      requirements.filter((requirement) =>
+        isCurrentVerifiedEvidence(requirement, documents, organizationId, companyId),
+      ).length,
     [requirements, documents],
   );
 
@@ -271,7 +291,16 @@ export function ProposalStudio({
   });
 
   const startDraft = () => {
-    setDraft(buildProposalDraft({ tenderTitle, companyName, requirements, documents }));
+    setDraft(
+      buildProposalDraft({
+        tenderTitle,
+        companyName,
+        requirements,
+        documents,
+        organizationId,
+        companyId,
+      }),
+    );
     setActiveId(null);
   };
   const loadSaved = (item: SavedProposal) => {
