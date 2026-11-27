@@ -33,12 +33,12 @@ function isCurrentVerifiedEvidence(
   const document = documents.find((item) => item.id === requirement.matched_document_id);
   return Boolean(
     document &&
-      document.organization_id === organizationId &&
-      document.company_id === companyId &&
-      document.verification_status === "verified" &&
-      !document.deleted_at &&
-      (!document.document_status || document.document_status === "active") &&
-      getDocumentValidity(document.expiry_date) !== "expired",
+    document.organization_id === organizationId &&
+    document.company_id === companyId &&
+    document.verification_status === "verified" &&
+    !document.deleted_at &&
+    (!document.document_status || document.document_status === "active") &&
+    getDocumentValidity(document.expiry_date) !== "expired",
   );
 }
 
@@ -195,12 +195,7 @@ function downloadRequirementMatrix(
         item.company_id === companyId &&
         !item.deleted_at,
     );
-    const trusted = isCurrentVerifiedEvidence(
-      requirement,
-      documents,
-      organizationId,
-      companyId,
-    );
+    const trusted = isCurrentVerifiedEvidence(requirement, documents, organizationId, companyId);
     return [
       requirement.requirement_name ?? requirement.requirement_text,
       requirement.category,
