@@ -67,7 +67,7 @@ begin
 
   if v_policy is null
      or position('private.is_company_member' in v_policy) = 0
-     or position('public.is_org_member' in v_policy) = 0
+     or position('is_org_member' in v_policy) = 0
      or position('owner = auth.uid()' in v_policy) = 0 then
     raise exception 'Company document Storage INSERT must support company-scoped paths and owner-bound legacy paths';
   end if;
@@ -81,7 +81,7 @@ begin
 
   if v_policy is null
      or position('private.is_company_member' in v_policy) = 0
-     or position('public.is_org_member' in v_policy) = 0 then
+     or position('is_org_member' in v_policy) = 0 then
     raise exception 'Tender Storage INSERT must enforce company membership and legacy organization path ownership';
   end if;
 
