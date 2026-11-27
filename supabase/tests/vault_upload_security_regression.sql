@@ -113,8 +113,8 @@ begin
      or position('analysis_status' in v_insert_policy) = 0
      or position('analysis_json = ''{}''::jsonb' in v_insert_policy) = 0
      or position('verified_at is null' in v_insert_policy) = 0
-     or position('file_size between 1 and 20971520' in v_insert_policy) = 0
-     or position('mime_type in' in v_insert_policy) = 0
+     or (position('file_size between 1 and 20971520' in v_insert_policy) = 0 and (position('file_size >= 1' in v_insert_policy) = 0 or position('file_size <= 20971520' in v_insert_policy) = 0))
+     or (position('mime_type in' in v_insert_policy) = 0 and position('mime_type = any' in v_insert_policy) = 0)
      or position('sha256_hash' in v_insert_policy) = 0 then
     raise exception 'Company document INSERT RLS must bind uploader and prevent client-created verification facts';
   end if;
