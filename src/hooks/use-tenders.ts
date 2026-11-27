@@ -86,12 +86,13 @@ export function useOrganizationRequirements(
     queryFn: async () => {
       const { data, error } = await supabase
         .from("tender_requirements")
-        .select("tender_id, status")
+        .select("tender_id, status, match_basis")
         .eq("organization_id", organizationId!);
       if (error) throw error;
       return (data ?? []).map((row) => ({
         tender_id: row.tender_id,
         status: row.status as string | null,
+        match_basis: row.match_basis as string | null,
       }));
     },
   });
@@ -110,7 +111,7 @@ export function useTenderRequirements(
       const { data, error } = await supabase
         .from("tender_requirements")
         .select(
-          "id, category, requirement_name, requirement_text, display_order, status, confidence_score, explanation, matched_document_id, lot_id",
+          "id, category, requirement_name, requirement_text, display_order, status, confidence_score, explanation, matched_document_id, match_basis, lot_id",
         )
         .eq("tender_id", tenderId!)
         .order("display_order", { ascending: true, nullsFirst: false });

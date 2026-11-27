@@ -139,7 +139,7 @@ function VaultPage() {
         <div className="relative z-10 mb-6">
           <CompanySelect
             id="vault-company"
-            label="Which company are you working in?"
+            label="Which organization workspace are you viewing?"
             organizations={org.organizations}
             value={org.activeOrgId}
             onChange={org.setActiveOrgId}
@@ -158,8 +158,8 @@ function VaultPage() {
               Company Vault
             </h1>
             <p className="mt-1.5 max-w-2xl text-sm leading-6 text-muted-foreground">
-              {org.activeOrgName ? `${org.activeOrgName} — ` : ""}every compliance document this
-              organization needs, in one secure place.
+              {org.activeOrgName ? `Organization workspace: ${org.activeOrgName}. ` : ""}Company
+              evidence is grouped by legal entity below.
             </p>
           </div>
           <div className="hidden shrink-0 rounded-2xl border border-white/70 bg-white/[0.42] px-4 py-3 text-right shadow-[0_12px_30px_-18px_rgba(15,23,42,0.25),inset_0_1px_0_rgba(255,255,255,0.85)] dark:border-white/10 dark:bg-white/[0.035] sm:block">

@@ -66,7 +66,7 @@ jobs:
       - uses: denoland/setup-deno@v2
 
       - name: Test shared company authorization
-        run: deno test --no-lock supabase/functions/_shared/company-authorization.test.ts supabase/functions/_shared/verification-decision.test.ts
+        run: deno test --no-lock supabase/functions/_shared/company-authorization.test.ts supabase/functions/_shared/verification-decision.test.ts supabase/functions/_shared/requirement-classification.test.ts supabase/functions/_shared/tender-evidence-match.test.ts
 
       - name: Type-check Edge Functions
         run: |
