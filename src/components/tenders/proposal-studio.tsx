@@ -1,6 +1,6 @@
 import { useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { Download, FilePlus2, FileText, Save, ShieldCheck } from "lucide-react";
+import { Download, FilePlus2, FileSpreadsheet, FileText, Save, ShieldCheck } from "lucide-react";
 import { toast } from "sonner";
 
 import { Badge } from "@/components/ui/badge";
@@ -141,6 +141,54 @@ function downloadMarkdown(content: string, filename: string) {
   const anchor = document.createElement("a");
   anchor.href = url;
   anchor.download = filename;
+  anchor.click();
+  URL.revokeObjectURL(url);
+}
+
+function csvCell(value: string | null | undefined) {
+  const text = value ?? "";
+  const safe = /^[=+@-]/.test(text.trimStart()) ? `'${text}` : text;
+  return `"${safe.replaceAll('"', '""')}"`;
+}
+
+function downloadRequirementMatrix(
+  requirements: TenderRequirementWithLot[],
+  documents: CompanyDocument[],
+  tenderTitle: string,
+) {
+  const header = [
+    "Requirement",
+    "Category",
+    "Status",
+    "Match basis",
+    "Evidence document",
+    "Evidence trust",
+    "Lot ID",
+  ];
+  const rows = requirements.map((requirement) => {
+    const document = documents.find(
+      (item) => item.id === requirement.matched_document_id && !item.deleted_at,
+    );
+    const trusted =
+      requirement.status === "matched" &&
+      requirement.match_basis === "VERIFIED_FACT" &&
+      document?.verification_status === "verified";
+    return [
+      requirement.requirement_name ?? requirement.requirement_text,
+      requirement.category,
+      requirement.status,
+      requirement.match_basis,
+      document?.document_name ?? document?.original_filename ?? null,
+      trusted ? "Verified evidence" : document ? "Candidate / review only" : "No linked evidence",
+      requirement.lot_id,
+    ];
+  });
+  const csv = [header, ...rows].map((row) => row.map(csvCell).join(",")).join("\\r\\n");
+  const blob = new Blob(["\\uFEFF", csv], { type: "text/csv;charset=utf-8" });
+  const url = URL.createObjectURL(blob);
+  const anchor = document.createElement("a");
+  anchor.href = url;
+  anchor.download = `${tenderTitle.replace(/[^a-z0-9]+/gi, "-").toLowerCase()}-compliance-matrix.csv`;
   anchor.click();
   URL.revokeObjectURL(url);
 }
@@ -312,6 +360,16 @@ export function ProposalStudio({
               : "Unsaved changes are not stored until you save."}
           </p>
           <div className="flex flex-wrap gap-2">
+            <Button
+              type="button"
+              variant="outline"
+              className="rounded-xl"
+              disabled={requirements.length === 0}
+              onClick={() => downloadRequirementMatrix(requirements, documents, tenderTitle)}
+            >
+              <FileSpreadsheet className="mr-2 size-4" />
+              Export compliance CSV
+            </Button>
             <Button
               type="button"
               variant="outline"
