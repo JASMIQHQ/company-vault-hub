@@ -4,6 +4,7 @@
 do $$
 declare
   v_register text;
+  v_trusted_register text;
   v_legacy_wrapper text;
   v_scope_guard text;
   v_current_org text;
@@ -167,6 +168,20 @@ begin
      or has_function_privilege('authenticated',
        'public.register_document_upload(uuid,text,text,text,text,text,text,bigint,text,date,uuid)'::regprocedure,'EXECUTE') then
     raise exception 'Trusted upload RPC must be service-role-only';
+  end if;
+
+  select regexp_replace(lower(pg_get_functiondef(
+    'public.register_document_upload(uuid,text,text,text,text,text,text,bigint,text,date,uuid)'::regprocedure
+  )), E'\\s+', ' ', 'g')
+  into v_trusted_register;
+
+  if position('p_uploaded_by' in v_trusted_register) = 0
+     or position('vault_storage_cleanup' in v_trusted_register) = 0
+     or position('organization_members' in v_trusted_register) = 0
+     or position('company_members' in v_trusted_register) = 0
+     or position('storage.objects' in v_trusted_register) = 0
+     or position('p_sha256_hash' in v_trusted_register) = 0 then
+    raise exception 'Trusted upload RPC must bind the uploader, require a pending intent, and validate the server digest/object';
   end if;
   if not exists(select 1 from pg_class c join pg_namespace n on n.oid=c.relnamespace
     where n.nspname='public' and c.relname='vault_storage_cleanup' and c.relrowsecurity)

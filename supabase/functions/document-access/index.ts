@@ -141,10 +141,21 @@ Deno.serve(async (req) => {
     };
 
     const recordCleanupFailure = async (intentId: string, error: unknown) => {
+      const { data: current, error: readError } = await admin
+        .from("vault_storage_cleanup")
+        .select("attempts")
+        .eq("id", intentId)
+        .eq("status", "pending")
+        .maybeSingle();
+      if (readError) {
+        console.error("Could not read cleanup retry state", readError);
+        return;
+      }
+      if (!current) return;
       const { error: updateError } = await admin
         .from("vault_storage_cleanup")
         .update({
-          attempts: 1,
+          attempts: current.attempts + 1,
           last_error:
             error instanceof Error ? error.message.slice(0, 500) : "Storage cleanup failed",
           updated_at: new Date().toISOString(),
