@@ -69,22 +69,32 @@ export function TenderActionPlan({
       scoped.reduce(
         (acc, requirement) => {
           const status = effectiveStatus(requirement, documents);
-          if (status === "matched") acc.satisfied += 1;
+          if (requirement.match_basis === "PROCEDURAL_DECLARATION") acc.submissionActions += 1;
+          else if (status === "matched") acc.satisfied += 1;
           else if (status === "manual_review") acc.review += 1;
           else if (status === "expired") acc.expired += 1;
           else if (status === "missing") acc.missing += 1;
           else acc.action += 1;
           return acc;
         },
-        { satisfied: 0, review: 0, expired: 0, missing: 0, action: 0 },
+        { satisfied: 0, review: 0, expired: 0, missing: 0, action: 0, submissionActions: 0 },
       ),
     [scoped, documents],
   );
-  const blockers = summary.missing + summary.expired + summary.review + summary.action;
+  const blockers =
+    summary.missing +
+    summary.expired +
+    summary.review +
+    summary.action +
+    summary.submissionActions;
   const readiness =
     scoped.length > 0 && blockers === 0
       ? "READY"
-      : summary.review > 0 && summary.missing === 0 && summary.expired === 0 && summary.action === 0
+      : summary.review > 0 &&
+        summary.missing === 0 &&
+        summary.expired === 0 &&
+        summary.action === 0 &&
+        summary.submissionActions === 0
         ? "REVIEW_REQUIRED"
         : "NOT_READY";
 
@@ -129,6 +139,11 @@ export function TenderActionPlan({
                 {summary.missing} missing
               </span>
             ) : null}
+            {summary.submissionActions ? (
+              <span className="rounded-full border border-warning/25 bg-warning-soft px-2.5 py-1 text-warning">
+                {summary.submissionActions} submission steps
+              </span>
+            ) : null}
           </div>
         </div>
       </div>
@@ -152,7 +167,9 @@ export function TenderActionPlan({
                       variant="outline"
                       className={`rounded-full ${status === "matched" ? "border-success/25 text-success" : status === "missing" || status === "expired" ? "border-destructive/25 text-destructive" : "border-warning/25 text-warning"}`}
                     >
-                      {status.replace("_", " ")}
+                      {requirement.match_basis === "PROCEDURAL_DECLARATION"
+                        ? "submission action"
+                        : status.replace("_", " ")}
                     </Badge>
                   </div>
                   <h3 className="mt-2 text-sm font-semibold">
@@ -228,8 +245,8 @@ export function TenderActionPlan({
         </div>
       ) : (
         <div className="border-t border-border/50 bg-muted/10 p-4 text-sm text-muted-foreground">
-          Resolve every missing, expired, review, or unclassified item before treating this
-          tender/lot as submit-ready.
+          Resolve every missing, expired, review, submission step, or unclassified item before
+          treating this tender/lot as submit-ready.
         </div>
       )}
       <div className="border-t border-border/50 p-5 sm:p-6">
