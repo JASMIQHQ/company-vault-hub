@@ -80,7 +80,7 @@ Deno.serve(async (req) => {
   }
 
   const authorization = req.headers.get("Authorization");
-  const token = (authorization ?? "").replace(/^Bearer\\s+/i, "");
+  const token = (authorization ?? "").replace(/^Bearer\s+/i, "");
   if (!authorization || !token) {
     return json({ error: "Not authenticated." }, 401);
   }
