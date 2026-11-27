@@ -81,20 +81,15 @@ export function TenderActionPlan({
       ),
     [scoped, documents],
   );
-  const blockers =
-    summary.missing +
-    summary.expired +
-    summary.review +
-    summary.action +
-    summary.submissionActions;
+  const blockers = summary.missing + summary.expired + summary.review + summary.action + summary.submissionActions;
   const readiness =
     scoped.length > 0 && blockers === 0
       ? "READY"
       : summary.review > 0 &&
-        summary.missing === 0 &&
-        summary.expired === 0 &&
-        summary.action === 0 &&
-        summary.submissionActions === 0
+          summary.missing === 0 &&
+          summary.expired === 0 &&
+          summary.action === 0 &&
+          summary.submissionActions === 0
         ? "REVIEW_REQUIRED"
         : "NOT_READY";
 
