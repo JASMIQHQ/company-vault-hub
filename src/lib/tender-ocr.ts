@@ -1,11 +1,7 @@
-const PDFJS_SCRIPT =
-  "https://cdn.jsdelivr.net/npm/pdfjs-dist@3.11.174/build/pdf.min.js";
-const PDFJS_WORKER =
-  "https://cdn.jsdelivr.net/npm/pdfjs-dist@3.11.174/build/pdf.worker.min.js";
-const TESSERACT_SCRIPT =
-  "https://cdn.jsdelivr.net/npm/tesseract.js@5.0.0/dist/tesseract.min.js";
-const TESSERACT_WORKER =
-  "https://cdn.jsdelivr.net/npm/tesseract.js@5.0.0/dist/worker.min.js";
+const PDFJS_SCRIPT = "https://cdn.jsdelivr.net/npm/pdfjs-dist@3.11.174/build/pdf.min.js";
+const PDFJS_WORKER = "https://cdn.jsdelivr.net/npm/pdfjs-dist@3.11.174/build/pdf.worker.min.js";
+const TESSERACT_SCRIPT = "https://cdn.jsdelivr.net/npm/tesseract.js@5.0.0/dist/tesseract.min.js";
+const TESSERACT_WORKER = "https://cdn.jsdelivr.net/npm/tesseract.js@5.0.0/dist/worker.min.js";
 const TESSERACT_CORE = "https://cdn.jsdelivr.net/npm/tesseract.js-core@5.0.0";
 const ENGLISH_DATA = "https://tessdata.projectnaptha.com/4.0.0";
 const MAX_OCR_PAGES = 40;
@@ -28,10 +24,9 @@ type PdfDocument = {
 
 type PdfJsLibrary = {
   GlobalWorkerOptions: { workerSrc: string };
-  getDocument: (options: {
-    data: Uint8Array;
-    isEvalSupported: boolean;
-  }) => { promise: Promise<PdfDocument> };
+  getDocument: (options: { data: Uint8Array; isEvalSupported: boolean }) => {
+    promise: Promise<PdfDocument>;
+  };
 };
 
 type TesseractWorker = {
@@ -61,11 +56,7 @@ declare global {
 let pdfJsLoad: Promise<PdfJsLibrary> | null = null;
 let tesseractLoad: Promise<TesseractLibrary> | null = null;
 
-function loadScript<T>(
-  key: string,
-  source: string,
-  isReady: () => T | undefined,
-): Promise<T> {
+function loadScript<T>(key: string, source: string, isReady: () => T | undefined): Promise<T> {
   const existing = isReady();
   if (existing) return Promise.resolve(existing);
 
