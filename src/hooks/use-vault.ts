@@ -6,7 +6,6 @@ import {
   BUCKET,
   buildStoragePath,
   getFileMimeType,
-  sha256Hex,
   validateFile,
   type CompanyDocument,
 } from "@/lib/vault";
@@ -207,55 +206,32 @@ export interface UploadInput {
 export function useUploadDocument() {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: async ({
-      file,
-      documentName,
-      documentType,
-      category,
-      companyId,
-      expiryDate,
-      sha256Hash,
-    }: UploadInput) => {
-      const validationError = validateFile(file);
-      if (validationError) throw new Error(validationError);
-      const hash = sha256Hash ?? (await sha256Hex(file));
-      const mimeType = getFileMimeType(file);
-      const storagePath = buildStoragePath(companyId, category, file.name);
-      const { error: uploadError } = await supabase.storage
-        .from(BUCKET)
-        .upload(storagePath, file, { contentType: mimeType, upsert: false });
-      if (uploadError) throw uploadError;
-
-      const { data, error } = await supabase.rpc("register_document_upload", {
-        p_company_id: companyId,
-        p_category: category,
-        p_document_type: documentType,
-        p_document_name: documentName,
-        p_original_filename: file.name,
-        p_storage_path: storagePath,
-        p_mime_type: mimeType,
-        p_file_size: file.size,
-        p_sha256_hash: hash,
-        p_expiry_date: expiryDate,
+    mutationFn: async ({file,documentName,documentType,category,companyId,expiryDate}: UploadInput) => {
+      const invalid=validateFile(file);if(invalid)throw new Error(invalid);
+      const mimeType=getFileMimeType(file),storagePath=buildStoragePath(companyId,category,file.name);
+      const {data:prepared,error:prepareError}=await supabase.functions.invoke("document-access",{
+        body:{mode:"prepare_upload",company_id:companyId,storage_path:storagePath},
       });
-
-      if (error) {
-        const { error: cleanupError } = await supabase.storage.from(BUCKET).remove([storagePath]);
-        if (cleanupError) {
-          console.error("Upload rollback cleanup failed", cleanupError);
-        }
-        if (error.code === "23505") {
-          throw new Error("A document with the same content already exists in this company.");
-        }
-        throw error;
+      if(prepareError)throw prepareError;
+      if(typeof prepared?.intent_id!=="string")throw new Error("The upload service did not create a cleanup intent.");
+      const intentId=prepared.intent_id as string;
+      const {error:uploadError}=await supabase.storage.from(BUCKET).upload(storagePath,file,{contentType:mimeType,upsert:false});
+      if(uploadError){
+        const {error:cleanupError}=await supabase.functions.invoke("document-access",{body:{mode:"cleanup_upload",intent_id:intentId}});
+        if(cleanupError)console.error("Upload cleanup remains queued for retry",cleanupError);
+        throw uploadError;
       }
-
-      return data as string;
+      const {data,error}=await supabase.functions.invoke("document-access",{
+        body:{mode:"register_upload",intent_id:intentId,company_id:companyId,storage_path:storagePath,
+          category,document_type:documentType,document_name:documentName,original_filename:file.name,expiry_date:expiryDate},
+      });
+      if(error)throw error;
+      if(typeof data?.document_id!=="string")throw new Error("The upload service did not confirm document registration.");
+      return data.document_id as string;
     },
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["company-documents"] }),
+    onSuccess:()=>queryClient.invalidateQueries({queryKey:["company-documents"]}),
   });
 }
-
 export async function createSignedUrl(documentId: string, download = false) {
   const { data, error } = await supabase.functions.invoke("document-access", {
     body: { document_id: documentId, mode: download ? "download" : "preview" },

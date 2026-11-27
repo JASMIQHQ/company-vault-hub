@@ -156,17 +156,23 @@ begin
     raise exception 'New upload RPC is missing tenant, file, hash, path, expiry, or search_path validation';
   end if;
 
-  if not has_function_privilege(
-       'authenticated',
-       'public.register_document_upload(uuid,text,text,text,text,text,text,bigint,text,date)'::regprocedure,
-       'EXECUTE'
-     )
-     or has_function_privilege(
-       'anon',
-       'public.register_document_upload(uuid,text,text,text,text,text,text,bigint,text,date)'::regprocedure,
-       'EXECUTE'
-     ) then
-    raise exception 'New upload RPC must be authenticated-only';
+  if has_function_privilege('authenticated',
+       'public.register_document_upload(uuid,text,text,text,text,text,text,bigint,text,date)'::regprocedure,'EXECUTE')
+     or has_function_privilege('anon',
+       'public.register_document_upload(uuid,text,text,text,text,text,text,bigint,text,date)'::regprocedure,'EXECUTE') then
+    raise exception 'Legacy caller-hash upload RPC must not be executable by browser roles';
+  end if;
+  if not has_function_privilege('service_role',
+       'public.register_document_upload(uuid,text,text,text,text,text,text,bigint,text,date,uuid)'::regprocedure,'EXECUTE')
+     or has_function_privilege('authenticated',
+       'public.register_document_upload(uuid,text,text,text,text,text,text,bigint,text,date,uuid)'::regprocedure,'EXECUTE') then
+    raise exception 'Trusted upload RPC must be service-role-only';
+  end if;
+  if not exists(select 1 from pg_class c join pg_namespace n on n.oid=c.relnamespace
+    where n.nspname='public' and c.relname='vault_storage_cleanup' and c.relrowsecurity)
+    or has_table_privilege('authenticated','public.vault_storage_cleanup','SELECT')
+    or not has_table_privilege('service_role','public.vault_storage_cleanup','INSERT,UPDATE,SELECT') then
+    raise exception 'Cleanup ledger must be RLS-enabled and service-role-only';
   end if;
 
   select regexp_replace(lower(pg_get_functiondef(

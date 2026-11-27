@@ -541,4 +541,76 @@ revoke insert, update, delete on public.audit_logs from anon, authenticated;
 
 grant delete on public.company_documents to service_role;
 
+
+create table if not exists public.vault_storage_cleanup (
+ id uuid primary key default gen_random_uuid(),
+ bucket_id text not null check(bucket_id='company-documents'),
+ storage_path text not null,
+ organization_id uuid not null references public.organizations(id) on delete cascade,
+ company_id uuid not null references public.companies(id) on delete cascade,
+ profile_id uuid not null references public.profiles(id) on delete cascade,
+ action text not null check(action in ('upload','delete')),
+ document_id uuid references public.company_documents(id) on delete set null,
+ status text not null default 'pending' check(status in ('pending','completed')),
+ attempts integer not null default 0 check(attempts>=0),
+ last_error text, created_at timestamptz not null default now(),
+ updated_at timestamptz not null default now(), completed_at timestamptz
+);
+alter table public.vault_storage_cleanup enable row level security;
+revoke all on public.vault_storage_cleanup from public,anon,authenticated;
+grant select,insert,update,delete on public.vault_storage_cleanup to service_role;
+create unique index if not exists vault_storage_cleanup_pending_path_uq
+ on public.vault_storage_cleanup(bucket_id,storage_path,action) where status='pending';
+create index if not exists vault_storage_cleanup_retry_idx
+ on public.vault_storage_cleanup(status,action,created_at) where status='pending';
+
+create or replace function public.register_document_upload(
+ p_company_id uuid,p_category text,p_document_type text,p_document_name text,
+ p_original_filename text,p_storage_path text,p_mime_type text,p_file_size bigint,
+ p_sha256_hash text,p_expiry_date date,p_uploaded_by uuid
+) returns uuid language plpgsql security definer set search_path=''
+as $
+declare v_document_id uuid; v_organization_id uuid;
+begin
+ select c.organization_id into v_organization_id from public.companies c
+ where c.id=p_company_id and c.is_active is true;
+ if v_organization_id is null
+ or not exists(select 1 from public.organization_members om where om.profile_id=p_uploaded_by and om.organization_id=v_organization_id)
+ or not exists(select 1 from public.company_members cm where cm.profile_id=p_uploaded_by and cm.company_id=p_company_id and cm.organization_id=v_organization_id)
+ then raise exception 'forbidden' using errcode='42501'; end if;
+ if not exists(select 1 from public.vault_storage_cleanup q where q.company_id=p_company_id
+ and q.organization_id=v_organization_id and q.profile_id=p_uploaded_by and q.storage_path=p_storage_path
+ and q.action='upload' and q.status='pending')
+ then raise exception 'upload intent not found' using errcode='42501'; end if;
+ if nullif(trim(p_category),'') is null or nullif(trim(p_document_type),'') is null
+ or nullif(trim(p_document_name),'') is null or nullif(trim(p_original_filename),'') is null
+ then raise exception 'document metadata is incomplete' using errcode='22023'; end if;
+ if p_file_size is null or p_file_size<1 or p_file_size>20971520
+ then raise exception 'file size must be between 1 byte and 20 MB' using errcode='22023'; end if;
+ if p_mime_type is null or p_mime_type not in ('application/pdf','image/png','image/jpeg')
+ then raise exception 'unsupported document MIME type' using errcode='22023'; end if;
+ if p_sha256_hash is null or p_sha256_hash !~ '^[0-9a-f]{64}
+ then raise exception 'invalid SHA-256 hash' using errcode='22023'; end if;
+ if p_storage_path is null or p_storage_path !~ ('^'||p_company_id::text||'/[A-Za-z0-9._-]+/[0-9]+_[A-Za-z0-9._-]+)
+ then raise exception 'storage path must be company-prefixed and sanitized' using errcode='22023'; end if;
+ if not exists(select 1 from storage.objects o where o.bucket_id='company-documents' and o.name=p_storage_path)
+ then raise exception 'uploaded storage object was not found'; end if;
+ if exists(select 1 from public.company_documents d where d.company_id=p_company_id and d.sha256_hash=p_sha256_hash and d.deleted_at is null and d.document_status='active')
+ then raise exception 'duplicate document already exists in this company' using errcode='23505'; end if;
+ insert into public.company_documents(organization_id,company_id,uploaded_by,category,document_type,document_name,
+ original_filename,storage_path,mime_type,file_size,sha256_hash,expiry_date,analysis_status,document_status,version)
+ values(v_organization_id,p_company_id,p_uploaded_by,p_category,p_document_type,p_document_name,
+ p_original_filename,p_storage_path,p_mime_type,p_file_size,p_sha256_hash,p_expiry_date,'pending','active',1)
+ returning id into v_document_id;
+ update public.vault_storage_cleanup set status='completed',completed_at=now(),updated_at=now(),
+ document_id=v_document_id,last_error=null where company_id=p_company_id and storage_path=p_storage_path
+ and action='upload' and status='pending';
+ return v_document_id;
+end; $;
+
+revoke all on function public.register_document_upload(uuid,text,text,text,text,text,text,bigint,text,date) from public,anon,authenticated;
+revoke all on function public.register_document_upload(uuid,text,text,text,text,text,text,bigint,text) from public,anon,authenticated;
+revoke all on function public.register_document_upload(uuid,text,text,text,text,text,text,bigint,text,date,uuid) from public,anon,authenticated;
+grant execute on function public.register_document_upload(uuid,text,text,text,text,text,text,bigint,text,date,uuid) to service_role;
+
 commit;
