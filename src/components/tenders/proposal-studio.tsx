@@ -80,26 +80,28 @@ function buildProposalDraft({
     "",
     "## 6. Compliance Evidence Register",
     "",
-    evidence.length
-      ? "| Tender requirement | Verified Vault evidence |",
-        "|---|---|",
-        ...evidence.map((item) => {
-          const document = documents.find((candidate) => candidate.id === item.matched_document_id);
-          return `| ${item.requirement_name ?? item.requirement_text} | ${document?.document_name ?? document?.original_filename ?? "Verified document"} |`;
-        })
-      : ["No tender requirement currently has qualifying verified Vault evidence."],
+    ...(evidence.length
+      ? [
+          "| Tender requirement | Verified Vault evidence |",
+          "|---|---|",
+          ...evidence.map((item) => {
+            const document = documents.find((candidate) => candidate.id === item.matched_document_id);
+            return `| ${item.requirement_name ?? item.requirement_text} | ${document?.document_name ?? document?.original_filename ?? "Verified document"} |`;
+          }),
+        ]
+      : ["No tender requirement currently has qualifying verified Vault evidence."]),
     "",
     "## 7. Outstanding Compliance and Review Items",
     "",
-    gaps.length
+    ...(gaps.length
       ? gaps.map((item) => `- [ ] ${item.requirement_name ?? item.requirement_text} — current status: ${item.status ?? "not assessed"}`)
-      : ["No outstanding evidence requirements are recorded by the current matcher."],
+      : ["No outstanding evidence requirements are recorded by the current matcher."]),
     "",
     "## 8. Submission Actions",
     "",
-    submissionSteps.length
+    ...(submissionSteps.length
       ? submissionSteps.map((item) => `- [ ] ${item.requirement_name ?? item.requirement_text}`)
-      : ["No procedural submission actions were classified for this tender."],
+      : ["No procedural submission actions were classified for this tender."]),
     "",
     "## 9. Commercial and Financial Submission",
     "",
