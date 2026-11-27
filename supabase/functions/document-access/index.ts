@@ -209,7 +209,8 @@ Deno.serve(async (req) => {
           continue;
         }
 
-        const { error: removeError } = await admin.storage.from(BUCKET)
+        const { error: removeError } = await admin.storage
+          .from(BUCKET)
           .remove([intent.storage_path]);
         if (!removeError) {
           await completeIntent(intent.id);
@@ -254,7 +255,8 @@ Deno.serve(async (req) => {
         return json({ error: "Upload intent not found or not accessible." }, 404);
       }
 
-      const { data: object, error: downloadError } = await admin.storage.from(BUCKET)
+      const { data: object, error: downloadError } = await admin.storage
+        .from(BUCKET)
         .download(storagePath);
       if (downloadError || !object) {
         throw downloadError ?? new Error("Uploaded object not found.");
@@ -288,7 +290,8 @@ Deno.serve(async (req) => {
       );
 
       if (registerError) {
-        const { error: cleanupError } = await admin.storage.from(BUCKET)
+        const { error: cleanupError } = await admin.storage
+          .from(BUCKET)
           .remove([storagePath]);
         if (!cleanupError) {
           await completeIntent(intent.id);
@@ -332,8 +335,9 @@ Deno.serve(async (req) => {
         return json({ cleaned: false, registered: true });
       }
 
-      const { error: removeError } = await admin.storage.from(BUCKET)
-        .remove([intent.storage_path]);
+      const { error: removeError } = await admin.storage
+          .from(BUCKET)
+          .remove([intent.storage_path]);
       if (removeError) {
         await recordCleanupFailure(intent.id, removeError);
         return json({ error: "Cleanup remains queued for retry." }, 202);
@@ -416,7 +420,8 @@ Deno.serve(async (req) => {
         }
 
         if (!intentId) throw new Error("Delete cleanup intent was not created.");
-        const { error: removeError } = await admin.storage.from(BUCKET)
+        const { error: removeError } = await admin.storage
+          .from(BUCKET)
           .remove([doc.storage_path]);
         if (removeError) {
           await recordCleanupFailure(intentId, removeError);
@@ -454,7 +459,8 @@ Deno.serve(async (req) => {
     }
 
     if (!doc.storage_path) return json({ error: "Document has no stored file." }, 404);
-    const { data: signed, error: signedError } = await admin.storage.from(BUCKET)
+    const { data: signed, error: signedError } = await admin.storage
+      .from(BUCKET)
       .createSignedUrl(
         doc.storage_path,
         SIGNED_URL_TTL_SECONDS,
