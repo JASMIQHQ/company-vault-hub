@@ -36,9 +36,7 @@ function buildProposalDraft({
       return false;
     }
     const document = documents.find((item) => item.id === requirement.matched_document_id);
-    return Boolean(
-      document && document.verification_status === "verified" && !document.deleted_at,
-    );
+    return Boolean(document && document.verification_status === "verified" && !document.deleted_at);
   });
   const gaps = requirements.filter(
     (requirement) =>
@@ -233,9 +231,7 @@ export function ProposalStudio({
           return false;
         }
         const document = documents.find((item) => item.id === requirement.matched_document_id);
-        return Boolean(
-          document && document.verification_status === "verified" && !document.deleted_at,
-        );
+        return Boolean(document && document.verification_status === "verified" && !document.deleted_at);
       }).length,
     [requirements, documents],
   );
