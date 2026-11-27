@@ -32,13 +32,18 @@ function buildProposalDraft({
   documents: CompanyDocument[];
 }) {
   const evidence = requirements.filter((requirement) => {
-    if (requirement.status !== "matched" || requirement.match_basis !== "VERIFIED_FACT") return false;
+    if (requirement.status !== "matched" || requirement.match_basis !== "VERIFIED_FACT") {
+      return false;
+    }
     const document = documents.find((item) => item.id === requirement.matched_document_id);
-    return Boolean(document && document.verification_status === "verified" && !document.deleted_at);
+    return Boolean(
+      document && document.verification_status === "verified" && !document.deleted_at,
+    );
   });
-  const gaps = requirements.filter((requirement) =>
-    requirement.match_basis !== "PROCEDURAL_DECLARATION" &&
-    (requirement.status !== "matched" || requirement.match_basis !== "VERIFIED_FACT"),
+  const gaps = requirements.filter(
+    (requirement) =>
+      requirement.match_basis !== "PROCEDURAL_DECLARATION" &&
+      (requirement.status !== "matched" || requirement.match_basis !== "VERIFIED_FACT"),
   );
   const submissionSteps = requirements.filter(
     (requirement) => requirement.match_basis === "PROCEDURAL_DECLARATION",
@@ -59,7 +64,10 @@ function buildProposalDraft({
     "",
     "## 2. Understanding of the Requirement",
     "",
-    ...requirements.map((item, index) => `${index + 1}. **${item.requirement_name ?? "Requirement"}:** ${item.requirement_text}`),
+    ...requirements.map(
+      (item, index) =>
+        `${index + 1}. **${item.requirement_name ?? "Requirement"}:** ${item.requirement_text}`,
+    ),
     "",
     "## 3. Technical Approach and Methodology",
     "",
@@ -85,7 +93,9 @@ function buildProposalDraft({
           "| Tender requirement | Verified Vault evidence |",
           "|---|---|",
           ...evidence.map((item) => {
-            const document = documents.find((candidate) => candidate.id === item.matched_document_id);
+            const document = documents.find(
+              (candidate) => candidate.id === item.matched_document_id,
+            );
             return `| ${item.requirement_name ?? item.requirement_text} | ${document?.document_name ?? document?.original_filename ?? "Verified document"} |`;
           }),
         ]
@@ -94,7 +104,10 @@ function buildProposalDraft({
     "## 7. Outstanding Compliance and Review Items",
     "",
     ...(gaps.length
-      ? gaps.map((item) => `- [ ] ${item.requirement_name ?? item.requirement_text} — current status: ${item.status ?? "not assessed"}`)
+      ? gaps.map(
+          (item) =>
+            `- [ ] ${item.requirement_name ?? item.requirement_text} — current status: ${item.status ?? "not assessed"}`,
+        )
       : ["No outstanding evidence requirements are recorded by the current matcher."]),
     "",
     "## 8. Submission Actions",
@@ -166,18 +179,26 @@ export function ProposalStudio({
   });
 
   const verifiedEvidenceCount = useMemo(
-    () => requirements.filter((requirement) => {
-      if (requirement.status !== "matched" || requirement.match_basis !== "VERIFIED_FACT") return false;
-      const document = documents.find((item) => item.id === requirement.matched_document_id);
-      return Boolean(document && document.verification_status === "verified" && !document.deleted_at);
-    }).length,
+    () =>
+      requirements.filter((requirement) => {
+        if (requirement.status !== "matched" || requirement.match_basis !== "VERIFIED_FACT") {
+          return false;
+        }
+        const document = documents.find((item) => item.id === requirement.matched_document_id);
+        return Boolean(
+          document && document.verification_status === "verified" && !document.deleted_at,
+        );
+      }).length,
     [requirements, documents],
   );
 
   const saveDraft = useMutation({
     mutationFn: async () => {
-      if (!draft.trim()) throw new Error("Generate or write a proposal draft before saving.");
-      const nextVersion = Math.max(0, ...(savedQuery.data ?? []).map((item) => item.version ?? 0)) + 1;
+      if (!draft.trim()) {
+        throw new Error("Generate or write a proposal draft before saving.");
+      }
+      const nextVersion =
+        Math.max(0, ...(savedQuery.data ?? []).map((item) => item.version ?? 0)) + 1;
       const { data, error } = await supabase
         .from("generated_documents")
         .insert({
@@ -196,10 +217,13 @@ export function ProposalStudio({
     },
     onSuccess: async (id) => {
       setActiveId(id);
-      await queryClient.invalidateQueries({ queryKey: ["generated_documents", organizationId, tenderId] });
+      await queryClient.invalidateQueries({
+        queryKey: ["generated_documents", organizationId, tenderId],
+      });
       toast.success("Proposal draft saved to this tender.");
     },
-    onError: (error) => toast.error(error instanceof Error ? error.message : "Could not save proposal draft."),
+    onError: (error) =>
+      toast.error(error instanceof Error ? error.message : "Could not save proposal draft."),
   });
 
   const startDraft = () => {
@@ -217,33 +241,50 @@ export function ProposalStudio({
         <div>
           <div className="flex flex-wrap items-center gap-2">
             <h2 className="text-lg font-semibold">Bid document studio</h2>
-            <Badge variant="outline" className="rounded-full">Deterministic draft</Badge>
+            <Badge variant="outline" className="rounded-full">
+              Deterministic draft
+            </Badge>
           </div>
           <p className="mt-1 max-w-2xl text-sm text-muted-foreground">
-            Build a structured technical proposal from this tender's requirements and verified Vault evidence. Unsupported company claims remain explicit placeholders.
+            Build a structured technical proposal from this tender&apos;s requirements and verified
+            Vault evidence. Unsupported company claims remain explicit placeholders.
           </p>
           <p className="mt-2 flex items-center gap-1.5 text-xs text-muted-foreground">
             <ShieldCheck className="size-3.5 text-success" />
             {verifiedEvidenceCount} requirement(s) currently backed by verified Vault evidence
           </p>
         </div>
-        <Button type="button" onClick={startDraft} className="shrink-0 rounded-xl" disabled={requirements.length === 0}>
+        <Button
+          type="button"
+          onClick={startDraft}
+          className="shrink-0 rounded-xl"
+          disabled={requirements.length === 0}
+        >
           <FilePlus2 className="mr-2 size-4" />
           Build proposal draft
         </Button>
       </div>
 
       {savedQuery.isError ? (
-        <div className="border-b border-border/50 px-5 py-3 text-sm text-destructive">
+        <div className="flex items-center gap-2 border-b border-border/50 px-5 py-3 text-sm text-destructive">
           Saved proposal drafts could not be loaded. Check your access and retry.
-          <Button variant="ghost" size="sm" onClick={() => void savedQuery.refetch()}>Retry</Button>
+          <Button variant="ghost" size="sm" onClick={() => void savedQuery.refetch()}>
+            Retry
+          </Button>
         </div>
       ) : null}
 
       {(savedQuery.data ?? []).length ? (
         <div className="flex flex-wrap gap-2 border-b border-border/50 px-5 py-4">
           {(savedQuery.data ?? []).map((item) => (
-            <Button key={item.id} type="button" size="sm" variant={activeId === item.id ? "secondary" : "outline"} className="rounded-xl" onClick={() => loadSaved(item)}>
+            <Button
+              key={item.id}
+              type="button"
+              size="sm"
+              variant={activeId === item.id ? "secondary" : "outline"}
+              className="rounded-xl"
+              onClick={() => loadSaved(item)}
+            >
               <FileText className="mr-1.5 size-3.5" />
               {item.title ?? `Proposal v${item.version ?? 1}`}
               <span className="ml-1 text-xs text-muted-foreground">v{item.version ?? 1}</span>
@@ -255,7 +296,10 @@ export function ProposalStudio({
       <div className="space-y-3 p-5 sm:p-6">
         <Textarea
           value={draft}
-          onChange={(event) => { setDraft(event.target.value); setActiveId(null); }}
+          onChange={(event) => {
+            setDraft(event.target.value);
+            setActiveId(null);
+          }}
           rows={18}
           className="min-h-[420px] font-mono text-xs leading-6"
           placeholder="Build a proposal draft to start. The draft will use verified evidence only and clearly mark sections that require your team's input."
@@ -263,14 +307,29 @@ export function ProposalStudio({
         />
         <div className="flex flex-wrap items-center justify-between gap-2">
           <p className="text-xs text-muted-foreground">
-            {activeId ? "Editing a saved version. Saving creates a new version." : "Unsaved changes are not stored until you save."}
+            {activeId
+              ? "Editing a saved version. Saving creates a new version."
+              : "Unsaved changes are not stored until you save."}
           </p>
           <div className="flex flex-wrap gap-2">
-            <Button type="button" variant="outline" className="rounded-xl" disabled={!draft.trim()} onClick={() => downloadMarkdown(draft, "jasmiq-technical-proposal.md")}>
-              <Download className="mr-2 size-4" /> Export Markdown
+            <Button
+              type="button"
+              variant="outline"
+              className="rounded-xl"
+              disabled={!draft.trim()}
+              onClick={() => downloadMarkdown(draft, "jasmiq-technical-proposal.md")}
+            >
+              <Download className="mr-2 size-4" />
+              Export Markdown
             </Button>
-            <Button type="button" className="rounded-xl" disabled={!draft.trim() || saveDraft.isPending} onClick={() => saveDraft.mutate()}>
-              <Save className="mr-2 size-4" /> {saveDraft.isPending ? "Saving…" : "Save new version"}
+            <Button
+              type="button"
+              className="rounded-xl"
+              disabled={!draft.trim() || saveDraft.isPending}
+              onClick={() => saveDraft.mutate()}
+            >
+              <Save className="mr-2 size-4" />
+              {saveDraft.isPending ? "Saving…" : "Save new version"}
             </Button>
           </div>
         </div>

@@ -422,7 +422,10 @@ function TenderWorkspacePage() {
         tenderId={tender.id}
         tenderTitle={tender.title}
         organizationId={tender.organization_id}
-        companyName={companiesQuery.data?.find((company) => company.id === tender.company_id)?.legal_name ?? "Selected company"}
+        companyName={
+          companiesQuery.data?.find((company) => company.id === tender.company_id)?.legal_name ??
+          "Selected company"
+        }
         requirements={displayRequirements}
         documents={documentsQuery.data ?? []}
       />
