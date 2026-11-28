@@ -41,6 +41,13 @@ Deno.test("OCR transcript accepts the exact minimum length and trims whitespace"
   }
 });
 
+Deno.test("OCR transcript accepts the exact 120,000-character maximum", () => {
+  const result = validateTenderOcrTranscript("x".repeat(120000), 40);
+  if (!result.ok || result.text.length !== 120000 || result.pageCount !== 40) {
+    throw new Error("The exact transcript and page-count maxima should be accepted.");
+  }
+});
+
 Deno.test("OCR transcript rejects short, non-string, oversized and invalid page metadata", () => {
   const validText = "x".repeat(200);
   for (const [text, pages] of [
