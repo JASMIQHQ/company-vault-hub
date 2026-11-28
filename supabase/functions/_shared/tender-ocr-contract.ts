@@ -38,7 +38,8 @@ export function validateTenderOcrTranscript(
   ) {
     return {
       ok: false,
-      error: "OCR text must contain at least 200 readable characters and no more than 120,000 characters.",
+      error:
+        "OCR text must contain at least 200 readable characters and no more than 120,000 characters.",
     };
   }
   if (
@@ -55,6 +56,12 @@ export function validateTenderOcrTranscript(
   return { ok: true, text: text.trim(), pageCount };
 }
 
-export function isScannedTenderPdfAnalysisError(status: number, message: string): boolean {
-  return status === 422 && /no readable text|could not read text/i.test(message);
+export function isScannedTenderPdfAnalysisError(
+  status: number,
+  message: string,
+): boolean {
+  return (
+    status === 422 &&
+    /no readable text|could not read text/i.test(message)
+  );
 }
