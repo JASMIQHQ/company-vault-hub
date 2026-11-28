@@ -1,4 +1,8 @@
-import { TENDER_OCR_LIMITS, validateTenderOcrFileSize, validateTenderOcrPageCount } from "./tender-ocr-contract";
+import {
+  TENDER_OCR_LIMITS,
+  validateTenderOcrFileSize,
+  validateTenderOcrPageCount,
+} from "./tender-ocr-contract";
 
 const PDFJS_SCRIPT = "https://cdn.jsdelivr.net/npm/pdfjs-dist@3.11.174/build/pdf.min.js";
 const PDFJS_WORKER = "https://cdn.jsdelivr.net/npm/pdfjs-dist@3.11.174/build/pdf.worker.min.js";
