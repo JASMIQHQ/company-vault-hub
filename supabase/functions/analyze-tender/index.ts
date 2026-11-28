@@ -4,6 +4,7 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.58.0";
 import { authorizeCompanyMembership } from "../_shared/company-authorization.ts";
 import { extractText, getDocumentProxy } from "https://esm.sh/unpdf@0.12.1";
+import { validateTenderOcrTranscript } from "../../../src/lib/tender-ocr-contract.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -104,18 +105,10 @@ Deno.serve(async (req) => {
     let submittedOcrText = "";
     let submittedOcrPageCount: number | null = null;
     if (payload.ocr_text !== undefined) {
-      if (
-        typeof payload.ocr_text !== "string" ||
-        payload.ocr_text.trim().length < 200 ||
-        payload.ocr_text.length > 120000 ||
-        !Number.isInteger(payload.ocr_page_count) ||
-        Number(payload.ocr_page_count) < 1 ||
-        Number(payload.ocr_page_count) > 40
-      ) {
-        return json({ error: "OCR text or page-count metadata is invalid." }, 400);
-      }
-      submittedOcrText = payload.ocr_text.trim();
-      submittedOcrPageCount = Number(payload.ocr_page_count);
+      const validation = validateTenderOcrTranscript(payload.ocr_text, payload.ocr_page_count);
+      if (!validation.ok) return json({ error: validation.error }, 400);
+      submittedOcrText = validation.text;
+      submittedOcrPageCount = validation.pageCount;
     }
 
     // --- authenticate caller ---
