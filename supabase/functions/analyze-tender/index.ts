@@ -4,7 +4,7 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.58.0";
 import { authorizeCompanyMembership } from "../_shared/company-authorization.ts";
 import { extractText, getDocumentProxy } from "https://esm.sh/unpdf@0.12.1";
-import { validateTenderOcrTranscript } from "../../../src/lib/tender-ocr-contract.ts";
+import { validateTenderOcrTranscript } from "../_shared/tender-ocr-contract.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
