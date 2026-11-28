@@ -42,7 +42,10 @@ import { deriveTenderReadiness, type TenderReadiness } from "@/lib/tender-readin
 import { parseAnalysisJson } from "@/lib/tender-analysis";
 import { formatDate } from "@/lib/vault";
 import { extractScannedTenderPdfText } from "@/lib/tender-ocr";
-import { isScannedTenderPdfAnalysisError, validateTenderOcrTranscript } from "@/lib/tender-ocr-contract";
+import {
+  isScannedTenderPdfAnalysisError,
+  validateTenderOcrTranscript,
+} from "@/lib/tender-ocr-contract";
 
 export const Route = createFileRoute("/_authenticated/tenders/$tenderId")({
   component: TenderWorkspacePage,
@@ -215,13 +218,15 @@ function TenderWorkspacePage() {
         });
         const transcriptValidation = validateTenderOcrTranscript(ocr.text, ocr.pageCount);
         if (!transcriptValidation.ok) {
-          throw new Error("OCR could not produce a valid transcript. " + transcriptValidation.error);
+          throw new Error(
+            "OCR could not produce a valid transcript. " + transcriptValidation.error,
+          );
         }
 
         await analyze.mutateAsync({
           tenderId: tender.id,
-          ocrText: ocr.text,
-          ocrPageCount: ocr.pageCount,
+          ocrText: transcriptValidation.text,
+          ocrPageCount: transcriptValidation.pageCount,
         });
         usedLocalOcr = true;
       }
