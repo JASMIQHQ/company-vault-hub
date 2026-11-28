@@ -42,6 +42,7 @@ import { deriveTenderReadiness, type TenderReadiness } from "@/lib/tender-readin
 import { parseAnalysisJson } from "@/lib/tender-analysis";
 import { formatDate } from "@/lib/vault";
 import { extractScannedTenderPdfText } from "@/lib/tender-ocr";
+import { isScannedTenderPdfAnalysisError, validateTenderOcrTranscript } from "@/lib/tender-ocr-contract";
 
 export const Route = createFileRoute("/_authenticated/tenders/$tenderId")({
   component: TenderWorkspacePage,
@@ -197,8 +198,7 @@ function TenderWorkspacePage() {
       } catch (initialError) {
         const isScannedPdf =
           initialError instanceof TenderAnalysisHttpError &&
-          initialError.status === 422 &&
-          /no readable text|could not read text/i.test(initialError.message);
+          isScannedTenderPdfAnalysisError(initialError.status, initialError.message);
         if (!isScannedPdf) throw initialError;
         if (!tender.storage_path) {
           throw new Error("This scanned tender has no accessible source file for local OCR.");
@@ -213,10 +213,9 @@ function TenderWorkspacePage() {
         const ocr = await extractScannedTenderPdfText(pdfBlob, (page, total) => {
           setOcrProgress({ page, total });
         });
-        if (ocr.text.length < 200) {
-          throw new Error(
-            "OCR could not extract enough readable text. Try a clearer scan or a smaller PDF.",
-          );
+        const transcriptValidation = validateTenderOcrTranscript(ocr.text, ocr.pageCount);
+        if (!transcriptValidation.ok) {
+          throw new Error("OCR could not produce a valid transcript. " + transcriptValidation.error);
         }
 
         await analyze.mutateAsync({
