@@ -4,7 +4,7 @@ import {
   validateTenderOcrFileSize,
   validateTenderOcrPageCount,
   validateTenderOcrTranscript,
-} from "../../../src/lib/tender-ocr-contract.ts";
+} from "./tender-ocr-contract.ts";
 
 Deno.test("OCR file-size limits accept a non-empty PDF up to 25MB", () => {
   if (validateTenderOcrFileSize(1) !== null) throw new Error("A non-empty PDF should be accepted.");
