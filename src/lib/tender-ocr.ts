@@ -1,11 +1,11 @@
+import { TENDER_OCR_LIMITS, validateTenderOcrFileSize, validateTenderOcrPageCount } from "./tender-ocr-contract";
+
 const PDFJS_SCRIPT = "https://cdn.jsdelivr.net/npm/pdfjs-dist@3.11.174/build/pdf.min.js";
 const PDFJS_WORKER = "https://cdn.jsdelivr.net/npm/pdfjs-dist@3.11.174/build/pdf.worker.min.js";
 const TESSERACT_SCRIPT = "https://cdn.jsdelivr.net/npm/tesseract.js@5.0.0/dist/tesseract.min.js";
 const TESSERACT_WORKER = "https://cdn.jsdelivr.net/npm/tesseract.js@5.0.0/dist/worker.min.js";
 const TESSERACT_CORE = "https://cdn.jsdelivr.net/npm/tesseract.js-core@5.0.0";
 const ENGLISH_DATA = "https://tessdata.projectnaptha.com/4.0.0";
-const MAX_OCR_PAGES = 40;
-const MAX_OCR_TEXT = 120000;
 
 type PdfPage = {
   getViewport: (options: { scale: number }) => { width: number; height: number };
@@ -136,10 +136,8 @@ export async function extractScannedTenderPdfText(
   if (typeof window === "undefined" || typeof document === "undefined") {
     throw new Error("Local OCR is available only in a browser.");
   }
-  if (source.size === 0) throw new Error("The tender PDF is empty.");
-  if (source.size > 25 * 1024 * 1024) {
-    throw new Error("The tender PDF exceeds the 25MB local OCR limit.");
-  }
+  const fileSizeError = validateTenderOcrFileSize(source.size);
+  if (fileSizeError) throw new Error(fileSizeError);
 
   const [pdfJs, tesseract] = await Promise.all([loadPdfJs(), loadTesseract()]);
   const pdf = await pdfJs.getDocument({
@@ -147,15 +145,10 @@ export async function extractScannedTenderPdfText(
     isEvalSupported: false,
   }).promise;
 
-  if (pdf.numPages > MAX_OCR_PAGES) {
+  const pageCountError = validateTenderOcrPageCount(pdf.numPages);
+  if (pageCountError) {
     await pdf.destroy?.();
-    throw new Error(
-      "This PDF has " +
-        pdf.numPages +
-        " pages. Local OCR currently supports up to " +
-        MAX_OCR_PAGES +
-        " pages per run; split the document and upload the relevant section.",
-    );
+    throw new Error(pageCountError);
   }
 
   let worker: TesseractWorker | null = null;
@@ -188,7 +181,7 @@ export async function extractScannedTenderPdfText(
       page.cleanup?.();
       processedPages = pageNumber;
       onPageProgress?.(pageNumber, pdf.numPages);
-      if (pages.join("\n\n").length >= MAX_OCR_TEXT) break;
+      if (pages.join("\n\n").length >= TENDER_OCR_LIMITS.maxTextCharacters) break;
     }
   } finally {
     await worker?.terminate();
@@ -196,7 +189,7 @@ export async function extractScannedTenderPdfText(
   }
 
   return {
-    text: pages.join("\n\n").slice(0, MAX_OCR_TEXT).trim(),
+    text: pages.join("\n\n").slice(0, TENDER_OCR_LIMITS.maxTextCharacters).trim(),
     pageCount: processedPages,
   };
 }
