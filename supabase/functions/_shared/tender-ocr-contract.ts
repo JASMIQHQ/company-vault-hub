@@ -22,7 +22,7 @@ export function validateTenderOcrPageCount(pageCount: number): string | null {
     return "The PDF page count is invalid.";
   }
   if (pageCount > TENDER_OCR_LIMITS.maxPages) {
-    return `This PDF has ${pageCount} pages. Local OCR currently supports up to ${TENDER_OCR_LIMITS.maxPages} pages per run; split the document and upload the relevant section.`;
+    return "This PDF exceeds the 40-page local OCR limit.";
   }
   return null;
 }
