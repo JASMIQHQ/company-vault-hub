@@ -56,12 +56,6 @@ export function validateTenderOcrTranscript(
   return { ok: true, text: text.trim(), pageCount };
 }
 
-export function isScannedTenderPdfAnalysisError(
-  status: number,
-  message: string,
-): boolean {
-  return (
-    status === 422 &&
-    /no readable text|could not read text/i.test(message)
-  );
+export function isScannedTenderPdfAnalysisError(status: number, message: string): boolean {
+  return status === 422 && /no readable text|could not read text/i.test(message);
 }
